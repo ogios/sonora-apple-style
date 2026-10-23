@@ -35,6 +35,7 @@ const YOUTUBE: u32 = 0xff0033;
 const DEEZER: u32 = 0xa238ff;
 const APPLE: u32 = 0xfa2d48;
 const SUBSONIC: u32 = 0xffa31a;
+const NETEASE: u32 = 0xd43c33;
 
 pub(crate) fn provider_logo(slug: &str) -> &'static str {
     match slug {
@@ -44,6 +45,7 @@ pub(crate) fn provider_logo(slug: &str) -> &'static str {
         "deezer" => "icons/deezer.svg",
         "apple" => "icons/applemusic.svg",
         "tidal" => "icons/tidal.svg",
+        "netease" => "icons/neteasecloudmusic.svg",
         _ => "icons/music.svg",
     }
 }
@@ -57,6 +59,7 @@ pub(crate) fn provider_brand(slug: &str, cx: &gpui::App) -> gpui::Hsla {
         "deezer" => gpui::rgb(DEEZER).into(),
         "apple" => gpui::rgb(APPLE).into(),
         "subsonic" => gpui::rgb(SUBSONIC).into(),
+        "netease" => gpui::rgb(NETEASE).into(),
         _ => ui::ActiveTheme::theme(cx).foreground,
     }
 }

@@ -59,12 +59,18 @@ const DEEZER: Guide = Guide {
     note: "login-cookie-named-note",
 };
 
+const NETEASE: Guide = Guide {
+    url: "https://music.163.com",
+    ..DEEZER
+};
+
 /// The guide for a provider slug. YouTube's is the fallback: pasting a whole request header
 /// needs no cookie name, so its wording fits any header paste.
 fn guide(slug: &str) -> &'static Guide {
     match slug {
         "apple" => &APPLE,
         "deezer" => &DEEZER,
+        "netease" => &NETEASE,
         _ => &YOUTUBE,
     }
 }
@@ -75,6 +81,7 @@ fn named(slug: &str) -> Option<(&'static str, &'static str)> {
     match slug {
         "deezer" => Some(("www.deezer.com", "arl")),
         "apple" => Some(("music.apple.com", "media-user-token")),
+        "netease" => Some(("music.163.com", "MUSIC_U")),
         _ => None,
     }
 }
