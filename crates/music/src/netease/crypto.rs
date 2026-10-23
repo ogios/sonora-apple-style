@@ -45,7 +45,11 @@ fn weapi_with(json: &str, key: &[u8; 16]) -> String {
     reversed.reverse();
     let params = base64.encode(cbc(inner.as_bytes(), &reversed));
     let wrapped = hex(&rsa(key), false);
-    format!("params={}&encSecKey={}", escape::component(&params), escape::component(&wrapped))
+    format!(
+        "params={}&encSecKey={}",
+        escape::component(&params),
+        escape::component(&wrapped)
+    )
 }
 
 /// The `eparams=…` body of a `linuxapi` call carrying `json`, the whole forwarded request.
@@ -77,7 +81,7 @@ fn ecb(plain: &[u8], key: &[u8; 16]) -> Vec<u8> {
     let fill = 16 - plain.len() % 16;
     let mut out = plain.to_vec();
     out.resize(plain.len() + fill, fill as u8);
-    for block in out.chunks_exact_mut(16) {
+    for block in out.as_chunks_mut::<16>().0 {
         cipher.encrypt_block(block.into());
     }
     out
@@ -88,7 +92,9 @@ fn ecb(plain: &[u8], key: &[u8; 16]) -> Vec<u8> {
 fn rsa(key: &[u8; 16]) -> Vec<u8> {
     let modulus = BigUint::parse_bytes(MODULUS.as_bytes(), 16).unwrap_or_default();
     let message = BigUint::from_bytes_be(key);
-    let sealed = message.modpow(&BigUint::from(EXPONENT), &modulus).to_bytes_be();
+    let sealed = message
+        .modpow(&BigUint::from(EXPONENT), &modulus)
+        .to_bytes_be();
     let mut out = vec![0u8; 128usize.saturating_sub(sealed.len())];
     out.extend(sealed);
     out
@@ -106,7 +112,6 @@ fn hex(bytes: &[u8], upper: bool) -> String {
         out
     })
 }
-
 
 #[cfg(test)]
 mod tests {
