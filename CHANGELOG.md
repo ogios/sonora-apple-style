@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- NetEase Cloud Music is a new provider. Sign in through music.163.com in a browser window, or
+  paste your `MUSIC_U` cookie, to play your liked songs, playlists, saved albums and followed
+  artists, and to search the catalogue. Songs your account cannot hear in full stay greyed out.
+
 ## [0.44.1] - 2026-10-22
 
 ### Added

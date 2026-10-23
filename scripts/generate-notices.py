@@ -28,6 +28,11 @@ The binary embeds:
 - Solar Icon Set, Linear style — CC BY 4.0 by 480 Design, `assets/icons/solar/LICENSE`
 - Simple Icons brand marks — CC0 1.0, `assets/icons/common/LICENSE`
 
+Parts of `crates/music/src/netease` (the request encryption, the NetEase endpoints and
+their response shapes) are ported from the NetEase channel of Mineral
+<https://github.com/10knamesmore/Mineral>, MIT License, Copyright (c) 2025 wanger. The MIT
+License text is the one in the MIT section below.
+
 Several dependencies are covered by the Mozilla Public License 2.0 — notably the
 Symphonia decoders, `option-ext` and `priority-queue`. They are used unmodified;
 their source is available from the upstream repositories linked below and from
