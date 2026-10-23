@@ -22,6 +22,7 @@ views = { path = "crates/views" }
 webview = { path = "crates/webview" }
 widevine = { path = "crates/widevine" }
 
+aes = "0.8"
 alsa = "0.11"
 anyhow = "1.0"
 ardftsrc = "0.4.4"
@@ -90,6 +91,7 @@ md-5 = "0.10"
 moka = { version = "0.12.15", features = ["future", "sync"] }
 mpris-server = "0.10"
 notify = "8.2"
+num-bigint = "0.4"
 oauth2 = "5.0"
 open = "5.4"
 block2 = "0.6"

@@ -4253,6 +4253,7 @@ dependencies = [
 name = "music"
 version = "0.44.1"
 dependencies = [
+ "aes",
  "alsa",
  "anyhow",
  "ardftsrc",
@@ -4278,6 +4279,7 @@ dependencies = [
  "lofty",
  "log",
  "md-5",
+ "num-bigint",
  "oauth2",
  "open",
  "opensubsonic",

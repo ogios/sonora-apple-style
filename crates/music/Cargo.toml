@@ -11,6 +11,7 @@ bundled-sqlite = ["rusqlite/bundled", "storage/bundled-sqlite"]
 widevine = ["widevine/cdm"]
 
 [dependencies]
+aes.workspace = true
 anyhow.workspace = true
 ardftsrc.workspace = true
 async-trait.workspace = true
@@ -34,6 +35,7 @@ lofty.workspace = true
 kakasi.workspace = true
 log.workspace = true
 md-5.workspace = true
+num-bigint.workspace = true
 oauth2.workspace = true
 open.workspace = true
 opensubsonic.workspace = true
