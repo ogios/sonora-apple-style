@@ -43,6 +43,8 @@ const ARTIST_BLEED: Pixels = px(160.);
 const ARTIST_SOLID: f32 = 0.45;
 const ARTIST_FADE: Pixels = px(140.);
 const ARTIST_BANDS: usize = 24;
+/// How far the dissolving bands are blurred into one another.
+const ARTIST_MELT: Pixels = px(6.);
 /// The scrim under an artist's name: where down the hero it starts, and how dark it ends.
 const ARTIST_SCRIM_FROM: f32 = 0.3;
 const ARTIST_SCRIM: f32 = 0.55;
@@ -598,7 +600,8 @@ fn artist_backdrop(cover: Option<String>, tall: Pixels, window: &Window, cx: &Ap
     let solid = ARTIST_RISE + tall * ARTIST_SOLID;
     let picture = (height - edge) / 2.;
     let band = (height - solid) / ARTIST_BANDS as f32;
-    let slice = |top: Pixels, high: Pixels, opacity: f32| {
+    // A strip of the picture at `top` within a box that starts `base` down the backdrop.
+    let slice = |base: Pixels, top: Pixels, high: Pixels, opacity: f32| {
         div()
             .absolute()
             .top(top)
@@ -613,10 +616,30 @@ fn artist_backdrop(cover: Option<String>, tall: Pixels, window: &Window, cx: &Ap
             .child(
                 div()
                     .flex_none()
-                    .mt(picture - top)
+                    .mt(picture - base - top)
                     .child(Artwork::new(cover.clone()).size(edge)),
             )
     };
+
+    // The bands are blurred together a little, which melts the steps between them and the
+    // hairlines a fractional origin leaves at their seams, and start a little inside the solid
+    // part, so the blur has picture rather than nothing to draw from at their top.
+    let reach = ui::snapped(solid - ARTIST_MELT * 2., window);
+    let bands = div()
+        .absolute()
+        .top(reach)
+        .left_0()
+        .right_0()
+        .h(height - reach)
+        .blur(ARTIST_MELT)
+        .child(slice(reach, Pixels::ZERO - reach, solid, 1.))
+        .children((0..ARTIST_BANDS).map(|index| {
+            let through = (index as f32 + 0.5) / ARTIST_BANDS as f32;
+            let fade = through * through * (3. - 2. * through);
+            let top = ui::snapped(solid + band * index as f32, window);
+            let foot = ui::snapped(solid + band * (index + 1) as f32, window);
+            slice(reach, top - reach, foot - top, 1. - fade)
+        }));
 
     div()
         .absolute()
@@ -624,27 +647,26 @@ fn artist_backdrop(cover: Option<String>, tall: Pixels, window: &Window, cx: &Ap
         .left(-ARTIST_BLEED)
         .right(-ARTIST_BLEED)
         .h(height)
-        .child(slice(Pixels::ZERO, ui::snapped(solid, window), 1.))
-        // Each band's edges land on whole device pixels, so neighbours neither overlap nor
-        // leave a hairline between them.
-        .children((0..ARTIST_BANDS).map(|index| {
-            let through = (index as f32 + 0.5) / ARTIST_BANDS as f32;
-            let fade = through * through * (3. - 2. * through);
-            let top = ui::snapped(solid + band * index as f32, window);
-            let foot = ui::snapped(solid + band * (index + 1) as f32, window);
-            slice(top, foot - top, 1. - fade)
-        }))
+        .child(slice(
+            Pixels::ZERO,
+            Pixels::ZERO,
+            ui::snapped(solid, window),
+            1.,
+        ))
+        .child(bands)
+        // The scrim runs from partway down the hero to the picture's foot, so the name stays
+        // legible and the dissolve below it keeps the same shade.
         .child(
             div()
                 .absolute()
                 .left_0()
                 .right_0()
-                .top(ARTIST_RISE)
-                .h(tall)
+                .top(ARTIST_RISE + tall * ARTIST_SCRIM_FROM)
+                .bottom_0()
                 .bg(linear_gradient(
                     180.,
-                    linear_color_stop(theme.background.opacity(0.), ARTIST_SCRIM_FROM),
-                    linear_color_stop(theme.background.opacity(ARTIST_SCRIM), 1.),
+                    linear_color_stop(theme.background.opacity(0.), 0.),
+                    linear_color_stop(theme.background.opacity(ARTIST_SCRIM), 0.6),
                 )),
         )
         .into_any_element()
