@@ -35,6 +35,11 @@ const TAB_SLIDE: f32 = 24.;
 /// Under Liquid Glass, the fill of the card under the song playing now and of a section's count.
 const CURRENT_FILL: f32 = 0.08;
 const COUNT_FILL: f32 = 0.08;
+/// The Liquid Glass queue's header: how much taller than a header it stands, in paddings, and
+/// the fill and rim of its button capsule and item pill, as shares of the foreground.
+const TOOLS_RISE: f32 = 1.5;
+const TOOLS_FILL: f32 = 0.06;
+const TOOLS_RIM: f32 = 0.08;
 const QUEUE: &str = "queue";
 /// How many text heights across the picture of whoever queued a song is.
 const ADDER_FACE: f32 = 1.4;
@@ -229,6 +234,11 @@ impl Sections {
             "queue-similar" => Some(self.similar),
             _ => None,
         }
+    }
+
+    /// How many songs are still to play, the one playing now included.
+    fn ahead(self) -> usize {
+        usize::from(self.current) + self.upcoming + self.similar
     }
 
     fn len(self) -> usize {
@@ -1035,8 +1045,11 @@ impl Aside {
         remote: bool,
         window: &Window,
         cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    ) -> gpui::AnyElement {
         let theme = *cx.theme();
+        if ui::liquid(cx) && self.titled && self.tab == SideTab::Queue {
+            return self.liquid_header(sections, remote, window, cx).into_any_element();
+        }
 
         div()
             .flex()
@@ -1110,6 +1123,97 @@ impl Aside {
                         ),
                 )
             })
+            .into_any_element()
+    }
+
+    /// The queue's header under Liquid Glass, Cider's: the controls that change the queue as
+    /// round glyphs in one capsule, and how many songs it holds on a pill across from them.
+    fn liquid_header(
+        &self,
+        sections: Sections,
+        remote: bool,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let theme = *cx.theme();
+        let side = theme.metrics.control;
+        let glyph = theme.text(Text::Body) * 1.3;
+        let tool = |button: Button| button.ghost().size(side).px_0().glyph(glyph);
+        let radio = Sonora::global(cx).session.read(cx).capabilities().radio;
+        let total = sections.ahead();
+
+        div()
+            .flex()
+            .flex_none()
+            .items_center()
+            .justify_between()
+            .gap_2()
+            .h(snapped(
+                theme.metrics.header + theme.metrics.pad * TOOLS_RISE,
+                window,
+            ))
+            .px(theme.metrics.pad * 1.5)
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_0p5()
+                    .p_0p5()
+                    .rounded_full()
+                    .bg(theme.foreground.opacity(TOOLS_FILL))
+                    .border_1()
+                    .border_color(theme.foreground.opacity(TOOLS_RIM))
+                    .when(radio && !remote, |this| {
+                        this.child(
+                            tool(Button::new("toggle-radio"))
+                                .icon("icons/radio.svg")
+                                .tooltip("queue-radio")
+                                .tint(match self.playback.read(cx).radio() {
+                                    true => theme.primary,
+                                    false => theme.muted_foreground,
+                                })
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.playback
+                                        .update(cx, |playback, cx| playback.toggle_radio(cx));
+                                })),
+                        )
+                    })
+                    .when(!remote, |this| {
+                        this.child(
+                            tool(Button::new("reset-queue"))
+                                .icon("icons/undo-2.svg")
+                                .tooltip("queue-reset")
+                                .tint(theme.muted_foreground)
+                                .disabled(!self.queue.read(cx).reordered())
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.queue.update(cx, |queue, cx| queue.reset(cx));
+                                })),
+                        )
+                        .child(
+                            tool(Button::new("clear-queue"))
+                                .icon("icons/trash-2.svg")
+                                .tooltip("queue-clear")
+                                .tint(theme.muted_foreground)
+                                .disabled(sections.upcoming == 0)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.queue.update(cx, |queue, cx| queue.clear_upcoming(cx));
+                                })),
+                        )
+                    }),
+            )
+            .child(
+                div()
+                    .flex_none()
+                    .px(theme.metrics.pad * 1.5)
+                    .py(theme.metrics.pad / 2.)
+                    .rounded_full()
+                    .bg(theme.foreground.opacity(TOOLS_FILL))
+                    .border_1()
+                    .border_color(theme.foreground.opacity(TOOLS_RIM))
+                    .text_size(theme.text(Text::Small))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(t!("queue-items", count = total)),
+            )
     }
 
     fn follow(&self, cx: &mut Context<Self>) -> Option<Div> {
@@ -2022,11 +2126,19 @@ impl Aside {
                     .into_iter()
                     .map(|(index, slot, found)| match (slot, found) {
                         (None, _) => div().into_any_element(),
-                        (Some(Slot::Header(key)), _) => {
-                            let label = match ui::liquid(cx) {
-                                true => liquid_section(key, sections.count(key), cx),
-                                false => section_label(key, cx),
+                        // Under Liquid Glass the source names the songs coming up, under
+                        // their title, or the one playing when nothing else is.
+                        (Some(Slot::Header(key)), _) if ui::liquid(cx) => {
+                            let named = match key {
+                                "queue-up-next" => true,
+                                "queue-now-playing" => sections.upcoming == sections.manual,
+                                _ => false,
                             };
+                            let from = from.clone().filter(|_| named);
+                            liquid_section(key, sections.count(key), from, cx).into_any_element()
+                        }
+                        (Some(Slot::Header(key)), _) => {
+                            let label = section_label(key, cx);
                             match (key, from.clone()) {
                                 ("queue-now-playing", Some((name, place))) => label
                                     .w_full()
@@ -2188,32 +2300,56 @@ impl Render for Aside {
     }
 }
 
-/// A queue section's header under Liquid Glass: its name as a small title rather than an
-/// eyebrow, and beside it, for the sections that list songs, how many they hold on a pill.
-fn liquid_section(key: &'static str, count: Option<usize>, cx: &App) -> Div {
+/// A queue section's header under Liquid Glass, Cider's: its name as a large bold title, the
+/// collection the songs come from under it when there is one, and across from it, for the
+/// sections that list songs, how many they hold on a pill.
+fn liquid_section(
+    key: &'static str,
+    count: Option<usize>,
+    from: Option<(SharedString, Destination)>,
+    cx: &App,
+) -> Div {
     let theme = cx.theme();
 
     div()
         .flex()
         .flex_none()
         .items_end()
-        .when(count.is_some(), |this| this.justify_between())
+        .justify_between()
         .gap_2()
         .h(theme.metrics.list_row)
         .px_2()
         .pb_1()
         .child(
             div()
+                .flex()
+                .flex_col()
+                .flex_1()
                 .min_w_0()
-                .truncate()
-                .text_size(theme.text(Text::Body))
-                .font_weight(FontWeight::BOLD)
-                .text_color(theme.foreground)
-                .child(i18n::lookup(key, None)),
+                .child(
+                    div()
+                        .min_w_0()
+                        .truncate()
+                        .text_size(theme.text(Text::Large))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(theme.foreground)
+                        .child(i18n::lookup(key, None)),
+                )
+                .children(from.map(|(name, place)| {
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_1()
+                        .min_w_0()
+                        .overflow_hidden()
+                        .child(faint(cx).font_weight(FontWeight::NORMAL).child(t!("queue-from")))
+                        .child(source_link(name, place, cx))
+                })),
         )
         .children(count.filter(|count| *count > 0).map(|count| {
             div()
                 .flex_none()
+                .mb_0p5()
                 .px(theme.metrics.pad)
                 .rounded_full()
                 .bg(theme.foreground.opacity(COUNT_FILL))

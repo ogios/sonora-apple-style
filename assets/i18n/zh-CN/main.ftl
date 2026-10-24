@@ -239,6 +239,7 @@ queue-empty = 播放队列为空
 queue-similar = 相似歌曲
 queue-radio = 自动播放相似歌曲
 queue-return-playing = 返回正在播放
+queue-items = { $count } 项
 
 # player bar
 player-nothing-playing = 未播放

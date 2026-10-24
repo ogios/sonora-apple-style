@@ -239,6 +239,11 @@ queue-empty = Your queue is empty
 queue-similar = Similar tracks
 queue-radio = Autoplay similar tracks
 queue-return-playing = Back to now playing
+queue-items =
+    { $count ->
+        [one] { $count } item
+       *[other] { $count } items
+    }
 
 # player bar
 player-nothing-playing = Nothing playing
