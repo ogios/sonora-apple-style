@@ -21,6 +21,9 @@ use crate::shared::tag_editor::TagEditor;
 use crate::shared::widevine::WidevinePrompt;
 use crate::shells::Shell;
 
+/// How much of the page is still hidden on the first frame of a page switch under Liquid Glass.
+const LIQUID_FADE_DEPTH: f32 = 0.35;
+
 pub(crate) struct Workspace {
     sidebar: Entity<SidebarLeft>,
     player_bar: Entity<PlayerBar>,
@@ -175,7 +178,13 @@ impl Workspace {
         if transition.running() {
             window.request_animation_frame();
         }
-        transition.hidden()
+        // Under Liquid Glass the page starts most of the way in: the first frame of a heavy
+        // page like settings can take a while to build, and a fade from nothing would hold it
+        // as an empty sheet for that long.
+        match ui::liquid(cx) {
+            true => transition.hidden() * LIQUID_FADE_DEPTH,
+            false => transition.hidden(),
+        }
     }
 
     #[allow(dead_code)]
