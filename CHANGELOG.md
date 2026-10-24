@@ -50,11 +50,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   under a capsule of queue tools and an item count, and rows, controls and margins are roomier.
   Search sorts its results under Songs, Artists, Albums and Playlists tabs. Text is set in the
   bundled Pretendard, the face Cider uses, falling back to Inter and the system's CJK fonts.
-- Liquid Glass track tables follow Cider: taller rows with larger artwork and text, every other
-  row a faint rounded strip instead of ruled lines, set in from the sheet's sides, with bare
-  column heads that show only the sorted column's arrow. The queue numbers its songs and gives
+- Liquid Glass track tables follow Cider: tall, airy rows with larger artwork and text and no
+  ruled lines, stripes or rounded fills, a faint hover, the song playing now picked out by its
+  text in the accent colour, set in from the sheet's sides, with bare column heads that show only
+  the sorted column's arrow. The queue numbers its songs and gives
   each row larger artwork, a semibold title and more room, and buttons keep more space around
   their labels and icons, with icon-only buttons round.
+- Under Liquid Glass the queue's rows are taller, with larger artwork, number and remove button,
+  and the whole row lights under the pointer. Search results are larger and further apart. The
+  fullscreen player has larger text and buttons and a thicker seek bar, and the seek and volume
+  bars thicken smoothly under the pointer. The right sidebar's Queue and Lyrics switch sits at
+  its top left, across from its toggle, and the two crossfade as you switch.
 
 ### Fixed
 
@@ -74,6 +80,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Under Liquid Glass hovering a sidebar entry or pin lights the same rounded shape as the
   selection, more faintly, and folding the Library section away no longer leaves the selection
   floating where the hidden entry was.
+- Under Liquid Glass a tab bar's selection now matches the bar's shape: a capsule inside a
+  capsule bar and a concentric rounded rectangle inside a rounded one.
+- The dark play overlay on a list row's cover no longer leaves a pixel of the cover showing along
+  its right and bottom edges.
 
 ## [0.44.1] - 2026-10-22
 
