@@ -147,7 +147,7 @@ impl Lens {
         let right = self.right.value(window, cx).max(left);
         let bottom = self.bottom.value(window, cx).max(top);
         let height = px(bottom - top);
-        let radius = (height / 2.).min(liquid_radius(cx));
+        let radius = lens_radius(height, cx);
 
         Some(
             liquid_pill(
@@ -162,6 +162,13 @@ impl Lens {
             .rounded(radius),
         )
     }
+}
+
+/// The corner radius of a lens `height` high: as round as a capsule of that height allows, up
+/// to the panel radius. An entry's hover fill takes it too, so hovering and choosing an entry
+/// light the same shape.
+pub fn lens_radius(height: Pixels, cx: &App) -> Pixels {
+    (height / 2.).min(liquid_radius(cx))
 }
 
 /// Which springs the near and far edge of an axis ride for a move from `from` to `to`: the

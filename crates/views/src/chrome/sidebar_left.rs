@@ -86,6 +86,10 @@ const ENTRY_MIN: Pixels = px(36.);
 const ENTRY_GLYPH: f32 = 1.35;
 /// How far an entry's label sits in from its edges under Liquid Glass, in paddings.
 const ENTRY_INSET: f32 = 1.25;
+/// How strongly an entry's hover fill shows the foreground colour under Liquid Glass, well
+/// below the selection lens, so hovering reads as a hint rather than a second selection.
+const ENTRY_HOVER: f32 = 0.05;
+const ENTRY_PRESS: f32 = 0.09;
 /// The space above a section header under Liquid Glass, in paddings, so each group of entries
 /// reads apart from the one before it.
 const SECTION_SPACE: f32 = 1.5;
@@ -156,6 +160,9 @@ pub(crate) struct SidebarLeft {
     lens_entry: ui::Mark,
     lens_frame: ui::Mark,
     lit: Cell<bool>,
+    /// How far the lit entry shows through the folds it sits in, from 0 folded away to 1 open,
+    /// which the lens fades by, so it never floats over an entry a fold has hidden.
+    lit_shown: Cell<f32>,
     /// Set while the workspace slides the sidebar open or shut, so it stays drawn as it goes.
     sliding: bool,
     /// The folds that open and shut Your Library's, Local Music's and the pins' entries.
@@ -206,6 +213,7 @@ impl SidebarLeft {
             lens_entry: ui::Mark::new(),
             lens_frame: ui::Mark::new(),
             lit: Cell::new(false),
+            lit_shown: Cell::new(1.),
             sliding: false,
             library_fold: ui::Unfold::new(library_open),
             section_open,
@@ -367,14 +375,44 @@ impl SidebarLeft {
                 rows.push(self.section_header(cx));
                 section = Some(Vec::new());
             }
+            let lit_before = self.lit.get();
+            let mut shown = 1.;
             let mut entries = vec![self.nav(index, cx)];
             if let Some(group) = group.filter(|group| self.fold(*group).drawn()) {
+                let lit_tabs = self.lit.get();
                 let tabs = self.tabs(group, cx);
+                if self.lit.get() && !lit_tabs {
+                    let opening = match group {
+                        Group::Library => self.library_open,
+                        Group::Local => self.local_open,
+                    };
+                    shown = match opening {
+                        true => self.fold(group).openness(),
+                        false => 0.,
+                    };
+                }
                 let fold = match group {
                     Group::Library => &mut self.library_fold,
                     Group::Local => &mut self.local_fold,
                 };
                 entries.push(fold.render(tabs, window, cx).into_any_element());
+            }
+            // The lit entry is built even inside a shut section, so the lens learns it is
+            // hidden there rather than staying where the entry last stood.
+            if self.lit.get() && !lit_before {
+                // A fold shutting over the lit entry hides the lens at once, since the entry
+                // slides away beneath the fold's clip while the lens would stay in the open;
+                // one opening fades it back in.
+                if grouped {
+                    shown *= match self.section_open {
+                        true => self.section_fold.openness(),
+                        false => 0.,
+                    };
+                    if !self.section_fold.drawn() {
+                        self.lit.set(false);
+                    }
+                }
+                self.lit_shown.set(shown);
             }
             match section.as_mut().filter(|_| grouped) {
                 Some(section) => section.extend(entries),
@@ -700,7 +738,15 @@ impl SidebarLeft {
                 true => ui::liquid_pill(card, cx).rounded(ui::liquid_radius(cx)),
                 false => card.bg(accent),
             })
-            .hover(move |style| style.bg(accent))
+            // Under Liquid Glass a pin hovers in the selected pin's own rounded shape, fainter.
+            .map(|card| match ui::liquid(cx) {
+                true => {
+                    let hover = theme.foreground.opacity(ENTRY_HOVER);
+                    card.rounded(ui::liquid_radius(cx))
+                        .hover(move |style| style.bg(hover))
+                }
+                false => card.hover(move |style| style.bg(accent)),
+            })
             .press(move |_, _, cx| navigate(destination.clone(), cx))
             .menu(cx.listener(move |this, event: &MouseDownEvent, _, cx| {
                 this.track_menu.reset(cx);
@@ -943,6 +989,7 @@ impl Render for SidebarLeft {
         self.local_fold.set(self.local_open);
         self.pins_fold.set(self.pinned_open);
         self.lit.set(false);
+        self.lit_shown.set(1.);
         let mut rows = self.navigation(window, cx);
         // The lens follows whichever entry the navigation rows lit. Pins draw their own pill,
         // since the deck builds them later than this.
@@ -957,7 +1004,11 @@ impl Render for SidebarLeft {
                 {
                     self.lens.ride();
                 }
-                self.lens.render(window, cx)
+                let shown = self.lit_shown.get();
+                self.lens
+                    .render(window, cx)
+                    .filter(|_| shown > 0.)
+                    .map(|lens| lens.opacity(shown))
             }
             false => {
                 self.lens.hide();
@@ -1207,11 +1258,18 @@ fn entry_height(cx: &App) -> Pixels {
 /// full entry height, so each entry's hit area meets the next one's.
 fn roomy(row: Button, cx: &App) -> Button {
     let theme = cx.theme();
-    row.h(entry_height(cx))
+    let height = entry_height(cx);
+    let hover = theme.foreground.opacity(ENTRY_HOVER);
+    let press = theme.foreground.opacity(ENTRY_PRESS);
+    // Hovering lights the same rounded shape the selection lens takes, only fainter.
+    row.h(height)
         .glyph(theme.text(Text::Body) * ENTRY_GLYPH)
         .px(theme.metrics.pad * ENTRY_INSET)
         .gap(theme.metrics.pad * 1.5)
         .text_size(theme.text(Text::Body))
+        .rounded(ui::lens_radius(height, cx))
+        .hover(move |style| style.bg(hover))
+        .active(move |style| style.bg(press))
 }
 
 #[cfg(test)]
