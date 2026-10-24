@@ -57,6 +57,13 @@ const SINK: f32 = 24.;
 const LEAVE_DROP: f32 = 2.;
 const PILL_GAP: f32 = 2.;
 const SEEK_MAX: f32 = 420.;
+/// The Liquid Glass fullscreen player, larger than the flat one: the widest its controls
+/// stand, how much thicker its seek bar is, and how much larger its title, artists, clocks and
+/// buttons are than the flat player's.
+const LIQUID_SEEK_MAX: f32 = 600.;
+const LIQUID_SEEK_WEIGHT: f32 = 1.6;
+const LIQUID_TEXT: f32 = 1.2;
+const LIQUID_BUTTON: f32 = 1.25;
 const VOLUME_RISE: f32 = 132.;
 const VOLUME_ZONE: f32 = 14.;
 const CLOCK_SHORT: f32 = 3.4;
@@ -563,7 +570,7 @@ impl FullscreenView {
                             .min_w_0()
                             .whitespace_nowrap()
                             .text_ellipsis()
-                            .text_size(theme.text(Text::Title))
+                            .text_size(theme.text(Text::Title) * grown(cx))
                             .font_weight(FontWeight::SEMIBOLD)
                             .when_some(album, |this, album| {
                                 this.cursor_pointer()
@@ -600,7 +607,7 @@ impl FullscreenView {
                             track.artists.clone(),
                             theme.muted_foreground,
                         )
-                        .text_size(theme.text(Text::Body))
+                        .text_size(theme.text(Text::Body) * grown(cx))
                         .truncate()
                         .when(effects, |this| this.text_shadow(shadow))
                         .on_click(|id, cx| navigate(Destination::Artist(id), cx)),
@@ -710,7 +717,11 @@ impl FullscreenView {
         let theme = *cx.theme();
         let muted = theme.muted_foreground;
         let empty = muted.opacity(0.3);
-        let text = theme.text(Text::Tiny);
+        let liquid = ui::liquid(cx);
+        let text = match liquid {
+            true => theme.text(Text::Small) * LIQUID_TEXT,
+            false => theme.text(Text::Tiny),
+        };
         let playback = self.playback.read(cx);
         let seekable = playback.shown_track(cx).is_some();
         let (elapsed, total) = playback.shown_time(cx);
@@ -747,6 +758,7 @@ impl FullscreenView {
                 div().flex_1().min_w_0().child(
                     Scrubber::new(&self.seek, progress)
                         .colors(theme.progress_bar, empty, theme.foreground)
+                        .when(liquid, |this| this.weight(LIQUID_SEEK_WEIGHT))
                         .enabled(seekable)
                         .when_some(bubble, |this, (at, text)| this.bubble(at, text))
                         .on_move(cx.listener(|this, fraction: &f32, _, cx| {
@@ -779,7 +791,10 @@ impl FullscreenView {
             .items_center()
             .gap_3()
             .w_full()
-            .max_w(px(SEEK_MAX))
+            .max_w(px(match ui::liquid(cx) {
+                true => LIQUID_SEEK_MAX,
+                false => SEEK_MAX,
+            }))
             .flex_none()
             // Under Liquid Glass the controls float as one glass bar, as Apple Music's do.
             .when(ui::liquid(cx), |this| {
@@ -853,6 +868,9 @@ impl FullscreenView {
             }
             cx.notify();
         });
+        let liquid = ui::liquid(cx);
+        let side = theme.metrics.control_small * LIQUID_BUTTON;
+        let glyph = theme.text(Text::Body) * LIQUID_BUTTON;
         let tab = move |id: &'static str, icon: &'static str, hint: &'static str, panel| {
             let showing = self.panel == panel;
 
@@ -860,6 +878,7 @@ impl FullscreenView {
                 .ghost()
                 .when(frosted, Button::frosted)
                 .small()
+                .when(liquid, |button| button.size(side).px_0().glyph(glyph))
                 .icon(icon)
                 .tooltip_above(hint)
                 .selected(showing)
@@ -930,6 +949,12 @@ impl FullscreenView {
                             .ghost()
                             .when(frosted, Button::frosted)
                             .small()
+                            .when(ui::liquid(cx), |button| {
+                                button
+                                    .size(theme.metrics.control_small * LIQUID_BUTTON)
+                                    .px_0()
+                                    .glyph(theme.text(Text::Body) * LIQUID_BUTTON)
+                            })
                             .icon(volume_icon(level))
                             .tint(match self.volume_open() {
                                 true => theme.foreground,
@@ -1142,6 +1167,7 @@ impl Shell for FullscreenView {
             navigation: false,
             sidebar_open: false,
             sidebar_right: None,
+            side_switch: false,
             offset: Pixels::ZERO,
             trailing: Pixels::ZERO,
             border: false,
@@ -1190,12 +1216,17 @@ impl Render for FullscreenView {
         // GPUI's own leading. A window too short for all of it has to shrink the cover, since
         // the column centres what it cannot fit and the top edge is what goes.
         let rem = window.rem_size();
-        let line = |step: Text| phi().to_pixels(theme.text(step).into(), rem).round();
+        let line = |step: Text| {
+            phi()
+                .to_pixels((theme.text(step) * grown(cx)).into(), rem)
+                .round()
+        };
         let meta = line(Text::Title) + rem * META_GAP + line(Text::Body);
         let stack = theme.metrics.title_bar + rem * (COLUMN_GAP * 2. + PAGE_PAD) + meta;
         // The dock reserves the cap it clamps itself to while fading, and nothing at all once
         // it is hidden, which is the whole difference between the awake and the resting fit.
         let dock = theme.metrics.player_bar
+            * grown(cx)
             * match split {
                 true => DOCK,
                 false => DOCK_FULL,
@@ -1413,6 +1444,15 @@ impl Render for FullscreenView {
 
 fn presentation_scale(presented: Pixels, layout: Pixels) -> f32 {
     presented.as_f32() / layout.as_f32()
+}
+
+/// How much larger the fullscreen player's title, artists and dock stand: `LIQUID_TEXT`
+/// under Liquid Glass, their flat size otherwise.
+fn grown(cx: &App) -> f32 {
+    match ui::liquid(cx) {
+        true => LIQUID_TEXT,
+        false => 1.,
+    }
 }
 
 #[cfg(test)]

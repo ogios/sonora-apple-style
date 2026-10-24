@@ -17,6 +17,8 @@ const ROOMY_GROW: f32 = 1.15;
 const ROOMY_PLAY: f32 = 1.3;
 const ROOMY_GLYPH: f32 = 1.45;
 const ROOMY_PLAY_GLYPH: f32 = 1.85;
+/// How much larger again the roomy transport stands in the Liquid Glass fullscreen player.
+const FULLSCREEN_GROW: f32 = 1.3;
 
 /// The other device playback is on, which the player shows instead of this app's own.
 pub(crate) fn steered(cx: &App) -> Option<Steered> {
@@ -87,6 +89,9 @@ pub(crate) fn transport(
     cx: &App,
 ) -> impl IntoElement {
     let frosted = big && ambient::shown(cx);
+    if big && ui::liquid(cx) {
+        return roomy(playback, queue, frosted, FULLSCREEN_GROW, cx).into_any_element();
+    }
 
     div()
         .flex()
@@ -97,6 +102,7 @@ pub(crate) fn transport(
         .child(toggle(playback, big, frosted, cx))
         .child(next(playback, queue, frosted, cx))
         .child(repeat(playback, frosted, cx))
+        .into_any_element()
 }
 
 /// The transport the Liquid Glass player bar carries: the same five buttons, round and large
@@ -106,25 +112,37 @@ pub(crate) fn roomy_transport(
     queue: &Entity<Queue>,
     cx: &App,
 ) -> impl IntoElement {
+    roomy(playback, queue, false, 1., cx)
+}
+
+/// The roomy transport, `grow` times its player-bar size, its buttons blurring their hover
+/// fills when `frosted`.
+fn roomy(
+    playback: &Entity<Playback>,
+    queue: &Entity<Queue>,
+    frosted: bool,
+    grow: f32,
+    cx: &App,
+) -> gpui::Div {
     let theme = *cx.theme();
-    let side = theme.metrics.control * ROOMY_GROW;
-    let glyph = theme.text(Text::Body) * ROOMY_GLYPH;
+    let side = theme.metrics.control * ROOMY_GROW * grow;
+    let glyph = theme.text(Text::Body) * ROOMY_GLYPH * grow;
     let sized = |button: Button| button.size(side).px_0().glyph(glyph);
 
     div()
         .flex()
         .items_center()
         .gap_2()
-        .child(sized(shuffle(playback, false, cx)))
-        .child(sized(previous(playback, false, cx)))
+        .child(sized(shuffle(playback, frosted, cx)))
+        .child(sized(previous(playback, frosted, cx)))
         .child(
-            toggle(playback, false, false, cx)
+            toggle(playback, false, frosted, cx)
                 .size(side * ROOMY_PLAY)
                 .px_0()
-                .glyph(theme.text(Text::Body) * ROOMY_PLAY_GLYPH),
+                .glyph(theme.text(Text::Body) * ROOMY_PLAY_GLYPH * grow),
         )
-        .child(sized(next(playback, queue, false, cx)))
-        .child(sized(repeat(playback, false, cx)))
+        .child(sized(next(playback, queue, frosted, cx)))
+        .child(sized(repeat(playback, frosted, cx)))
 }
 
 pub(crate) fn toggle(playback: &Entity<Playback>, big: bool, frosted: bool, cx: &App) -> Button {
