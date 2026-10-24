@@ -257,7 +257,7 @@ impl Render for Workspace {
         Chrome::publish((left, right), resting, reserved, cx);
         let covered = self.sidebar_right.read(cx).covers_content(window);
         let overlay = self.sidebar.read(cx).overlays();
-        let bar_height = PlayerBar::height(window, cx);
+        let bar_height = self.player_bar.read(cx).shown_height(window, cx);
         // Liquid Glass floats the player bar over the page, inset from the window's edges and
         // beside the sidebar's slab, so the page always runs on underneath it.
         let liquid = ui::liquid(cx);

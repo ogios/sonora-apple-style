@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use router::{Destination, Link, navigate};
@@ -15,8 +15,8 @@ use i18n::t;
 use input::{ToggleFullscreen, ToggleLyrics, ToggleQueue};
 use state::{AppSettings, Playback, PlayerBarLayout, Queue, SideTab, Sonora};
 use ui::{
-    Artwork, Button, ExplicitBadge, HoverFade, InlineLink, InlineLinks, Motion, Popup, Room,
-    Scrollbar, Scrubber, ScrubberState, clock, tabular,
+    Artwork, Button, ExplicitBadge, HoverFade, InlineLink, InlineLinks, Motion, Motioned as _,
+    Popup, Room, Scrollbar, Scrubber, ScrubberState, Springs, Sprung, clock, tabular,
 };
 
 use crate::chrome::devices::DevicePicker;
@@ -50,6 +50,14 @@ const CAPSULE_INSET: f32 = 6.;
 const CAPSULE_ART_ROUND: f32 = 0.3;
 const CAPSULE_TAIL: f32 = 0.6;
 const CAPSULE_TAIL_MIN: f32 = 16.;
+/// The Liquid Glass bar reflows into three rows, the seek bar over the buttons over the track
+/// capsule, once the page is narrower than this or the window this many times taller than wide.
+const REFLOW_WIDTH: f32 = 840.;
+const REFLOW_PORTRAIT: f32 = 1.2;
+/// How far the bar's rows rise into place as it reflows, and how clear they start, so the bar
+/// is never seen empty while it springs to its new height.
+const REFLOW_RISE: f32 = 12.;
+const REFLOW_FLOOR: f32 = 0.3;
 const VOLUME_WIDTH: f32 = 110.;
 const VOLUME_TIGHT: f32 = 72.;
 const CLOCK_SHORT: f32 = 3.4;
@@ -83,6 +91,8 @@ pub(crate) struct PlayerBar {
     over_volume: Option<f32>,
     volume_held: bool,
     muted: Option<f32>,
+    /// The bar's height as it springs to a new layout's, read by the workspace and the bar.
+    shown: RefCell<Option<Sprung>>,
 }
 
 impl PlayerBar {
@@ -117,6 +127,7 @@ impl PlayerBar {
             over_volume: None,
             volume_held: false,
             muted: None,
+            shown: RefCell::new(None),
         }
     }
 
@@ -312,6 +323,29 @@ impl PlayerBar {
             .when(room, |this| this.child(self.track_details(false, cx)))
     }
 
+    /// The Liquid Glass track capsule: the cover and, with `show_track`, the title and artists.
+    fn capsule(&self, show_track: bool, window: &mut Window, cx: &mut Context<Self>) -> gpui::Div {
+        let theme = *cx.theme();
+        let capsule = Capsule::of(window, cx);
+        div()
+            .flex()
+            .min_w_0()
+            .max_w(px(CAPSULE_MAX))
+            .items_center()
+            .gap_3()
+            .py(capsule.inset)
+            .pl(capsule.lead)
+            .pr(capsule.tail)
+            .rounded(capsule.radius)
+            .bg(theme.foreground.opacity(CAPSULE_FILL))
+            .border_1()
+            .border_color(theme.foreground.opacity(CAPSULE_RIM))
+            .child(self.artwork(Some(capsule.art_radius), window, cx))
+            .when(show_track, |this| {
+                this.child(self.track_details(false, cx).flex_1().min_w_0())
+            })
+    }
+
     /// The playing cover keeps its album link and context menu in every layout.
     /// `corner` rounds the cover by that radius instead of the artwork's own.
     fn artwork(
@@ -477,6 +511,7 @@ impl PlayerBar {
 /// gap round the cover's corner is the same as above and below it.
 #[derive(Clone, Copy)]
 struct Capsule {
+    height: Pixels,
     radius: Pixels,
     art_radius: Pixels,
     inset: Pixels,
@@ -498,6 +533,7 @@ impl Capsule {
         let lead = (radius - art_radius).max(inset);
         let tail = (radius * CAPSULE_TAIL).max(px(CAPSULE_TAIL_MIN));
         Self {
+            height,
             radius,
             art_radius,
             inset,
@@ -508,6 +544,27 @@ impl Capsule {
 }
 
 impl PlayerBar {
+    /// Whether the Liquid Glass bar stands in three rows: when the page between the sidebars
+    /// is too narrow for its three columns, or the window stands upright.
+    fn reflowed(window: &Window, cx: &gpui::App) -> bool {
+        let layout = Sonora::global(cx).settings.read(cx).player_bar_layout();
+        if !ui::liquid(cx) || layout != PlayerBarLayout::Classic {
+            return false;
+        }
+        let size = window.viewport_size();
+        let page = size.width - Chrome::left(cx) - Chrome::right(cx);
+        page < px(REFLOW_WIDTH) || size.height > size.width * REFLOW_PORTRAIT
+    }
+
+    /// The bar's height this frame, springing toward `height` when the layout changes it.
+    pub(crate) fn shown_height(&self, window: &Window, cx: &gpui::App) -> Pixels {
+        let target = Self::height(window, cx) / px(1.);
+        let mut shown = self.shown.borrow_mut();
+        let spring = shown.get_or_insert_with(|| Sprung::new(target, Springs::SETTLE, 0.5));
+        spring.aim(target, Springs::SETTLE);
+        ui::snapped(px(spring.value(window, cx)), window)
+    }
+
     /// Centered needs room for its three columns; smaller windows keep every control reachable
     /// in the shared responsive layout. Only the whole window's width determines the choice.
     fn stacked(window: &Window, layout: PlayerBarLayout) -> bool {
@@ -541,13 +598,16 @@ impl PlayerBar {
     pub(crate) fn height(window: &Window, cx: &gpui::App) -> Pixels {
         let theme = *cx.theme();
         let layout = Sonora::global(cx).settings.read(cx).player_bar_layout();
+        let roomy = theme.metrics.player_bar + theme.metrics.pad * ROOMY_RISE;
         let height = match (Self::stacked(window, layout), layout) {
+            // Reflowed, the track capsule takes a row of its own under the buttons.
+            _ if Self::reflowed(window, cx) => {
+                roomy + Capsule::of(window, cx).height + theme.metrics.pad * 2.
+            }
             (true, _) => theme.metrics.player_bar + theme.metrics.pad * 3.,
             (false, PlayerBarLayout::Compact) => theme.metrics.row + theme.metrics.pad * 2.,
             // Apple Music's arrangement stacks the seek bar over the row of controls.
-            (false, PlayerBarLayout::Classic) if ui::liquid(cx) => {
-                theme.metrics.player_bar + theme.metrics.pad * ROOMY_RISE
-            }
+            (false, PlayerBarLayout::Classic) if ui::liquid(cx) => roomy,
             _ => theme.metrics.player_bar,
         };
         ui::snapped(height, window)
@@ -561,9 +621,10 @@ impl Render for PlayerBar {
         let empty = muted.opacity(0.3);
         let span = Chrome::window_room(window);
         let layout = self.settings.read(cx).player_bar_layout();
-        let stacked = Self::stacked(window, layout);
+        let reflowed = Self::reflowed(window, cx);
+        let stacked = Self::stacked(window, layout) && !reflowed;
         let transparent = self.settings.read(cx).player_bar_translucent();
-        let height = Self::height(window, cx);
+        let height = self.shown_height(window, cx);
         // The Liquid Glass classic bar is Cider's: larger throughout, with a thick seek bar.
         let roomy = ui::liquid(cx) && !stacked && layout == PlayerBarLayout::Classic;
         let clock_text = match roomy {
@@ -574,7 +635,6 @@ impl Render for PlayerBar {
         let centered_wing = theme.metrics.control * 4. + px(VOLUME_WIDTH) + theme.metrics.pad * 3.;
 
         let show_track = span.fits(Room::Snug);
-        let capsule = Capsule::of(window, cx);
         // Under Liquid Glass the right sidebar carries its own Queue and Lyrics switch, so the
         // bar leaves them to it and keeps only the sidebar's toggle up in the title bar.
         let sides = match SidebarRight::available(window) && !ui::liquid(cx) {
@@ -678,6 +738,49 @@ impl Render for PlayerBar {
         });
 
         let content = match (stacked, layout) {
+            // Too narrow for three columns, the bar stands in three rows: the seek bar, the
+            // transport across from the volume and the rest, and the track capsule centred.
+            // Each row rises into place as the bar springs to its new height.
+            _ if reflowed => base
+                .flex_col()
+                .justify_center()
+                .gap_2()
+                .py(theme.metrics.pad * ROOMY_BREATH)
+                .child(div().w_full().child(seek))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .gap_3()
+                        .w_full()
+                        .child(roomy_transport(&self.playback, &self.queue, cx))
+                        .child(
+                            div()
+                                .flex()
+                                .flex_none()
+                                .items_center()
+                                .gap_2()
+                                .child(self.devices.clone())
+                                .child(self.sound(Self::volume_width(window), cx))
+                                .child(self.fullscreen_button()),
+                        )
+                        .motion(("player-reflow-buttons", 1usize), Motion::Base, |row, t| {
+                            row.opacity(REFLOW_FLOOR + (1. - REFLOW_FLOOR) * t)
+                                .top(px(REFLOW_RISE) * (1. - t))
+                        }),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .w_full()
+                        .justify_center()
+                        .child(self.capsule(show_track, window, cx).w_full())
+                        .motion(("player-reflow-capsule", 1usize), Motion::Base, |row, t| {
+                            row.opacity(REFLOW_FLOOR + (1. - REFLOW_FLOOR) * t)
+                                .top(px(REFLOW_RISE * 2.) * (1. - t))
+                        }),
+                ),
             (true, _) => base
                 .flex_col()
                 .justify_center()
@@ -777,26 +880,7 @@ impl Render for PlayerBar {
                                 .items_center()
                                 .child(roomy_transport(&self.playback, &self.queue, cx)),
                         )
-                        .child(
-                            div()
-                                .flex()
-                                .flex_1()
-                                .min_w_0()
-                                .max_w(px(CAPSULE_MAX))
-                                .items_center()
-                                .gap_3()
-                                .py(capsule.inset)
-                                .pl(capsule.lead)
-                                .pr(capsule.tail)
-                                .rounded(capsule.radius)
-                                .bg(theme.foreground.opacity(CAPSULE_FILL))
-                                .border_1()
-                                .border_color(theme.foreground.opacity(CAPSULE_RIM))
-                                .child(self.artwork(Some(capsule.art_radius), window, cx))
-                                .when(show_track, |this| {
-                                    this.child(self.track_details(false, cx).flex_1().min_w_0())
-                                }),
-                        )
+                        .child(self.capsule(show_track, window, cx).flex_1())
                         .child(
                             div()
                                 .flex()
@@ -809,7 +893,12 @@ impl Render for PlayerBar {
                                 .children(sides)
                                 .child(self.sound(px(VOLUME_ROOMY), cx))
                                 .child(self.fullscreen_button()),
-                        ),
+                        )
+                        // Back from three rows, the one row rises into place the same way.
+                        .motion(("player-wide-row", 1usize), Motion::Base, |row, t| {
+                            row.opacity(REFLOW_FLOOR + (1. - REFLOW_FLOOR) * t)
+                                .top(px(REFLOW_RISE) * (1. - t))
+                        }),
                 ),
             _ => base
                 .items_center()
