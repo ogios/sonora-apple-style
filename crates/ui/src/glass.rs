@@ -58,8 +58,8 @@ const EDGE: Pixels = px(1.);
 /// How much of the page colour the floating content sheet keeps over the colour field, on a
 /// dark theme and a light one: dense enough that pages read as one surface, as in Apple Music,
 /// thin enough that the field still tints its edges.
-const SHEET_DARK: f32 = 0.9;
-const SHEET_LIGHT: f32 = 0.72;
+const SHEET_DARK: f32 = 1.;
+const SHEET_LIGHT: f32 = 1.;
 /// The hairline rim around the content sheet, fainter than a glass panel's.
 const SHEET_RIM_DARK: f32 = 0.08;
 const SHEET_RIM_LIGHT: f32 = 0.5;
@@ -195,9 +195,9 @@ pub fn liquid_glass<E: Styled>(element: E, cx: &App) -> E {
     )
 }
 
-/// The large rounded sheet the pages sit on under Liquid Glass: the page colour laid thick
-/// over the colour field, with a faint rim and the panels' drop shadow, and no blur of its
-/// own, since a sheet the size of the page would blur the field for nothing.
+/// The large rounded sheet the pages sit on under Liquid Glass: the page colour, solid, so the
+/// one framed panel stands clear of the dark window around it as Cider's does, with a faint
+/// rim and the panels' drop shadow.
 pub fn liquid_sheet<E: Styled>(element: E, cx: &App) -> E {
     let theme = cx.theme();
     let dark = theme.background.l < 0.5;
