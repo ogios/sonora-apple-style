@@ -77,8 +77,28 @@ const ROW_GAP: Pixels = px(4.);
 const SEARCH_FILL: f32 = 0.06;
 const SEARCH_RIM: f32 = 0.08;
 const SEARCH_HOVER: f32 = 0.1;
-/// How much of a small control's height the account chip's disc takes.
-const AVATAR: f32 = 0.8;
+/// How tall an entry stands under Liquid Glass, in lines of body text, and never shorter than
+/// `ENTRY_MIN`: roomy, the way Cider's sidebar is, with each entry's hit area touching the
+/// next one's so the pointer never falls in a dead strip between them.
+const ENTRY_LINES: f32 = 2.6;
+const ENTRY_MIN: Pixels = px(36.);
+/// How large an entry's glyph is under Liquid Glass, against the body text.
+const ENTRY_GLYPH: f32 = 1.35;
+/// How far an entry's label sits in from its edges under Liquid Glass, in paddings.
+const ENTRY_INSET: f32 = 1.25;
+/// The space above a section header under Liquid Glass, in paddings, so each group of entries
+/// reads apart from the one before it.
+const SECTION_SPACE: f32 = 1.5;
+/// The floating account card's padding and margin, in paddings, and its fill and rim as shares
+/// of the foreground.
+const ACCOUNT_PAD: f32 = 1.25;
+const ACCOUNT_MARGIN: f32 = 1.5;
+const ACCOUNT_FILL: f32 = 0.06;
+const ACCOUNT_RIM: f32 = 0.08;
+/// How much of an entry's height the account card's disc takes.
+const ACCOUNT_AVATAR: f32 = 0.9;
+/// How rounded the search field is under Liquid Glass, as a multiple of the theme radius.
+const SEARCH_ROUNDING: f32 = 1.4;
 /// How far a disclosure chevron turns from pointing at its label to pointing down, as a
 /// fraction of a full turn.
 const QUARTER: f32 = 0.25;
@@ -378,7 +398,7 @@ impl SidebarLeft {
         if !self.section_fold.drawn() {
             return;
         }
-        let body = div().flex().flex_col().gap_1().children(entries);
+        let body = div().flex().flex_col().children(entries);
         rows.push(
             self.section_fold
                 .render(body, window, cx)
@@ -399,10 +419,17 @@ impl SidebarLeft {
             .gap_1()
             .w_full()
             .min_w_0()
+            .justify_between()
             .min_h(theme.metrics.control_small)
-            .pl_2()
-            .mt(theme.metrics.pad)
+            .px(theme.metrics.pad * ENTRY_INSET)
+            .mt(theme.metrics.pad * SECTION_SPACE)
             .cursor_pointer()
+            .child(
+                ui::faint(cx)
+                    .min_w_0()
+                    .truncate()
+                    .child(i18n::lookup("nav-section-library", None)),
+            )
             .child(
                 svg()
                     .path(icons::path("icons/chevron-right.svg"))
@@ -412,11 +439,6 @@ impl SidebarLeft {
                     .flex_none()
                     .size(theme.text(Text::Small))
                     .text_color(theme.muted_foreground),
-            )
-            .child(
-                ui::eyebrow(i18n::lookup("nav-section-library", None), cx)
-                    .min_w_0()
-                    .truncate(),
             )
             .on_click(cx.listener(|this, _, _, cx| {
                 this.section_open = !this.section_open;
@@ -444,7 +466,11 @@ impl SidebarLeft {
         rows.push(
             self.pins_fold
                 .render(
-                    div().flex().flex_col().gap_1().children(entries),
+                    div()
+                        .flex()
+                        .flex_col()
+                        .when(!ui::liquid(cx), |this| this.gap_1())
+                        .children(entries),
                     window,
                     cx,
                 )
@@ -477,7 +503,10 @@ impl SidebarLeft {
         rows.push(
             Deck::new("sidebar-pins-deck")
                 .rows((0..count).map(|_| row))
-                .gap(ROW_GAP)
+                .gap(match ui::liquid(cx) {
+                    true => Pixels::ZERO,
+                    false => ROW_GAP,
+                })
                 .draw(cx.processor(move |this, index: usize, _, cx| {
                     let pin = match index < held {
                         true => pinned.get(index),
@@ -549,9 +578,12 @@ impl SidebarLeft {
                             .text_color(theme.muted_foreground),
                     )
                     .child(
-                        ui::eyebrow(i18n::lookup("nav-pinned", None), cx)
-                            .min_w_0()
-                            .truncate(),
+                        match ui::liquid(cx) {
+                            true => ui::faint(cx).child(i18n::lookup("nav-pinned", None)),
+                            false => ui::eyebrow(i18n::lookup("nav-pinned", None), cx),
+                        }
+                        .min_w_0()
+                        .truncate(),
                     )
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.pinned_open = !this.pinned_open;
@@ -720,14 +752,16 @@ impl SidebarLeft {
             Some(group) => Group::of(&current) == Some(group),
             None => destination.same_section(&current),
         };
-        let tint = match active {
+        let liquid = ui::liquid(cx);
+        // Under Liquid Glass every entry reads in the foreground, so the muted section headers
+        // stand apart from them.
+        let tint = match active || liquid {
             true => theme.foreground,
             false => theme.muted_foreground,
         };
-        // Under Liquid Glass the rows are compact, as dense as Apple Music's sidebar.
         let row = nav_row(index, key, tint, accent)
             .icon(icon)
-            .when(ui::liquid(cx), Button::small);
+            .when(liquid, |row| roomy(row, cx));
 
         match group {
             Some(group) => row
@@ -766,7 +800,7 @@ impl SidebarLeft {
             };
 
             let row = nav_row(id, key, tint, accent)
-                .when(liquid, Button::small)
+                .when(liquid, |row| roomy(row, cx))
                 .flex_1()
                 .on_click(move |_, _, cx| navigate(destination.clone(), cx));
             match (chosen, liquid) {
@@ -776,13 +810,17 @@ impl SidebarLeft {
             }
         };
 
+        let tabs = match liquid {
+            true => Tabs::new().rows(entry_height(cx)),
+            false => Tabs::new(),
+        };
         match group {
-            Group::Library => Tabs::new().items(
+            Group::Library => tabs.items(
                 LIBRARY_TABS
                     .into_iter()
                     .map(|(name, tab_id)| tab(name.into(), name, Destination::Library(tab_id))),
             ),
-            Group::Local => Tabs::new().items(LIBRARY_TABS.into_iter().enumerate().map(
+            Group::Local => tabs.items(LIBRARY_TABS.into_iter().enumerate().map(
                 |(slot, (name, tab_id))| {
                     tab(("local-tab", slot).into(), name, Destination::Local(tab_id))
                 },
@@ -803,8 +841,9 @@ impl SidebarLeft {
             .child(ui::mark(&self.lens_entry))
     }
 
-    /// The account chip at the foot of the sidebar under Liquid Glass: the provider's initial in
-    /// a disc and its name, opening settings.
+    /// The account card at the foot of the sidebar under Liquid Glass: a rounded block of its
+    /// own, floating clear of the entries above it, with the provider's initial in a disc and
+    /// its name, opening settings.
     fn account(&self, cx: &App) -> AnyElement {
         let theme = *cx.theme();
         let name = self.session.read(cx).provider_name().unwrap_or_default();
@@ -814,33 +853,63 @@ impl SidebarLeft {
             .map(String::from)
             .unwrap_or_default()
             .into();
-        let disc = theme.metrics.control_small;
+        let disc = entry_height(cx) * ACCOUNT_AVATAR;
+        let pad = theme.metrics.pad;
 
         div()
             .flex_none()
-            .p(theme.metrics.pad / 2.)
+            .p(pad * ACCOUNT_MARGIN)
+            .pt(pad)
             .child(
-                ui::Button::new("sidebar-account")
-                    .ghost()
-                    .small()
+                div()
+                    .id("sidebar-account")
+                    .flex()
+                    .items_center()
+                    .gap(pad * 1.25)
                     .w_full()
-                    .justify_start()
-                    .leading(
+                    .min_w_0()
+                    .p(pad * ACCOUNT_PAD)
+                    .rounded(ui::liquid_radius(cx))
+                    .corner_smoothing(0.6)
+                    .bg(theme.foreground.opacity(ACCOUNT_FILL))
+                    .border_1()
+                    .border_color(theme.foreground.opacity(ACCOUNT_RIM))
+                    .cursor_pointer()
+                    .hover(move |style| style.bg(theme.foreground.opacity(ACCOUNT_RIM * 1.5)))
+                    .child(
                         div()
                             .flex()
                             .flex_none()
                             .items_center()
                             .justify_center()
-                            .size(disc * AVATAR)
+                            .size(disc)
                             .rounded_full()
                             .bg(theme.primary)
                             .text_color(theme.primary_foreground)
-                            .text_size(theme.text(Text::Tiny))
                             .font_weight(gpui::FontWeight::BOLD)
-                            .child(initial)
-                            .into_any_element(),
+                            .child(initial),
                     )
-                    .label(SharedString::from(name))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .min_w_0()
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .truncate()
+                                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                                    .child(SharedString::from(name)),
+                            )
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .truncate()
+                                    .text_size(theme.text(Text::Small))
+                                    .text_color(theme.muted_foreground)
+                                    .child(i18n::lookup("nav-settings", None)),
+                            ),
+                    )
                     .on_click(|_, _, cx| open_settings(cx)),
             )
             .into_any_element()
@@ -899,15 +968,13 @@ impl Render for SidebarLeft {
         rows.extend(self.pins(window, cx));
 
         let overlaid = self.overlays();
-        // Under Liquid Glass the panel keeps its width and grip but paints nothing itself: its
-        // rows sit on a glass slab inset from the window edges.
+        // Under Liquid Glass the panel keeps its width and grip but paints nothing itself.
         let liquid = ui::liquid(cx);
-        let gap = ui::liquid_gap(cx);
         let panel = Panel::new("sidebar-left", Side::Left, self.width)
             .limits(MIN_WIDTH, MAX_WIDTH)
             .reach(self.ceiling(window, cx))
             .clears_scrollbar()
-            .grip_above(super::Chrome::bottom(cx))
+            .grip_above(super::Chrome::beside(cx))
             .on_resize(cx.listener(|this, width: &Pixels, _, cx| {
                 this.width = *width;
                 this.persist(cx);
@@ -937,21 +1004,15 @@ impl Render for SidebarLeft {
             .when(!self.is_open() && !self.sliding, |this| this.hidden())
             .when(!theme.transparent && !liquid, |this| this.bg(sidebar_bg))
             .map(|this| match liquid {
-                true => this.border_color(gpui::transparent_black()).pl(gap).pb(gap),
+                true => this.border_color(gpui::transparent_black()),
                 false => this.border_color(sidebar_border),
             })
             .when(overlaid, |this| {
                 this.occlude().absolute().left_0().top_0().bottom_0()
             });
-        let slab = div()
-            .relative()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .min_h_0()
-            .when(liquid, |this| {
-                ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
-            });
+        // Under Liquid Glass the entries stand straight on the dark window, with no panel or
+        // border of their own, the way Cider's sidebar does; only the page is framed.
+        let slab = div().relative().flex().flex_col().flex_1().min_h_0();
         let panel = panel.child(
             slab.child(
                 div()
@@ -960,16 +1021,19 @@ impl Render for SidebarLeft {
                     .min_h_0()
                     .child(
                         Scroller::new("sidebar-left-rows", &self.scrollbar)
-                            .bottom_inset(super::Chrome::bottom(cx))
+                            .bottom_inset(super::Chrome::beside(cx))
                             .size_full()
                             .child(
                                 div()
                                     .relative()
                                     .flex()
                                     .flex_col()
-                                    .gap_1()
+                                    .when(!liquid, |this| this.gap_1().p_3())
+                                    .when(liquid, |this| {
+                                        this.px(theme.metrics.pad * 1.5)
+                                            .pt(theme.metrics.pad)
+                                    })
                                     .w_full()
-                                    .p_3()
                                     // Leave the last row somewhere to go, clear of the
                                     // button that floats over the bottom.
                                     .pb(ui::perch_room(cx))
@@ -981,9 +1045,9 @@ impl Render for SidebarLeft {
                     )
                     .children(
                         ui::return_top("sidebar-return-top", &self.scrollbar, cx).map(|perch| {
-                            match super::Chrome::bottom(cx) > Pixels::ZERO {
+                            match super::Chrome::beside(cx) > Pixels::ZERO {
                                 true => perch
-                                    .bottom(super::Chrome::bottom(cx) + theme.metrics.pad * 1.5),
+                                    .bottom(super::Chrome::beside(cx) + theme.metrics.pad * 1.5),
                                 false => perch,
                             }
                         }),
@@ -1103,15 +1167,14 @@ fn search_field(window: &mut Window, cx: &mut App) -> AnyElement {
         .flex()
         .flex_none()
         .items_center()
-        .gap_2()
-        .min_h(theme.metrics.control_small)
-        .mb(theme.metrics.pad / 2.)
-        .px(ui::SMALL_INSET)
-        .rounded_full()
+        .gap(theme.metrics.pad * 1.25)
+        .min_h(entry_height(cx))
+        .mb(theme.metrics.pad)
+        .px(theme.metrics.pad * ENTRY_INSET)
+        .rounded(theme.radius * SEARCH_ROUNDING)
         .bg(lit.unwrap_or(fill))
         .border_1()
         .border_color(theme.foreground.opacity(SEARCH_RIM))
-        .text_size(theme.text(Text::Label))
         .text_color(theme.muted_foreground)
         .cursor_pointer()
         .map(|this| match glow {
@@ -1122,7 +1185,7 @@ fn search_field(window: &mut Window, cx: &mut App) -> AnyElement {
             svg()
                 .path(icons::path("icons/search.svg"))
                 .flex_none()
-                .size(theme.text(Text::Label))
+                .size(theme.text(Text::Body) * ENTRY_GLYPH)
                 .text_color(theme.muted_foreground),
         )
         .child(
@@ -1133,6 +1196,23 @@ fn search_field(window: &mut Window, cx: &mut App) -> AnyElement {
         )
         .on_click(|_, _, cx| navigate(Destination::Search, cx))
         .into_any_element()
+}
+
+/// How tall an entry stands under Liquid Glass.
+fn entry_height(cx: &App) -> Pixels {
+    let body = cx.theme().text(Text::Body) / px(1.);
+    px((body * ENTRY_LINES).round()).max(ENTRY_MIN)
+}
+
+/// Sizes a navigation entry for the Liquid Glass sidebar: body text, a large glyph, and the
+/// full entry height, so each entry's hit area meets the next one's.
+fn roomy(row: Button, cx: &App) -> Button {
+    let theme = cx.theme();
+    row.h(entry_height(cx))
+        .glyph(theme.text(Text::Body) * ENTRY_GLYPH)
+        .px(theme.metrics.pad * ENTRY_INSET)
+        .gap(theme.metrics.pad * 1.5)
+        .text_size(theme.text(Text::Body))
 }
 
 #[cfg(test)]

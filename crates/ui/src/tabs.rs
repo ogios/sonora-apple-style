@@ -33,6 +33,7 @@ const HUSH: Motion = Motion::Base;
 pub struct Tabs {
     base: Div,
     items: Vec<AnyElement>,
+    row: Option<Pixels>,
 }
 
 /// A row of segment buttons in one pill. The bar is as wide as its items until the caller
@@ -445,7 +446,15 @@ impl Tabs {
         Self {
             base: div(),
             items: Vec::new(),
+            row: None,
         }
+    }
+
+    /// Stands each tab `height` tall, touching the next with no gap between them, so a roomy
+    /// sidebar has no dead strip between one entry and the next.
+    pub fn rows(mut self, height: Pixels) -> Self {
+        self.row = Some(height);
+        self
     }
 
     pub fn items(mut self, items: impl IntoIterator<Item = impl IntoElement>) -> Self {
@@ -465,9 +474,13 @@ impl Styled for Tabs {
 
 impl RenderOnce for Tabs {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let Self { mut base, items } = self;
+        let Self {
+            mut base,
+            items,
+            row,
+        } = self;
         let theme = cx.theme();
-        let height = theme.metrics.control;
+        let height = row.unwrap_or(theme.metrics.control);
         let middle = height / 2.;
         let border = theme.sidebar_border;
         let overrides = std::mem::take(base.style());
@@ -476,7 +489,10 @@ impl RenderOnce for Tabs {
             .relative()
             .flex()
             .flex_col()
-            .gap_1()
+            .map(|this| match row {
+                Some(_) => this.gap_0(),
+                None => this.gap_1(),
+            })
             .ml(px(INDENT))
             .child(
                 div()

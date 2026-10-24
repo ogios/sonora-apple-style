@@ -69,6 +69,8 @@ pub struct Button {
     hoverless: bool,
     frosted: bool,
     turn: f32,
+    /// How large the icon is drawn, when not the standard size.
+    glyph: Option<Pixels>,
     /// How far the trailing glyph is turned, as a fraction of a full turn.
     trailing_turn: f32,
     hovered: Option<StyleRefinement>,
@@ -100,6 +102,7 @@ impl Button {
             hoverless: false,
             frosted: false,
             turn: 0.,
+            glyph: None,
             trailing_turn: 0.,
             hovered: None,
             fill: None,
@@ -164,6 +167,13 @@ impl Button {
     /// Filled in the danger colour, for an action that takes something away.
     pub fn destructive(mut self) -> Self {
         self.variant = Variant::Destructive;
+        self
+    }
+
+    /// Draws the icon at `size` instead of the standard size, for a roomy row whose glyph
+    /// should read at a glance.
+    pub fn glyph(mut self, size: Pixels) -> Self {
+        self.glyph = Some(size);
         self
     }
 
@@ -312,6 +322,7 @@ impl RenderOnce for Button {
             hoverless,
             frosted,
             turn,
+            glyph,
             trailing_turn,
             hovered,
             fill,
@@ -538,10 +549,11 @@ impl RenderOnce for Button {
             .when_some(hovered, |this, style| this.hover(move |_| style))
             .when_some(pressed, |this, style| this.active(move |_| style))
             .when_some(icon, |this, path| {
+                let side = glyph.unwrap_or(ICON);
                 let glyph = |path: SharedString, scale: f32, opacity: f32| {
                     svg()
                         .path(icons::path(path))
-                        .size(ICON)
+                        .size(side)
                         .flex_none()
                         .text_color(foreground.opacity(opacity))
                         .with_transformation(
@@ -557,7 +569,7 @@ impl RenderOnce for Button {
                             div()
                                 .relative()
                                 .flex_none()
-                                .size(ICON)
+                                .size(side)
                                 .child(
                                     glyph(previous, 1. - SWAP_SHRINK * eased, 1. - eased)
                                         .absolute()
