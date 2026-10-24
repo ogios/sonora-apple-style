@@ -50,6 +50,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   under a capsule of queue tools and an item count, and rows, controls and margins are roomier.
   Search sorts its results under Songs, Artists, Albums and Playlists tabs. Text is set in the
   bundled Pretendard, the face Cider uses, falling back to Inter and the system's CJK fonts.
+- Liquid Glass track tables follow Cider: taller rows with larger artwork and text, every other
+  row a faint rounded strip instead of ruled lines, set in from the sheet's sides, with bare
+  column heads that show only the sorted column's arrow. The queue numbers its songs and gives
+  each row larger artwork, a semibold title and more room, and buttons keep more space around
+  their labels and icons, with icon-only buttons round.
 
 ### Fixed
 
@@ -63,6 +68,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The sidebar remembers whether its Library section is folded.
 - Under Liquid Glass an album's cover colour now washes the page right up to the top of the sheet,
   and Now playing and Up next fit in the queue at a large font size.
+- Under Liquid Glass the back, forward and page tools now stand inside the top of the page's
+  sheet instead of across its edge, and the track capsule in the player bar no longer sits on
+  the bar's bottom edge.
+- Under Liquid Glass hovering a sidebar entry or pin lights the same rounded shape as the
+  selection, more faintly, and folding the Library section away no longer leaves the selection
+  floating where the hidden entry was.
 
 ## [0.44.1] - 2026-10-22
 
