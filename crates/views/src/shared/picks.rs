@@ -208,6 +208,10 @@ impl RenderOnce for Picks {
             .rounded(theme.radius)
             .border_1()
             .border_color(theme.border)
+            // Under Liquid Glass the shelf is a slab of glass like the chrome around it.
+            .when(ui::liquid(cx), |this| {
+                ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
+            })
             .child(
                 div()
                     .flex()

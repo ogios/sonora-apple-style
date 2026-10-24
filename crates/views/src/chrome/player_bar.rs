@@ -546,6 +546,9 @@ impl Render for PlayerBar {
         #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
         let radius: Option<Pixels> = None;
 
+        // Under Liquid Glass the bar is a floating slab of glass of its own, rounded all round,
+        // and the workspace insets it from the window's edges.
+        let liquid = ui::liquid(cx);
         let base = div()
             .flex()
             .w_full()
@@ -553,14 +556,19 @@ impl Render for PlayerBar {
             .flex_none()
             .px_5()
             .when(stacked, |this| this.py_2())
-            .when_some(radius, |this, radius| this.rounded_b(radius))
-            .when_else(
-                transparent,
-                |this| ui::bar_surface(this, cx).text_color(theme.popover_foreground),
-                |this| this.when(!theme.transparent, |this| this.bg(theme.secondary)),
-            )
-            .border_t_1()
-            .border_color(theme.border)
+            .map(|this| match liquid {
+                true => ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
+                    .text_color(theme.popover_foreground),
+                false => this
+                    .when_some(radius, |this, radius| this.rounded_b(radius))
+                    .when_else(
+                        transparent,
+                        |this| ui::bar_surface(this, cx).text_color(theme.popover_foreground),
+                        |this| this.when(!theme.transparent, |this| this.bg(theme.secondary)),
+                    )
+                    .border_t_1()
+                    .border_color(theme.border),
+            })
             .occlude()
             .on_mouse_move(cx.listener(Self::hover));
 

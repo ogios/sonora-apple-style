@@ -497,7 +497,10 @@ impl SidebarLeft {
                 false => theme.muted_foreground,
             })
             .meta(caption(pin.kind.key(), marked, cx))
-            .when(active, |card| card.bg(accent))
+            .when(active, |card| match ui::liquid(cx) {
+                true => ui::liquid_pill(card, cx).rounded(ui::liquid_radius(cx)),
+                false => card.bg(accent),
+            })
             .hover(move |style| style.bg(accent))
             .press(move |_, _, cx| navigate(destination.clone(), cx))
             .menu(cx.listener(move |this, event: &MouseDownEvent, _, cx| {
@@ -564,7 +567,7 @@ impl SidebarLeft {
                     cx.notify();
                 })),
             None => row
-                .when(active, |button| button.bg(accent))
+                .when(active, |button| ui::chosen(button, accent, cx))
                 .on_click(move |_, _, cx| match destination.in_settings() {
                     true => open_settings(cx),
                     false => navigate(destination.clone(), cx),
@@ -587,7 +590,7 @@ impl SidebarLeft {
 
             nav_row(id, key, tint, accent)
                 .flex_1()
-                .when(chosen, |button| button.bg(accent))
+                .when(chosen, |button| ui::chosen(button, accent, cx))
                 .on_click(move |_, _, cx| navigate(destination.clone(), cx))
         };
 
@@ -633,6 +636,10 @@ impl Render for SidebarLeft {
         rows.extend(self.pins(window, cx));
 
         let overlaid = self.overlays();
+        // Under Liquid Glass the panel keeps its width and grip but paints nothing itself: its
+        // rows sit on a glass slab inset from the window edges.
+        let liquid = ui::liquid(cx);
+        let gap = ui::liquid_gap(cx);
         let panel = Panel::new("sidebar-left", Side::Left, self.width)
             .limits(MIN_WIDTH, MAX_WIDTH)
             .reach(self.ceiling(window, cx))
@@ -665,12 +672,25 @@ impl Render for SidebarLeft {
                 cx.notify();
             }))
             .when(!self.is_open(), |this| this.hidden())
-            .when(!theme.transparent, |this| this.bg(sidebar_bg))
-            .border_color(sidebar_border)
+            .when(!theme.transparent && !liquid, |this| this.bg(sidebar_bg))
+            .map(|this| match liquid {
+                true => this.border_color(gpui::transparent_black()).pl(gap).pb(gap),
+                false => this.border_color(sidebar_border),
+            })
             .when(overlaid, |this| {
                 this.occlude().absolute().left_0().top_0().bottom_0()
-            })
-            .child(
+            });
+        let slab = div()
+            .relative()
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_h_0()
+            .when(liquid, |this| {
+                ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
+            });
+        let panel = panel.child(
+            slab.child(
                 div()
                     .relative()
                     .flex_1()
@@ -702,7 +722,8 @@ impl Render for SidebarLeft {
                         }),
                     ),
             )
-            .children(self.menu(cx));
+            .children(self.menu(cx)),
+        );
 
         match overlaid {
             false => panel.into_any_element(),

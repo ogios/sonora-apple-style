@@ -36,7 +36,7 @@ impl SettingsView {
                 [Slot::Opacity]
                     .into_iter()
                     .chain(ui::WINDOW_BLUR.then_some(Slot::WindowBlur))
-                    .chain([Slot::Blur]),
+                    .chain([Slot::Blur, Slot::LiquidGlass]),
             ),
         ]
     }
@@ -222,6 +222,26 @@ impl SettingsView {
                     this.settings
                         .update(cx, |settings, cx| settings.set_blur(blur, cx));
                     Theme::set(Look { blur, ..look }, &overrides, cx);
+                    cx.notify();
+                }))
+                .into_any_element(),
+        )
+    }
+
+    /// Floats the sidebar, title bar controls and player bar as Liquid Glass panels, or sets
+    /// them flush against the window edges the way they were drawn before.
+    pub(super) fn liquid_glass_row(&self, cx: &mut Context<Self>) -> AnyElement {
+        let look = self.look(cx);
+        let overrides = self.settings.read(cx).theme_overrides();
+
+        self.row(
+            t!("settings-liquid-glass"),
+            Switch::new("liquid-glass", look.liquid)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    let liquid = !look.liquid;
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_liquid_glass(liquid, cx));
+                    Theme::set(Look { liquid, ..look }, &overrides, cx);
                     cx.notify();
                 }))
                 .into_any_element(),

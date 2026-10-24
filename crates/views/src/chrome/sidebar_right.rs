@@ -121,6 +121,10 @@ impl Render for SidebarRight {
         }
 
         let theme = *cx.theme();
+        // Under Liquid Glass the queue and lyrics sit on a glass slab inset from the window's
+        // right edge, the mirror of the left sidebar's.
+        let liquid = ui::liquid(cx);
+        let gap = ui::liquid_gap(cx);
 
         Panel::new("sidebar-right", Side::Right, self.width)
             .limits(MIN_WIDTH, MAX_WIDTH)
@@ -131,12 +135,28 @@ impl Render for SidebarRight {
                 this.persist(cx);
                 cx.notify();
             }))
-            .when(!theme.transparent, |this| this.bg(theme.background))
-            .border_color(theme.border)
+            .when(!theme.transparent && !liquid, |this| {
+                this.bg(theme.background)
+            })
+            .map(|this| match liquid {
+                true => this.border_color(gpui::transparent_black()).pr(gap).pb(gap),
+                false => this.border_color(theme.border),
+            })
             .child(
-                self.aside
-                    .clone()
-                    .cached(StyleRefinement::default().size_full()),
+                div()
+                    .relative()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .min_h_0()
+                    .when(liquid, |this| {
+                        ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
+                    })
+                    .child(
+                        self.aside
+                            .clone()
+                            .cached(StyleRefinement::default().size_full()),
+                    ),
             )
             .into_any_element()
     }

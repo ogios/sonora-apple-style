@@ -207,9 +207,16 @@ impl Render for Workspace {
         let covered = self.sidebar_right.read(cx).covers_content(window);
         let overlay = self.sidebar.read(cx).overlays();
         let bar_height = PlayerBar::height(window, cx);
-        let underlap = self.settings.read(cx).player_bar_translucent();
+        // Liquid Glass floats the player bar over the page, inset from the window's edges and
+        // beside the sidebar's slab, so the page always runs on underneath it.
+        let liquid = ui::liquid(cx);
+        let gap = match liquid {
+            true => ui::liquid_gap(cx),
+            false => Pixels::ZERO,
+        };
+        let underlap = self.settings.read(cx).player_bar_translucent() || liquid;
         let bottom = match underlap {
-            true => bar_height,
+            true => bar_height + gap,
             false => Pixels::ZERO,
         } + self.strip;
         Chrome::set_bottom(bottom, cx);
@@ -381,6 +388,9 @@ impl Render for Workspace {
                 div()
                     .relative()
                     .when(underlap, |bar| bar.absolute().left_0().right_0().bottom_0())
+                    .when(liquid, |bar| {
+                        bar.when(!overlay, |bar| bar.left(left)).px(gap).pb(gap)
+                    })
                     .child(
                         self.player_bar
                             .clone()

@@ -132,12 +132,17 @@ impl TitleBar {
         let refreshes = navigation.current().refreshes();
         let back = self.navigation.clone();
         let forward = self.navigation.clone();
+        let liquid = ui::liquid(cx);
 
         div()
             .flex()
             .flex_none()
             .items_center()
             .gap_1()
+            // Under Liquid Glass the history buttons share one capsule of glass.
+            .when(liquid, |this| {
+                ui::liquid_control(this.p_0p5().rounded_full(), cx)
+            })
             .occlude()
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .child(
@@ -200,6 +205,7 @@ impl TitleBar {
             .child(
                 Button::new("sidebar-right-toggle")
                     .ghost()
+                    .when(ui::liquid(cx), Button::secondary)
                     .small()
                     .icon(match open {
                         true => "icons/panel-right-close.svg",
@@ -227,6 +233,7 @@ impl TitleBar {
             .child(
                 Button::new("sidebar-toggle")
                     .ghost()
+                    .when(ui::liquid(cx), Button::secondary)
                     .flex()
                     .small()
                     .icon(icon)
@@ -239,6 +246,9 @@ impl TitleBar {
 impl Render for TitleBar {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
+        // Liquid Glass leaves the bar itself clear over the colour field, with only its
+        // controls standing on glass.
+        let liquid = ui::liquid(cx);
         let height = ui::snapped(theme.metrics.title_bar, window);
         let navigation = self.options.navigation;
         let offset = match navigation {
@@ -272,14 +282,15 @@ impl Render for TitleBar {
             .h(height)
             .flex_none()
             .when_some(radius, |this, radius| this.rounded_t(radius))
-            .when(!self.options.transparent && !theme.transparent, |this| {
-                this.bg(theme.background)
-            })
+            .when(
+                !self.options.transparent && !theme.transparent && !liquid,
+                |this| this.bg(theme.background),
+            )
             // The height is a border box, so a bar that drops its border centres its controls
             // one pixel lower than one that keeps it. The edge is always an edge; only its
             // colour goes, and fullscreen's controls land where the workspace's do.
             .border_b_1()
-            .border_color(match self.options.border {
+            .border_color(match self.options.border && !liquid {
                 true => theme.title_bar_border,
                 false => gpui::transparent_black(),
             })
