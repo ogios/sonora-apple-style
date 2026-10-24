@@ -142,6 +142,17 @@ impl Chrome {
         Self::get(cx).player_bottom
     }
 
+    /// How far a page that runs up under the title bar reaches above where pages start: under
+    /// Liquid Glass, from the strip the history capsule and the page's tools stand in up to the
+    /// content sheet's top edge, and nothing otherwise. A page with a picture at its head, as
+    /// an artist's has, starts this far up and pads its content back down by as much.
+    pub fn under_bar(window: &Window, cx: &App) -> Pixels {
+        match ui::liquid(cx) {
+            true => ui::snapped(cx.theme().metrics.title_bar, window) - ui::liquid_gap(cx),
+            false => Pixels::ZERO,
+        }
+    }
+
     /// How far the sidebars keep their last row clear of the player bar: nothing under Liquid
     /// Glass, where the bar sits inside the content sheet and the sidebars run to the foot of
     /// the window beside it.

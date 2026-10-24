@@ -37,6 +37,14 @@ const SECTION: &str = "artist";
 const RELEASE_ROWS: usize = 2;
 const LISTED: usize = 5;
 const LISTED_MAX: usize = 10;
+/// Under Liquid Glass the hero's round buttons: the small ones beside play and play itself,
+/// as multiples of a control's height.
+const ROUND_SMALL: f32 = 1.15;
+const ROUND_LARGE: f32 = 1.7;
+/// Under Liquid Glass the latest release stands on a card this wide beside the top songs, when
+/// the page is at least `LATEST_ROOM` wide; on a narrower page the songs take the width.
+const LATEST: Pixels = px(200.);
+const LATEST_ROOM: Pixels = px(760.);
 
 struct ArtistTracks {
     detail: Entity<ArtistDetail>,
@@ -288,6 +296,11 @@ impl ArtistView {
                 let value = cells::count(count);
                 t!("artist-monthly-listeners", count = count, value = &value)
             });
+        // Under Liquid Glass the actions are Cider's three round glass buttons over the
+        // picture: more and favourite either side of a large play button.
+        if ui::liquid(cx) {
+            return self.liquid_header(title, listeners, cx);
+        }
         let overflow = self.saved_artist(cx).map(|artist| {
             Picker::icon("artist-overflow", &self.popovers, "icons/ellipsis.svg")
                 .tooltip("common-more")
@@ -319,6 +332,64 @@ impl ArtistView {
             .children(self.favorite_button(cx))
             .children(overflow);
 
+        let cover = artist.and_then(|artist| artist.cover_large.clone());
+        let pin = self
+            .detail
+            .read(cx)
+            .id()
+            .map(|id| Pin::new(PinKind::Artist, id, title.clone()).cover(cover.clone()));
+
+        PageHero::new("artist-hero", title)
+            .pending(artist.is_none() && self.detail.read(cx).is_loading())
+            .pin(pin)
+            .cover(cover)
+            .eyebrow(t!("artist-eyebrow"))
+            .when_some(listeners, |hero, listeners| {
+                hero.meta(HeroMetaStrip::new().text(listeners))
+            })
+            .actions(actions)
+            .circle()
+            .into_any_element()
+    }
+
+    /// The hero under Liquid Glass: the name over the picture and, under it, a small round more
+    /// button, a large round play button and a small round favourite button.
+    fn liquid_header(
+        &self,
+        title: SharedString,
+        listeners: Option<SharedString>,
+        cx: &Context<Self>,
+    ) -> AnyElement {
+        let theme = *cx.theme();
+        let small = theme.metrics.control * ROUND_SMALL;
+        let large = theme.metrics.control * ROUND_LARGE;
+        let artist = self.detail.read(cx).artist();
+        let overflow = self.saved_artist(cx).map(|artist| {
+            Picker::icon("artist-overflow", &self.popovers, "icons/ellipsis.svg")
+                .tooltip("common-more")
+                .round(small)
+                .left()
+                .menu(artist_menu(artist, self.playback.clone(), true, cx))
+        });
+        let actions = div()
+            .flex()
+            .items_center()
+            .gap_3()
+            .children(overflow)
+            .child(
+                HeroPlayButton::new(
+                    "play-artist",
+                    t!("artist-play"),
+                    self.popular.as_ref().clone(),
+                    self.playback.clone(),
+                )
+                .round(large)
+                .from(self.playing_from(cx)),
+            )
+            .children(
+                self.favorite_button(cx)
+                    .map(|heart| heart.secondary().size(small).px_0()),
+            );
         let cover = artist.and_then(|artist| artist.cover_large.clone());
         let pin = self
             .detail
@@ -804,10 +875,63 @@ impl ArtistView {
         Some(Origin::artist(detail.id()?).named(name))
     }
 
-    fn popular(&self, cx: &mut Context<Self>) -> AnyElement {
+    /// The top songs under Liquid Glass, with the latest release on a card before them where
+    /// the page has the room.
+    fn liquid_popular(&self, cx: &mut Context<Self>) -> AnyElement {
+        let gap = cx.theme().metrics.inset;
+        let latest = (self.width >= LATEST_ROOM)
+            .then(|| self.latest(cx))
+            .flatten();
+        let width = self.popular_width(cx);
+
+        div()
+            .flex()
+            .items_start()
+            .gap(gap)
+            .children(latest)
+            .child(div().flex_1().min_w_0().child(self.popular(width, cx)))
+            .into_any_element()
+    }
+
+    /// How wide the top songs lay out: the page's width, less the latest release's card where
+    /// Liquid Glass stands one beside them.
+    fn popular_width(&self, cx: &App) -> Pixels {
+        let beside = ui::liquid(cx)
+            && self.width >= LATEST_ROOM
+            && !self.detail.read(cx).albums().is_empty();
+        match beside {
+            true => self.width - LATEST - cx.theme().metrics.inset,
+            false => self.width,
+        }
+    }
+
+    /// The artist's newest release as a card, the way Cider leads its artist page with it.
+    fn latest(&self, cx: &App) -> Option<AnyElement> {
+        let detail = self.detail.read(cx);
+        let album = detail.albums().iter().max_by(|a, b| {
+            (a.year, a.release_date.as_str()).cmp(&(b.year, b.release_date.as_str()))
+        })?;
+        // A release known only by its year already shows it under its title.
+        let date = (!album.release_date.is_empty())
+            .then(|| crate::shared::hero::release_date_label(&album.release_date));
+
+        Some(
+            div()
+                .flex_none()
+                .w(LATEST)
+                .child(
+                    cards::album_card("artist-latest", album, &self.playback, cx)
+                        .tile(LATEST)
+                        .when_some(date, Card::eyebrow),
+                )
+                .into_any_element(),
+        )
+    }
+
+    fn popular(&self, width: Pixels, cx: &mut Context<Self>) -> AnyElement {
         let tracks = self.popular.clone();
         let from = self.playing_from(cx);
-        let pages = Shape::new(self.width, tracks.len()).pages;
+        let pages = Shape::new(width, tracks.len()).pages;
         let queued = tracks.clone();
         let playback = self.playback.clone();
         let opened = cx.entity().downgrade();
@@ -816,7 +940,7 @@ impl ArtistView {
             "artist-popular",
             tracks,
             self.playback.clone(),
-            self.width,
+            width,
             self.popular_page,
         )
         .title("artist-popular")
@@ -939,7 +1063,12 @@ impl Tooled for ArtistView {
         self.toolbar.clone()
     }
 
-    fn tools(&self, _cx: &App) -> Vec<AnyElement> {
+    fn tools(&self, cx: &App) -> Vec<AnyElement> {
+        // Under Liquid Glass the top songs always stand in the paged grid, so there is no view
+        // to choose between.
+        if ui::liquid(cx) {
+            return Vec::new();
+        }
         let viewed = self.me.clone();
 
         vec![tools::views(&self.popovers, self.mode, move |mode, cx| {
@@ -966,7 +1095,7 @@ impl Render for ArtistView {
             self.scrollbar
                 .update(cx, |bar, cx| bar.set_max_offset(None, cx));
         }
-        let columns = Shape::new(self.width, self.popular.len()).columns;
+        let columns = Shape::new(self.popular_width(cx), self.popular.len()).columns;
         if self.popular_columns != columns {
             self.popular_columns = columns;
             self.popular_page = 0;
@@ -996,9 +1125,14 @@ impl Render for ArtistView {
         let listed = self.mode == Mode::List;
         let release_padding = self.release_padding;
         let head = self.header(cx);
-        let tracks = match self.mode {
-            Mode::Grid => self.popular(cx),
-            Mode::List => self.listed(cx),
+        // Under Liquid Glass the top songs are always Cider's paged grid of rows, beside the
+        // latest release.
+        let liquid = ui::liquid(cx);
+        let listed = listed && !liquid;
+        let tracks = match (liquid, self.mode) {
+            (true, _) => self.liquid_popular(cx),
+            (false, Mode::Grid) => self.popular(self.width, cx),
+            (false, Mode::List) => self.listed(cx),
         };
         let grid = self.releases(window, cx);
         let about = self.about(cx);
@@ -1013,10 +1147,13 @@ impl Render for ArtistView {
             weak.update(cx, |_, cx| cx.notify()).ok();
         });
         let rails = self.recommended(window, &notify, cx);
+        // Under Liquid Glass the page runs up under the title bar, so the artist's picture
+        // reaches the top edge of the sheet.
+        let under = crate::chrome::Chrome::under_bar(window, cx);
         let page = Scroller::new("artist-page", &self.scrollbar)
             .bottom_inset(crate::chrome::Chrome::bottom(cx))
             .px(inset)
-            .pt(inset)
+            .pt(inset + under)
             .pb(inset)
             .on_scroll_wheel(cx.listener(Self::release_scroll))
             .child(div().child(head).when(listed, |this| {
@@ -1039,7 +1176,15 @@ impl Render for ArtistView {
         div()
             .relative()
             .size_full()
-            .child(page)
+            .child(
+                div()
+                    .absolute()
+                    .top(-under)
+                    .left_0()
+                    .right_0()
+                    .bottom_0()
+                    .child(page),
+            )
             .when_some(track_menu, |this, menu| this.child(menu))
             .children(self.about_dialog(cx))
     }

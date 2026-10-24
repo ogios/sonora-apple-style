@@ -35,6 +35,8 @@ pub struct Picker {
     /// How tall the menu grows before it scrolls, unbounded when `None`.
     scroll_after: Option<Pixels>,
     on_open: Option<Open>,
+    /// The side of a round glass trigger, for an icon picker standing among round buttons.
+    round: Option<Pixels>,
 }
 
 impl Picker {
@@ -62,6 +64,7 @@ impl Picker {
             menu: None,
             scroll_after: None,
             on_open: None,
+            round: None,
         }
     }
 
@@ -106,6 +109,14 @@ impl Picker {
 
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
+        self
+    }
+
+    /// Draws an icon trigger as a round button `side` across in the filled style, which is a
+    /// slab of glass under Liquid Glass, for a picker among the round buttons of a hero.
+    pub fn round(mut self, side: Pixels) -> Self {
+        self.round = Some(side);
+        self.small = false;
         self
     }
 
@@ -194,6 +205,7 @@ impl RenderOnce for Picker {
             menu,
             scroll_after,
             on_open,
+            round,
         } = self;
 
         let theme = *cx.theme();
@@ -216,6 +228,7 @@ impl RenderOnce for Picker {
         };
         let button = button
             .when(small, Button::small)
+            .when_some(round, |button, side| button.secondary().size(side).px_0())
             .when_some(leading, Button::leading)
             .when_some(tooltip, |button, key| match above {
                 true => button.tooltip_above(key),
