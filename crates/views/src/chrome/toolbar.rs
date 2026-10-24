@@ -154,6 +154,19 @@ impl Render for Toolbar {
             Some(tools) => tools(cx),
             None => Vec::new(),
         };
+        // Under Liquid Glass each tool is a small circle of glass inside the content sheet's
+        // top edge, as Apple Music's are.
+        let liquid = ui::liquid(cx);
+        let circle = move |tool: AnyElement, cx: &App| {
+            div()
+                .flex_none()
+                .when(liquid, |this| ui::liquid_control(this.rounded_full(), cx))
+                .child(tool)
+        };
+        let tools = tools
+            .into_iter()
+            .map(|tool| circle(tool, cx))
+            .collect::<Vec<_>>();
 
         div()
             .flex()
@@ -175,7 +188,7 @@ impl Render for Toolbar {
                             .child(self.input.clone()),
                     )
                 })
-                .child(
+                .child(circle(
                     Button::new("search-toggle")
                         .icon(match self.open {
                             true => "icons/x.svg",
@@ -187,8 +200,10 @@ impl Render for Toolbar {
                         })
                         .small()
                         .ghost()
-                        .on_click(cx.listener(|this, _, window, cx| this.toggle(window, cx))),
-                )
+                        .on_click(cx.listener(|this, _, window, cx| this.toggle(window, cx)))
+                        .into_any_element(),
+                    cx,
+                ))
             })
     }
 }

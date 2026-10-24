@@ -128,6 +128,11 @@ impl Chrome {
         Self::get(cx).sidebar_left
     }
 
+    /// The width the right sidebar takes this frame, as it slides.
+    pub fn right(cx: &App) -> Pixels {
+        Self::get(cx).sidebar_right
+    }
+
     pub fn reserved_right(cx: &App) -> Pixels {
         Self::get(cx).reserved_right
     }

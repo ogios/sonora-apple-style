@@ -36,6 +36,8 @@ const TRAFFIC_LIGHTS_HIDDEN: f32 = -200.;
 /// The width of the three traffic lights and the gap the title bar leaves after them.
 #[cfg(target_os = "macos")]
 const TRAFFIC_LIGHTS_SPAN: f32 = 65.;
+/// The `pr_3` padding beside the page's tools and the right sidebar's toggle.
+const TOOLS_CLEAR: Pixels = gpui::px(12.);
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct TitleBarOptions {
@@ -43,6 +45,9 @@ pub(crate) struct TitleBarOptions {
     pub sidebar_open: bool,
     pub sidebar_right: Option<bool>,
     pub offset: Pixels,
+    /// How far in from the window's right edge the page's tools end: under Liquid Glass they
+    /// stand inside the content sheet, clear of an open right sidebar.
+    pub trailing: Pixels,
     pub border: bool,
     pub content: Option<AnyView>,
     /// Lets the fullscreen ambient background show through behind the controls.
@@ -56,6 +61,7 @@ impl Default for TitleBarOptions {
             sidebar_open: false,
             sidebar_right: None,
             offset: Pixels::ZERO,
+            trailing: Pixels::ZERO,
             border: true,
             content: None,
             transparent: false,
@@ -246,6 +252,10 @@ impl TitleBar {
 impl Render for TitleBar {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
+        // Under Liquid Glass the page's tools end inside the content sheet. The right
+        // sidebar's toggle and its padding already keep this much off the edge.
+        let tools_clear =
+            (self.options.trailing - theme.metrics.control_small - TOOLS_CLEAR).max(TOOLS_CLEAR);
         // Liquid Glass leaves the bar itself clear over the colour field, with only its
         // controls standing on glass.
         let liquid = ui::liquid(cx);
@@ -343,7 +353,8 @@ impl Render for TitleBar {
                     .items_center()
                     .when(navigation, |this| this.child(self.history(window, cx)))
                     .children(content)
-                    .pr_3(),
+                    .pr_3()
+                    .when(liquid, |this| this.pr(tools_clear)),
             )
             .when_some(
                 self.options

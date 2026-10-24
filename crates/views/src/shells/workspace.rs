@@ -205,6 +205,10 @@ impl Shell for Workspace {
                 true => sidebar.occupied_width(),
                 false => Chrome::left(cx),
             },
+            trailing: match ui::liquid(cx) {
+                true => Chrome::right(cx) + ui::liquid_gap(cx) + cx.theme().metrics.pad * 1.5,
+                false => Pixels::ZERO,
+            },
             border: true,
             content,
             transparent: false,
@@ -254,6 +258,7 @@ impl Render for Workspace {
             true => ui::liquid_gap(cx),
             false => Pixels::ZERO,
         };
+        let reach = ui::snapped(cx.theme().metrics.title_bar, window);
         let underlap = self.settings.read(cx).player_bar_translucent() || liquid;
         let bottom = match underlap {
             true => bar_height + gap,
@@ -383,8 +388,18 @@ impl Render for Workspace {
                             // inset from the sidebars and the window's edges, the way Apple
                             // Music floats its content.
                             .when(liquid, |this| {
-                                ui::liquid_sheet(this.ml(overlay_width + gap).mr(gap).mb(gap), cx)
-                                    .overflow_hidden()
+                                // The sheet reaches up behind the title bar, so the history
+                                // capsule and the page's tools stand inside its top edge,
+                                // and the pages start where they always did.
+                                ui::liquid_sheet(
+                                    this.ml(overlay_width + gap)
+                                        .mr(gap)
+                                        .mb(gap)
+                                        .mt(gap - reach)
+                                        .pt(reach - gap),
+                                    cx,
+                                )
+                                .overflow_hidden()
                             })
                             .when(overlay, |this| this.overflow_hidden())
                             .when(covered, |this| this.hidden())

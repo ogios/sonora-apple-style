@@ -1143,6 +1143,7 @@ impl Shell for FullscreenView {
             sidebar_open: false,
             sidebar_right: None,
             offset: Pixels::ZERO,
+            trailing: Pixels::ZERO,
             border: false,
             content: None,
             transparent: ambient::shown(cx),

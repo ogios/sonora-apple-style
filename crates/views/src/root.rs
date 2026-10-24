@@ -1112,6 +1112,16 @@ impl Render for Root {
             })
             .child(self.jam_invite.clone());
 
+        let bar = ui::snapped(theme.metrics.title_bar, window);
+        let title_bar = self
+            .title_bar
+            .clone()
+            .cached(StyleRefinement::default().w_full().h(bar).flex_none());
+        let lifted = theme.liquid && !show_sign_in && matches!(self.view, RootView::Workspace);
+        let (inline_bar, lifted_bar) = match lifted {
+            true => (None, Some(title_bar)),
+            false => (Some(title_bar), None),
+        };
         let root = div()
             .relative()
             .flex()
@@ -1189,19 +1199,18 @@ impl Render for Root {
             })
             // The bar only changes when it is told to, so a frame drawn for the lyrics or the
             // progress bar replays it rather than building it again.
-            .child(
-                self.title_bar.clone().cached(
-                    StyleRefinement::default()
-                        .w_full()
-                        .h(ui::snapped(theme.metrics.title_bar, window))
-                        .flex_none(),
-                ),
-            )
+            .when_some(inline_bar, |this, title_bar| this.child(title_bar))
+            .when(lifted, |this| this.child(div().w_full().h(bar).flex_none()))
             .when_else(
                 show_sign_in,
                 |this| this.child(div().flex().flex_1().min_h_0().child(self.login.clone())),
                 |this| this.child(shell),
-            );
+            )
+            // Under Liquid Glass the workspace's content sheet reaches up behind the bar, so
+            // the bar is drawn over it, in its own place, rather than under it.
+            .when_some(lifted_bar, |this, title_bar| {
+                this.child(div().absolute().top_0().left_0().right_0().child(title_bar))
+            });
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         let root = root.child(WindowFrame::new());
         root
