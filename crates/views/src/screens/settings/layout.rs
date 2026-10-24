@@ -50,7 +50,11 @@ impl Layout {
         Self {
             margin,
             width: (content - margin * 2.).clamp(Pixels::ZERO, COLUMN),
-            top: header.unwrap_or(Pixels::ZERO),
+            // Until the header has measured itself, the page starts where the header's parts
+            // add up to: its padding, the search field, the gap and the tab bar. That puts the
+            // page on screen from the first frame instead of holding it back for one.
+            top: header
+                .unwrap_or(metrics.inset * 2. + metrics.field + metrics.pad + metrics.control),
             measured: header.is_some(),
         }
     }
@@ -136,8 +140,7 @@ fn headline(label: SharedString, cx: &App) -> Div {
 
 /// Lays a settings page out in its column, centred in the content area: the title, then `body`,
 /// scrolling together from just under the floating header, into which they dissolve.
-/// `destination` names the page for its title unless `named` gives one. The page sits out the
-/// frames before the header has measured itself, so it never jumps.
+/// `destination` names the page for its title unless `named` gives one.
 pub(crate) fn frame(
     destination: &Destination,
     named: Option<SharedString>,
@@ -152,26 +155,22 @@ pub(crate) fn frame(
     scrollbar.update(cx, |bar, cx| {
         bar.set_track_top(layout.top, cx);
     });
-    div()
-        .relative()
-        .size_full()
-        .when(!layout.measured, |page| page.invisible())
-        .child(
-            layout
-                .fade(Scroller::new(id, scrollbar).bottom_inset(crate::chrome::Chrome::bottom(cx)))
-                .flex()
-                .flex_col()
-                .items_center()
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .flex_none()
-                        .w(layout.width)
-                        .pt(layout.top)
-                        .pb(theme.metrics.inset * 2.)
-                        .child(title(destination, named, cx).mb(theme.metrics.inset))
-                        .child(body),
-                ),
-        )
+    div().relative().size_full().child(
+        layout
+            .fade(Scroller::new(id, scrollbar).bottom_inset(crate::chrome::Chrome::bottom(cx)))
+            .flex()
+            .flex_col()
+            .items_center()
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .flex_none()
+                    .w(layout.width)
+                    .pt(layout.top)
+                    .pb(theme.metrics.inset * 2.)
+                    .child(title(destination, named, cx).mb(theme.metrics.inset))
+                    .child(body),
+            ),
+    )
 }
