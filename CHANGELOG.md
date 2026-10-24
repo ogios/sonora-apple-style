@@ -12,6 +12,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - NetEase Cloud Music is a new provider. Sign in through music.163.com in a browser window, or
   paste your `MUSIC_U` cookie, to play your liked songs, playlists, saved albums and followed
   artists, and to search the catalogue. Songs your account cannot hear in full stay greyed out.
+- A Liquid Glass look floats the sidebar, toolbar buttons and player bar as rounded glass panels
+  with a lit rim over a soft colour field that follows the cover when the adaptive theme is on.
+  Buttons and tabs turn into capsules. Turn it off in Settings → Appearance → Liquid Glass.
 
 ## [0.44.1] - 2026-10-22
 
