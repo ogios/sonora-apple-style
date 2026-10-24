@@ -1,4 +1,5 @@
 use crate::metrics::Text;
+use crate::motion::{HoverFade, Motion, animates, ease_out_cubic};
 use crate::theme::ActiveTheme as _;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -14,6 +15,8 @@ const TRACK: f32 = 0.5;
 const THUMB: f32 = 1.5;
 const HIT: f32 = 3.;
 const BUBBLE: f32 = 7.;
+/// How much the thumb swells while the pointer is over the track, so it reads as grabbable.
+const THUMB_GROW: f32 = 0.45;
 
 type Slide = Box<dyn Fn(&f32, &mut Window, &mut App) + 'static>;
 type Release = Box<dyn Fn(&MouseUpEvent, &mut Window, &mut App) + 'static>;
@@ -164,7 +167,7 @@ impl Styled for Scrubber {
 }
 
 impl RenderOnce for Scrubber {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let pad = cx.theme().metrics.pad;
         let line = track(pad);
         let pin = thumb(pad);
@@ -191,6 +194,20 @@ impl RenderOnce for Scrubber {
             on_release,
         } = self;
         let overrides = std::mem::take(base.style());
+        // The thumb grows as the pointer comes over the track and shrinks back as it leaves.
+        let grow = (enabled && animates(cx)).then(|| {
+            window.use_keyed_state((ElementId::Name(id.clone()), "thumb"), cx, |_, _| {
+                HoverFade::new(Motion::Quick.span())
+            })
+        });
+        let swell = match &grow {
+            Some(grow) => {
+                1. + THUMB_GROW
+                    * ease_out_cubic(grow.update(cx, |grow, cx| grow.progress(window, cx)))
+            }
+            None => 1.,
+        };
+        let view = window.current_view();
 
         let state = Rc::new(ScrubberState {
             id: id.clone(),
@@ -272,7 +289,8 @@ impl RenderOnce for Scrubber {
                                     .mb(Pixels::ZERO - pin / 2.)
                                     .size(pin)
                                     .rounded_full()
-                                    .bg(thumb),
+                                    .bg(thumb)
+                                    .when(swell != 1., |this| this.layer_scale(swell)),
                             )
                         })
                         .when_some(bubble, |this, (at, text)| {
@@ -338,7 +356,8 @@ impl RenderOnce for Scrubber {
                                     .ml(Pixels::ZERO - pin / 2.)
                                     .size(pin)
                                     .rounded_full()
-                                    .bg(thumb),
+                                    .bg(thumb)
+                                    .when(swell != 1., |this| this.layer_scale(swell)),
                             )
                         })
                         .when_some(bubble, |this, (at, text)| {
@@ -386,6 +405,12 @@ impl RenderOnce for Scrubber {
                     .absolute()
                     .size_full(),
             )
+            .when_some(grow, |this, grow| {
+                this.on_hover(move |hovered, _, cx| {
+                    grow.update(cx, |grow, _| grow.set(*hovered));
+                    cx.notify(view);
+                })
+            })
             .when(enabled, |this| {
                 this.cursor_pointer()
                     .on_mouse_down(MouseButton::Left, down)

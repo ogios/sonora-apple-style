@@ -3,17 +3,18 @@ use std::rc::Rc;
 use gpui::prelude::*;
 use gpui::{
     AnyElement, App, ClickEvent, Div, ElementId, FontWeight, Hsla, Interactivity, MouseButton,
-    MouseDownEvent, Pixels, SharedString, Stateful, StyleRefinement, Window, div, px, relative,
-    svg,
+    MouseDownEvent, Pixels, SharedString, Stateful, StyleRefinement, Window, div, point, px,
+    relative, svg,
 };
 
 use crate::ExplicitBadge;
 use crate::artwork::cover_palette;
 use crate::artwork::{Artwork, Avatar, ROUNDED};
 use crate::button::Button;
-use crate::glass::{GLASS_BLUR, blurring};
+use crate::glass::{GLASS_BLUR, blurring, liquid};
 use crate::label::upper;
 use crate::metrics::{LEADING, Text, snapped};
+use crate::motion::{HoverFade, Motion, animates, css_ease, ease_out_back, ease_out_cubic};
 use crate::skeleton::Skeleton;
 use crate::theme::ActiveTheme as _;
 use crate::tooltip::{Perch, Tipped as _};
@@ -29,6 +30,12 @@ const PLAY_FILL: f32 = 0.55;
 const SCRIM_RATIO: f32 = 0.45;
 const SCRIM_MIN: Pixels = px(14.);
 const TIGHT: Pixels = px(2.);
+/// How small a tile's play button starts as it appears under the pointer, and how far below
+/// its place it rises from.
+const PLAY_SHRUNK: f32 = 0.6;
+const PLAY_RISE: Pixels = px(6.);
+/// How much a tile's cover swells toward the pointer under Liquid Glass.
+const LIFT: f32 = 0.035;
 
 pub const CARD_GROUP: &str = "card";
 
@@ -328,6 +335,29 @@ impl RenderOnce for Card {
             (None, false) => None,
         };
         let overrides = std::mem::take(base.style());
+        // How far the pointer's arrival has come, from 0 at rest to 1 hovered, while motion is
+        // on: the play control fades and pops in by it and a tile's cover lifts. Without an id
+        // or with motion off the control simply shows on hover, as a group style.
+        let fade = base
+            .interactivity()
+            .element_id
+            .clone()
+            .filter(|_| animates(cx) && (play.is_some() || tile.is_some()))
+            .map(|id| {
+                window.use_keyed_state((id, "card-hover"), cx, |_, _| {
+                    HoverFade::new(Motion::Base.span())
+                })
+            });
+        let (arrival, arriving) = match &fade {
+            Some(fade) => fade.update(cx, |fade, cx| (fade.progress(window, cx), fade.hovered())),
+            None => (0., false),
+        };
+        let view = window.current_view();
+        let animated = fade.is_some();
+        let lift = match animated && liquid(cx) && tile.is_some() {
+            true => 1. + LIFT * css_ease(arrival),
+            false => 1.,
+        };
 
         let leading = match loading {
             true => Skeleton::new()
@@ -358,14 +388,35 @@ impl RenderOnce for Card {
                         let size =
                             px((art / px(1.) * PLAY_RATIO).round()).clamp(PLAY_MIN, PLAY_MAX);
 
+                        // Arriving, the control pops: it fades in, rises and swells past its
+                        // size before settling. Leaving, it only fades and sinks.
+                        let pop = match arriving {
+                            true => ease_out_back(arrival),
+                            false => ease_out_cubic(arrival),
+                        };
                         div()
                             .id("card-play")
                             .absolute()
                             .right(PLAY_INSET)
                             .bottom(PLAY_INSET)
-                            .when(!playing, |this| {
+                            .when(!playing && !animated, |this| {
                                 this.invisible()
                                     .group_hover(CARD_GROUP, |style| style.visible())
+                            })
+                            .when(!playing && animated, |this| {
+                                this.when(arrival <= 0., |this| this.invisible()).when(
+                                    arrival < 1.,
+                                    |this| {
+                                        this.opacity(css_ease(arrival))
+                                            .layer_scale(
+                                                (PLAY_SHRUNK + (1. - PLAY_SHRUNK) * pop).max(0.01),
+                                            )
+                                            .layer_translate(point(
+                                                Pixels::ZERO,
+                                                PLAY_RISE * (1. - ease_out_cubic(arrival)),
+                                            ))
+                                    },
+                                )
                             })
                             .child(
                                 Button::new("card-play-button")
@@ -400,9 +451,13 @@ impl RenderOnce for Card {
                             .id("card-scrim")
                             .absolute()
                             .inset_0()
-                            .when(!playing, |this| {
+                            .when(!playing && !animated, |this| {
                                 this.invisible()
                                     .group_hover(CARD_GROUP, |style| style.visible())
+                            })
+                            .when(!playing && animated, |this| {
+                                this.when(arrival <= 0., |this| this.invisible())
+                                    .opacity(css_ease(arrival))
                             })
                             .child(
                                 div()
@@ -438,6 +493,7 @@ impl RenderOnce for Card {
                     .relative()
                     .flex_none()
                     .size(art)
+                    .when(lift != 1., |this| this.layer_scale(lift))
                     .child(leading)
                     .child(control)
                     .into_any_element()
@@ -484,6 +540,12 @@ impl RenderOnce for Card {
 
         let mut card = base
             .group(CARD_GROUP)
+            .when_some(fade, |this, fade| {
+                this.on_hover(move |hovered, _, cx| {
+                    fade.update(cx, |fade, _| fade.set(*hovered));
+                    cx.notify(view);
+                })
+            })
             .flex()
             .when_else(
                 tile.is_some(),

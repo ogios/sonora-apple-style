@@ -1,4 +1,5 @@
 use crate::metrics::snapped;
+use crate::motion::{Motion, animates, ease_out_cubic};
 use crate::palette::{CoverPalette, of_image};
 use crate::skeleton::Skeleton;
 use crate::theme::ActiveTheme as _;
@@ -17,7 +18,7 @@ use image::{
     imageops,
 };
 use std::cell::Cell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::panic::Location;
 use std::path::Path;
@@ -28,6 +29,9 @@ const FILE_PREFIX: &str = "file://";
 
 const FALLBACK_ICON: &str = "icons/music.svg";
 pub(crate) const ROUNDED: Pixels = px(4.);
+/// How much larger and softer a cover starts as it fades in, settling to its size and focus.
+const COVER_SETTLE: f32 = 0.04;
+const COVER_BLUR: Pixels = px(6.);
 /// What the cache trims back to at the least. The budget grows to one screenful of the
 /// largest window a cover was drawn in, plus the `PREFETCH_REACH` laid out past both of its
 /// edges, so a HiDPI grid never trims what it shows or is about to. The cache is allowed half
@@ -332,6 +336,10 @@ struct ArtworkCache {
     bytes: usize,
     /// The size in bytes of the largest window a cover was drawn in, which sets the budget.
     screen: usize,
+    /// Covers drawn before their image was ready, which fade in once it lands, and when each
+    /// of those landed. A cover that was ready when first drawn never fades.
+    awaited: HashSet<Resource>,
+    landed: HashMap<Resource, Instant>,
     _sweep: Task<()>,
 }
 
@@ -350,6 +358,8 @@ impl ArtworkCache {
                 pending: HashMap::new(),
                 soft: HashMap::new(),
                 tints: HashMap::new(),
+                awaited: HashSet::new(),
+                landed: HashMap::new(),
                 bytes: 0,
                 screen: 0,
                 _sweep: sweeper(cx),
@@ -683,6 +693,27 @@ impl ArtworkCache {
 
     /// Whether a cover at `edge` can be drawn without waiting on a load, counting a failed load,
     /// which draws the placeholder, and a stand-in at a nearby edge.
+    /// Notes that a cover is on screen ahead of its image, so it fades in once it lands.
+    fn await_cover(&mut self, resource: &Resource) {
+        if !self.awaited.contains(resource) {
+            self.awaited.insert(resource.clone());
+        }
+    }
+
+    /// When an awaited cover landed, while its fade of `span` still runs. The first draw after
+    /// it lands starts the clock, and the entry goes once the fade is over.
+    fn landing(&mut self, resource: &Resource, span: Duration) -> Option<Instant> {
+        if self.awaited.remove(resource) {
+            self.landed.insert(resource.clone(), Instant::now());
+        }
+        let at = *self.landed.get(resource)?;
+        if at.elapsed() >= span {
+            self.landed.remove(resource);
+            return None;
+        }
+        Some(at)
+    }
+
     fn holds(&self, resource: &Resource, edge: u32, soft: bool) -> bool {
         let key = (resource.clone(), edge);
         if self.items.contains_key(&key) || self.condemned.contains_key(&key) {
@@ -1045,6 +1076,21 @@ impl RenderOnce for Artwork {
                 // Drawn at once rather than after `img`'s loading delay, and under the cover,
                 // so a cover that lands mid-pulse simply covers it.
                 let waiting = !overlay && !cache.read(cx).holds(&resource, edge, soft);
+                // A cover that arrives while it is on screen fades in over its skeleton,
+                // settling from a touch large and soft to sharp, rather than snapping in.
+                let span = Motion::Slow.span();
+                let landed = match (waiting, animates(cx) && !overlay) {
+                    (true, true) => {
+                        cache.update(cx, |cache, _| cache.await_cover(&resource));
+                        None
+                    }
+                    (false, true) => cache.update(cx, |cache, _| cache.landing(&resource, span)),
+                    (_, false) => None,
+                };
+                let shown = landed.map(|at| {
+                    window.request_animation_frame();
+                    ease_out_cubic(at.elapsed().as_secs_f32() / span.as_secs_f32())
+                });
                 let source = ImageSource::Custom(Arc::new({
                     let cache = cache.clone();
                     move |window, cx| {
@@ -1075,7 +1121,7 @@ impl RenderOnce for Artwork {
                     div()
                         .relative()
                         .size(size)
-                        .when(waiting, |this| {
+                        .when(waiting || shown.is_some(), |this| {
                             this.child(
                                 Skeleton::new()
                                     .absolute()
@@ -1091,6 +1137,11 @@ impl RenderOnce for Artwork {
                                 .size(size)
                                 .object_fit(ObjectFit::Cover)
                                 .rounded(rounded)
+                                .when_some(shown, |img, shown| {
+                                    img.opacity(shown)
+                                        .layer_scale(1. + COVER_SETTLE * (1. - shown))
+                                        .blur(COVER_BLUR * (1. - shown))
+                                })
                                 .with_fallback(placeholder),
                         ),
                     interactivity,
