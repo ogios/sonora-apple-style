@@ -74,6 +74,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   that stand out from the rest of their row. The player bar drops its queue and lyrics buttons,
   as the right sidebar has its own switch, and a queue row's remove button floats over the row's
   end only while you hover it, so titles keep that room.
+- Under Liquid Glass every cover or icon set in a rounded row or capsule, such as pins, queue
+  rows, search's Browse all chips, the player bar's track and the account card, sits the same
+  distance from the container's edge all round, its corners rounded concentric with the
+  container's. The account card and the sidebar's search field fade their hover fill in and out.
 
 ### Fixed
 
