@@ -38,6 +38,9 @@ const TRAFFIC_LIGHTS_HIDDEN: f32 = -200.;
 const TRAFFIC_LIGHTS_SPAN: f32 = 65.;
 /// The `pr_3` padding beside the page's tools and the right sidebar's toggle.
 const TOOLS_CLEAR: Pixels = gpui::px(12.);
+/// Under Liquid Glass, how far inside the content sheet's left edge the history capsule
+/// stands, past the sheet's own gap from the sidebar.
+const SHEET_INSIDE: Pixels = gpui::px(14.);
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct TitleBarOptions {
@@ -291,6 +294,10 @@ impl Render for TitleBar {
             .w_full()
             .h(height)
             .flex_none()
+            // Under Liquid Glass the bar is taller than its controls, which stand inside the
+            // top of the content sheet: padding the top by the difference between the room
+            // above and below centres every control on the sheet's inner row.
+            .when(liquid, |this| this.pt(ui::BAR_ABOVE - ui::BAR_BELOW))
             .when_some(radius, |this, radius| this.rounded_t(radius))
             .when(
                 !self.options.transparent && !theme.transparent && !liquid,
@@ -351,6 +358,9 @@ impl Render for TitleBar {
                     .min_w_0()
                     .gap_1()
                     .items_center()
+                    .when(navigation && liquid, |this| {
+                        this.pl(ui::liquid_gap(cx) + SHEET_INSIDE)
+                    })
                     .when(navigation, |this| this.child(self.history(window, cx)))
                     .children(content)
                     .pr_3()

@@ -4,9 +4,19 @@ use i18n::t;
 const HEADER: f32 = 0.75;
 /// How much taller a table row and a control stand under Liquid Glass, and the page margin
 /// there.
-const ROOMY_ROW: Pixels = px(6.);
+const ROOMY_ROW: Pixels = px(12.);
+const ROOMY_THUMB: Pixels = px(8.);
 const ROOMY_CONTROL: Pixels = px(2.);
+const ROOMY_CONTROL_SMALL: Pixels = px(4.);
 const ROOMY_INSET: Pixels = px(32.);
+/// How much more room a button keeps around its label and icon under Liquid Glass.
+const ROOMY_BUTTON: f32 = 1.5;
+const ROOMY_BUTTON_GAP: f32 = 1.34;
+/// Under Liquid Glass the title bar's controls stand inside the top of the content sheet: the
+/// bar keeps this much above a control, the sheet's gap from the window's top plus the room
+/// inside its edge, and this much below it.
+pub const BAR_ABOVE: Pixels = px(22.);
+pub const BAR_BELOW: Pixels = px(8.);
 
 pub const LEADING: f32 = 1.25;
 
@@ -72,6 +82,11 @@ pub struct Metrics {
     pub list_row: Pixels,
     pub thumb: Pixels,
     pub cover: Pixels,
+    /// The room a button keeps between its border and its label or icon, side to side, for a
+    /// regular and a small button, and between its icon and label.
+    pub button_inset: Pixels,
+    pub button_inset_small: Pixels,
+    pub button_gap: Pixels,
 }
 
 impl Default for Metrics {
@@ -99,11 +114,14 @@ impl Metrics {
             list_row: roomy(52., 3.2),
             thumb: px(34.),
             cover: px(140.),
+            button_inset: px(12.),
+            button_inset_small: px(8.),
+            button_gap: px(6.),
         }
     }
 
-    /// The roomier measures Liquid Glass lays the app out in, Cider's: taller table rows and
-    /// controls, and wider page margins, so nothing feels cramped.
+    /// The roomier measures Liquid Glass lays the app out in, Cider's: taller table rows with
+    /// larger artwork, taller controls, and wider page margins, so nothing feels cramped.
     pub fn roomy(self) -> Self {
         let row = self.row + ROOMY_ROW;
 
@@ -112,6 +130,12 @@ impl Metrics {
             header: px((row / px(1.) * HEADER).round()),
             inset: self.inset.max(ROOMY_INSET),
             control: self.control + ROOMY_CONTROL,
+            control_small: self.control_small + ROOMY_CONTROL_SMALL,
+            thumb: self.thumb + ROOMY_THUMB,
+            title_bar: self.control + ROOMY_CONTROL + BAR_ABOVE + BAR_BELOW,
+            button_inset: self.button_inset * ROOMY_BUTTON,
+            button_inset_small: self.button_inset_small * ROOMY_BUTTON,
+            button_gap: self.button_gap * ROOMY_BUTTON_GAP,
             ..self
         }
     }

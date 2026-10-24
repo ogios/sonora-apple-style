@@ -33,6 +33,8 @@ const SHEEN: f32 = 0.08;
 const SWAP_SHRINK: f32 = 0.5;
 /// The edge of a button's icon.
 const ICON: Pixels = px(16.);
+/// A small button's gap between icon and label, as a share of a regular one's.
+const SMALL_GAP: f32 = 0.67;
 
 /// The icon a button showed last, and the one it is handing over from while they cross.
 struct IconSwap {
@@ -460,9 +462,14 @@ impl RenderOnce for Button {
             true => palette.foreground,
             false => tint.unwrap_or(palette.foreground),
         };
+        let metrics = theme.metrics;
         let (height, padding, gap) = match small {
-            true => (theme.metrics.control_small, SMALL_INSET, px(4.)),
-            false => (theme.metrics.control, px(12.), px(6.)),
+            true => (
+                metrics.control_small,
+                metrics.button_inset_small,
+                metrics.button_gap * SMALL_GAP,
+            ),
+            false => (metrics.control, metrics.button_inset, metrics.button_gap),
         };
         let (hover, active) = match interactive {
             true => (palette.hover, palette.active),
@@ -503,6 +510,14 @@ impl RenderOnce for Button {
         let pressed = state_style(active, pressed, frosting);
         let overrides = std::mem::take(base.style());
         let view = window.current_view();
+        // Under Liquid Glass a button showing only an icon is round, its icon centred, so the
+        // roomier label padding never stretches it into a capsule.
+        let round = liquid
+            && icon.is_some()
+            && label.is_none()
+            && leading.is_none()
+            && trailing.is_none()
+            && detail.is_none();
 
         let mut button = base
             .flex()
@@ -512,6 +527,7 @@ impl RenderOnce for Button {
             .gap(gap)
             .h(height)
             .px(padding)
+            .when(round, |this| this.w(height).px_0())
             .map(|this| match liquid {
                 true => this.rounded_full(),
                 false => this.rounded(radius),

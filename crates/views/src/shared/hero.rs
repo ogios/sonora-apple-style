@@ -32,7 +32,9 @@ const HERO_WASH_HOLD: f32 = 0.4;
 /// The fill, rim and vertical padding of a hero fact's pill under Liquid Glass.
 const CHIP_FILL: f32 = 0.08;
 const CHIP_RIM: f32 = 0.08;
-const CHIP_PAD_Y: f32 = 2.;
+const CHIP_PAD_Y: f32 = 4.;
+/// How many times the theme's padding a hero fact's pill keeps on either side of its text.
+const CHIP_PAD_X: f32 = 1.5;
 /// Under Liquid Glass an artist hero stands at least this many times the grown artwork's
 /// height, and as tall as this share of the window, as Cider's does. Its picture reaches up to
 /// the top of the content sheet and `ARTIST_BLEED` past either side, stays solid down this much
@@ -162,7 +164,7 @@ impl RenderOnce for HeroMetaStrip {
                     .flex()
                     .flex_none()
                     .items_center()
-                    .px(theme.metrics.pad)
+                    .px(theme.metrics.pad * CHIP_PAD_X)
                     .py(px(CHIP_PAD_Y))
                     .rounded_full()
                     .bg(chip)

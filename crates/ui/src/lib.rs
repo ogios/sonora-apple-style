@@ -103,7 +103,7 @@ pub use lazy::Lazy;
 pub use lens::{Lens, Mark, lens_radius, mark};
 pub use level_meter::LevelMeter;
 pub use menu::{MENU_CONTEXT, Menu, MenuItem, MenuSearch, SubmenuState};
-pub use metrics::{LEADING, Metrics, Rounding, Text, snapped, tucked};
+pub use metrics::{BAR_ABOVE, BAR_BELOW, LEADING, Metrics, Rounding, Text, snapped, tucked};
 pub use modal::Modal;
 pub use motion::{
     Entrance, Fading, HoverFade, Motion, Motioned, Pace, Rising, Saver, Springs, Sprung, Stillness,
