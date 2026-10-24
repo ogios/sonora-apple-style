@@ -200,17 +200,26 @@ impl RenderOnce for Picks {
         let on_context_menu = self.on_context_menu;
         let on_start = self.on_start;
 
+        // Under Liquid Glass the shelf is Cider's: no frame at all, a bold title with a chevron
+        // after it, and round glass arrows across from it.
+        let liquid = ui::liquid(cx);
+        let arrow = |button: Button| match liquid {
+            true => button
+                .secondary()
+                .size(theme.metrics.control)
+                .px_0(),
+            false => button.small().outline(),
+        };
+
         div()
             .w_full()
             .flex()
             .flex_col()
-            .overflow_hidden()
-            .rounded(theme.radius)
-            .border_1()
-            .border_color(theme.border)
-            // Under Liquid Glass the shelf is a slab of glass like the chrome around it.
-            .when(ui::liquid(cx), |this| {
-                ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
+            .when(!liquid, |this| {
+                this.overflow_hidden()
+                    .rounded(theme.radius)
+                    .border_1()
+                    .border_color(theme.border)
             })
             .child(
                 div()
@@ -218,18 +227,36 @@ impl RenderOnce for Picks {
                     .items_end()
                     .justify_between()
                     .gap_4()
-                    .px_4()
-                    .pt_4()
-                    .pb_3()
-                    .border_b_1()
-                    .border_color(theme.border)
+                    .when(!liquid, |this| {
+                        this.px_4().pt_4().pb_3().border_b_1().border_color(theme.border)
+                    })
+                    .when(liquid, |this| this.pb_2())
                     .child(
                         div()
                             .flex()
                             .flex_col()
                             .gap_0()
-                            .children(self.eyebrow.map(|label| eyebrow(label, cx)))
-                            .child(heading(i18n::lookup(self.title, None), cx)),
+                            .children(
+                                self.eyebrow
+                                    .filter(|_| !liquid)
+                                    .map(|label| eyebrow(label, cx)),
+                            )
+                            .child(match liquid {
+                                true => div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_1()
+                                    .text_size(theme.text(ui::Text::Large))
+                                    .font_weight(gpui::FontWeight::BOLD)
+                                    .child(i18n::lookup(self.title, None))
+                                    .child(
+                                        gpui::svg()
+                                            .path(icons::path("icons/chevron-right.svg"))
+                                            .size(theme.text(ui::Text::Large))
+                                            .text_color(theme.muted_foreground),
+                                    ),
+                                false => heading(i18n::lookup(self.title, None), cx),
+                            }),
                     )
                     .child(
                         div()
@@ -238,9 +265,7 @@ impl RenderOnce for Picks {
                             .gap_1()
                             .pb_1()
                             .child(
-                                Button::new(SharedString::from(format!("{id}-previous")))
-                                    .small()
-                                    .outline()
+                                arrow(Button::new(SharedString::from(format!("{id}-previous"))))
                                     .icon("icons/chevron-left.svg")
                                     .tooltip("common-previous")
                                     .disabled(empty || page == 0)
@@ -251,9 +276,7 @@ impl RenderOnce for Picks {
                                     }),
                             )
                             .child(
-                                Button::new(SharedString::from(format!("{id}-next")))
-                                    .small()
-                                    .outline()
+                                arrow(Button::new(SharedString::from(format!("{id}-next"))))
                                     .icon("icons/chevron-right.svg")
                                     .tooltip("common-next")
                                     .disabled(empty || page + 1 >= shape.pages)
@@ -269,17 +292,17 @@ impl RenderOnce for Picks {
                 this.child(vacant(i18n::lookup(self.vacancy, None), cx))
             })
             .when(!barren, |this| {
-                this.child(div().flex().gap_2().p_2().when_else(
+                this.child(div().flex().gap_2().when_else(liquid, |this| this.gap_6(), |this| this.p_2()).when_else(
                     empty,
                     |this| {
                         this.children((0..shape.columns).map(|column| {
-                            column_shell(column, theme.border)
+                            column_shell(column, theme.border, liquid)
                                 .children((0..ROWS).map(|slot| skeleton(id, column * ROWS + slot)))
                         }))
                     },
                     |this| {
                         this.children((0..shape.columns).map(|column| {
-                            column_shell(column, theme.border).children((0..ROWS).map(|slot| {
+                            column_shell(column, theme.border, liquid).children((0..ROWS).map(|slot| {
                                 let place = start + column * ROWS + slot;
 
                                 match &rows {
@@ -322,14 +345,14 @@ impl RenderOnce for Picks {
     }
 }
 
-fn column_shell(column: usize, border: gpui::Hsla) -> gpui::Div {
+fn column_shell(column: usize, border: gpui::Hsla, liquid: bool) -> gpui::Div {
     div()
         .flex()
         .flex_1()
         .min_w_0()
         .flex_col()
         .gap_1()
-        .when(column > 0, |this| {
+        .when(column > 0 && !liquid, |this| {
             this.border_l_1().border_color(border).pl_2()
         })
 }

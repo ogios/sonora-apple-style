@@ -2317,6 +2317,7 @@ fn liquid_section(
         .items_end()
         .justify_between()
         .gap_2()
+        .w_full()
         .h(theme.metrics.list_row)
         .px_2()
         .pb_1()
