@@ -12,11 +12,11 @@ use gpui::{
 
 use crate::Artwork;
 use crate::form::Submit;
-use crate::glass::{GLASS_BLUR, blurring, popover_fill};
+use crate::glass::{GLASS_BLUR, blurring, liquid, liquid_radius, liquid_rim, popover_fill};
 use crate::glow::{Glow, Hover};
 use crate::input::Input;
 use crate::metrics::snapped;
-use crate::motion::{Fading as _, Rising as _};
+use crate::motion::{Fading as _, Motion, Motioned as _, Rising as _, animates, ease_out_back};
 use crate::scrollbar::Scrollbar;
 use crate::scroller::middle_scroll;
 use crate::separator::Separator;
@@ -27,6 +27,8 @@ use crate::tooltip::{Perch, Tipped as _};
 
 pub const MENU_CONTEXT: &str = "Menu";
 
+/// How small a Liquid Glass menu starts as it pops out of its corner.
+const POP: f32 = 0.86;
 const ESCAPE_KEY: &str = "escape";
 
 const SUBMENU_CLOSE_DELAY: Duration = Duration::from_millis(160);
@@ -1086,6 +1088,23 @@ impl RenderOnce for Menu {
             });
         let frosting = blurring(cx);
         let fill = popover_fill(cx);
+        // Under Liquid Glass a menu is a rounder pane of glass with a bright rim, and pops out
+        // of the corner it hangs from rather than rising in place.
+        let glassy = liquid(cx);
+        let radius = match glassy {
+            true => liquid_radius(cx),
+            false => theme.radius,
+        };
+        let rim = match glassy {
+            true => liquid_rim(cx),
+            false => theme.border,
+        };
+        let origin = match corner {
+            Anchor::TopLeft => point(0., 0.),
+            Anchor::TopRight => point(1., 0.),
+            Anchor::BottomLeft => point(0., 1.),
+            _ => point(1., 1.),
+        };
         let panel_looks = div()
             .on_children_prepainted({
                 let guard = hover_guard.clone();
@@ -1106,10 +1125,10 @@ impl RenderOnce for Menu {
             .flex()
             .flex_col()
             .p_1()
-            .rounded(theme.radius)
+            .rounded(radius)
             .border_1()
             .gap_1()
-            .border_color(theme.border)
+            .border_color(rim)
             .bg(fill)
             .shadow_md()
             .text_color(theme.popover_foreground)
@@ -1128,7 +1147,18 @@ impl RenderOnce for Menu {
             arm(dismiss, cx);
         }
 
-        let rising = panel_looks.rising("menu-rise");
+        let rising = match glassy && animates(cx) {
+            true => panel_looks.layer_scale_origin(origin).motion(
+                "menu-pop",
+                Motion::Base,
+                |panel, t| {
+                    panel
+                        .layer_scale(POP + (1. - POP) * ease_out_back(t))
+                        .opacity(t)
+                },
+            ),
+            false => panel_looks.rising("menu-rise"),
+        };
         // The renderer drops a backdrop while a paint filter is open and the entrance is one,
         // so the panel cannot carry its own frost on the way in: it would arrive only once the
         // rise was over, which reads as a blink. The frost is a sibling underneath instead,
@@ -1140,7 +1170,7 @@ impl RenderOnce for Menu {
                     div()
                         .absolute()
                         .inset_0()
-                        .rounded(theme.radius)
+                        .rounded(radius)
                         .backdrop_blur(GLASS_BLUR)
                         .fading("menu-frost"),
                 )

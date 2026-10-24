@@ -179,6 +179,11 @@ impl RenderOnce for Modal {
                     .rounded(corners(theme.radius))
                     .border_1()
                     .border_color(theme.border)
+                    // Under Liquid Glass a dialog is a rounder pane with a bright rim.
+                    .when(crate::glass::liquid(cx), |this| {
+                        this.rounded(crate::glass::liquid_radius(cx))
+                            .border_color(crate::glass::liquid_rim(cx))
+                    })
                     .bg(theme.popover)
                     .shadow_md()
                     .overflow_hidden()

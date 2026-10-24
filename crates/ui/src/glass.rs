@@ -162,6 +162,15 @@ pub fn liquid_radius(cx: &App) -> Pixels {
     cx.theme().radius * LIQUID_ROUNDING
 }
 
+/// The bright hairline rim of a floating Liquid Glass panel, a menu or a dialog included.
+pub fn liquid_rim(cx: &App) -> Hsla {
+    let rim = match cx.theme().background.l < 0.5 {
+        true => SHEET_RIM_DARK,
+        false => SHEET_RIM_LIGHT,
+    };
+    gpui::white().opacity(rim)
+}
+
 /// How far a floating Liquid Glass panel stands off the window edges and its neighbours.
 pub fn liquid_gap(cx: &App) -> Pixels {
     cx.theme().metrics.pad
