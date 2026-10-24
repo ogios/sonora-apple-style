@@ -21,6 +21,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Covers fade in from soft to sharp as they load instead of popping in, the play button on an
   album or playlist rises and fades in as you hover it while the cover lifts, and slider thumbs
   grow under the pointer. Reduce motion turns all of it off.
+- More of Liquid Glass moves: hover fills on buttons, list rows, menu items and sidebar entries
+  fade in and out, Your Library, Local Music and the pinned section fold open and shut with a
+  turning chevron, and both sidebars slide open and closed.
+- Liquid Glass leans toward Apple Music: pages sit on one large rounded sheet, album and artist
+  pages wash their header in the cover's colour under a larger cover, the sidebar is denser with
+  a search field at the top and your account at the foot, and the player bar puts the seek bar
+  across the top with the playing track in a capsule in the middle.
+
+### Fixed
+
+- Switching pages under Liquid Glass no longer flashes the content area black.
+- With a large font, the pinned section's header no longer runs into its empty state, and the
+  title and buttons of an album or playlist header no longer rise out of it.
 
 ## [0.44.1] - 2026-10-22
 
