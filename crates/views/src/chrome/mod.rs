@@ -107,6 +107,11 @@ impl Chrome {
             .unwrap_or_default()
     }
 
+    /// The width the left sidebar takes this frame, as it slides.
+    pub fn left(cx: &App) -> Pixels {
+        Self::get(cx).sidebar_left
+    }
+
     pub fn reserved_right(cx: &App) -> Pixels {
         Self::get(cx).reserved_right
     }

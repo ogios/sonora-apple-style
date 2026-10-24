@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::f32::consts::TAU;
 use std::rc::Rc;
 
 use ui::{
@@ -9,7 +10,7 @@ use ui::{
 use gpui::prelude::*;
 use gpui::{
     AnyElement, App, Context, DragMoveEvent, ElementId, Entity, MouseButton, MouseDownEvent,
-    Pixels, Point, Render, ScrollHandle, svg,
+    Pixels, Point, Render, ScrollHandle, Transformation, radians, svg,
 };
 use gpui::{Window, div, px};
 use router::{
@@ -71,6 +72,9 @@ const VACANCY_HEIGHT: Pixels = px(88.);
 const PIN_MARK: f32 = 0.7;
 /// The space between two pinned entries, the same as the `gap_1` between the rows above them.
 const ROW_GAP: Pixels = px(4.);
+/// How far a disclosure chevron turns from pointing at its label to pointing down, as a
+/// fraction of a full turn.
+const QUARTER: f32 = 0.25;
 
 /// The two navigation entries that expand into tabs rather than navigate.
 #[derive(Clone, Copy, PartialEq)]
@@ -116,6 +120,12 @@ pub(crate) struct SidebarLeft {
     lens_entry: ui::Mark,
     lens_frame: ui::Mark,
     lit: Cell<bool>,
+    /// Set while the workspace slides the sidebar open or shut, so it stays drawn as it goes.
+    sliding: bool,
+    /// The folds that open and shut Your Library's, Local Music's and the pins' entries.
+    library_fold: ui::Unfold,
+    local_fold: ui::Unfold,
+    pins_fold: ui::Unfold,
 }
 
 impl SidebarLeft {
@@ -156,6 +166,10 @@ impl SidebarLeft {
             lens_entry: ui::Mark::new(),
             lens_frame: ui::Mark::new(),
             lit: Cell::new(false),
+            sliding: false,
+            library_fold: ui::Unfold::new(library_open),
+            local_fold: ui::Unfold::new(local_open),
+            pins_fold: ui::Unfold::new(pinned_open),
             settings,
             session,
             trail,
@@ -207,6 +221,15 @@ impl SidebarLeft {
 
     pub fn is_open(&self) -> bool {
         self.forced.unwrap_or(self.open && !self.cramped)
+    }
+
+    /// The width the panel stands at when open, whether or not it is.
+    pub fn panel_width(&self) -> Pixels {
+        self.width
+    }
+
+    pub fn set_sliding(&mut self, sliding: bool) {
+        self.sliding = sliding;
     }
 
     pub fn overlays(&self) -> bool {
@@ -272,7 +295,7 @@ impl SidebarLeft {
     }
 
     /// The navigation entries, each followed by its tabs while its group is open.
-    fn navigation(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+    fn navigation(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Vec<AnyElement> {
         // A shelf with rows on it belongs in the sidebar even before the session has restored,
         // since a snapshot fills it while the provider is still answering.
         let stocked = self.session.read(cx).authenticated()
@@ -287,8 +310,13 @@ impl SidebarLeft {
                 continue;
             }
             rows.push(self.nav(index, cx));
-            if let Some(group) = group.filter(|group| self.opened(*group)) {
-                rows.push(self.tabs(group, cx));
+            if let Some(group) = group.filter(|group| self.fold(*group).drawn()) {
+                let tabs = self.tabs(group, cx);
+                let fold = match group {
+                    Group::Library => &mut self.library_fold,
+                    Group::Local => &mut self.local_fold,
+                };
+                rows.push(fold.render(tabs, window, cx).into_any_element());
             }
         }
         rows
@@ -296,15 +324,31 @@ impl SidebarLeft {
 
     /// The pinned section: its header, and its entries once it is expanded. The entries are a
     /// `Deck`, so only the ones on screen are ever built.
-    fn pins(&self, window: &Window, cx: &mut Context<Self>) -> Vec<AnyElement> {
+    fn pins(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Vec<AnyElement> {
         if !self.settings.read(cx).nav_shown(NavEntry::Pins.id()) {
             return Vec::new();
         }
 
         let mut rows = vec![self.pins_header(cx)];
-        if !self.pinned_open {
+        if !self.pins_fold.drawn() {
             return rows;
         }
+        let entries = self.pin_entries(window, cx);
+        rows.push(
+            self.pins_fold
+                .render(
+                    div().flex().flex_col().gap_1().children(entries),
+                    window,
+                    cx,
+                )
+                .into_any_element(),
+        );
+        rows
+    }
+
+    /// The pinned entries under the header, or what stands in for them while there are none.
+    fn pin_entries(&self, window: &Window, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let mut rows = Vec::new();
 
         let pins = self.pins.read(cx);
         let pinned = pins.entries(cx);
@@ -342,10 +386,10 @@ impl SidebarLeft {
         rows
     }
 
-    fn opened(&self, group: Group) -> bool {
+    fn fold(&self, group: Group) -> &ui::Unfold {
         match group {
-            Group::Library => self.library_open,
-            Group::Local => self.local_open,
+            Group::Library => &self.library_fold,
+            Group::Local => &self.local_fold,
         }
     }
 
@@ -369,7 +413,9 @@ impl SidebarLeft {
             .justify_between()
             .w_full()
             .min_w_0()
-            .h(theme.metrics.control_small)
+            // At least a small control tall, and taller when a large font needs it, so the
+            // header never runs into what sits under it.
+            .min_h(theme.metrics.control_small)
             .pl_2()
             // Narrower on the right than on the left, so the sort glyph falls on the same
             // line as the chevrons of the rows above.
@@ -387,7 +433,10 @@ impl SidebarLeft {
                     .cursor_pointer()
                     .child(
                         svg()
-                            .path(icons::path(chevron(open)))
+                            .path(icons::path("icons/chevron-right.svg"))
+                            .with_transformation(Transformation::rotate(radians(
+                                QUARTER * TAU * self.pins_fold.openness(),
+                            )))
                             .flex_none()
                             .size(theme.text(Text::Small))
                             .text_color(theme.muted_foreground),
@@ -572,7 +621,8 @@ impl SidebarLeft {
 
         match group {
             Some(group) => row
-                .trailing(chevron(self.opened(group)))
+                .trailing("icons/chevron-right.svg")
+                .trailing_turned(QUARTER * self.fold(group).openness())
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.flip(group);
                     cx.notify();
@@ -665,13 +715,21 @@ impl Render for SidebarLeft {
             self.drop_gap = None;
         }
 
+        self.library_fold.set(self.library_open);
+        self.local_fold.set(self.local_open);
+        self.pins_fold.set(self.pinned_open);
         self.lit.set(false);
-        let mut rows = self.navigation(cx);
+        let mut rows = self.navigation(window, cx);
         // The lens follows whichever entry the navigation rows lit. Pins draw their own pill,
         // since the deck builds them later than this.
         let lens = match ui::liquid(cx) && self.lit.get() {
             true => {
                 self.lens.follow(&self.lens_entry, &self.lens_frame);
+                // A fold opening or shutting carries the lit entry along with it; the lens
+                // rides with it rather than chasing it on its springs.
+                if self.library_fold.folding() || self.local_fold.folding() {
+                    self.lens.ride();
+                }
                 self.lens.render(window, cx)
             }
             false => {
@@ -718,7 +776,7 @@ impl Render for SidebarLeft {
                 this.pins.update(cx, |pins, cx| pins.place(pin, gap, cx));
                 cx.notify();
             }))
-            .when(!self.is_open(), |this| this.hidden())
+            .when(!self.is_open() && !self.sliding, |this| this.hidden())
             .when(!theme.transparent && !liquid, |this| this.bg(sidebar_bg))
             .map(|this| match liquid {
                 true => this.border_color(gpui::transparent_black()).pl(gap).pb(gap),
@@ -857,7 +915,7 @@ fn vacancy() -> AnyElement {
         .icon("icons/pin.svg")
         .compact()
         .flex_none()
-        .h(VACANCY_HEIGHT)
+        .min_h(VACANCY_HEIGHT)
         .px_2()
         .into_any_element()
 }
@@ -868,13 +926,6 @@ fn expanded(current: &Destination) -> (bool, bool) {
         matches!(current, Destination::Library(_)),
         matches!(current, Destination::Local(_)),
     )
-}
-
-fn chevron(open: bool) -> &'static str {
-    match open {
-        true => "icons/chevron-down.svg",
-        false => "icons/chevron-right.svg",
-    }
 }
 
 #[cfg(test)]

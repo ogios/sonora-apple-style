@@ -47,6 +47,9 @@ pub(crate) struct Workspace {
     /// own parts instead.
     cached: bool,
     transition: Option<Entrance>,
+    /// The left and right sidebars' widths sliding as they open and close.
+    left_drawer: ui::Drawer,
+    right_drawer: ui::Drawer,
     focus: FocusHandle,
 }
 
@@ -88,6 +91,8 @@ impl Workspace {
             header: None,
             cached: true,
             transition: None,
+            left_drawer: ui::Drawer::new(),
+            right_drawer: ui::Drawer::new(),
             focus: cx.focus_handle(),
         }
     }
@@ -187,7 +192,10 @@ impl Shell for Workspace {
             navigation: true,
             sidebar_open: sidebar.is_open(),
             sidebar_right: Some(self.sidebar_right.read(cx).is_open()),
-            offset: sidebar.occupied_width(),
+            offset: match sidebar.overlays() {
+                true => sidebar.occupied_width(),
+                false => Chrome::left(cx),
+            },
             border: true,
             content,
             transparent: false,
@@ -197,11 +205,24 @@ impl Shell for Workspace {
 
 impl Render for Workspace {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let right = self.sidebar_right.read(cx).occupied_width(window);
+        let right_open = self.sidebar_right.read(cx).occupied_width(window) > Pixels::ZERO;
+        let right_full = self.sidebar_right.read(cx).panel_width();
+        let right = self.right_drawer.width(right_open, right_full, window, cx);
+        let right_sliding = self.right_drawer.sliding();
+        self.sidebar_right
+            .update(cx, |sidebar, _| sidebar.set_sliding(right_sliding));
         let reserved = self.sidebar_right.read(cx).reserved_width();
         self.sidebar
             .update(cx, |sidebar, cx| sidebar.adapt(reserved, window, cx));
-        let left = self.sidebar.read(cx).occupied_width();
+        // The sidebars slide open and shut: the space each takes eases between nothing and its
+        // width, and the panel rides along inside it, clipped, while it does. An overlaid left
+        // sidebar floats over the page and takes no space, so it has nothing to slide.
+        let left_full = self.sidebar.read(cx).panel_width();
+        let left_open = self.sidebar.read(cx).occupied_width() > Pixels::ZERO;
+        let left = self.left_drawer.width(left_open, left_full, window, cx);
+        let left_sliding = self.left_drawer.sliding() && !self.sidebar.read(cx).overlays();
+        self.sidebar
+            .update(cx, |sidebar, _| sidebar.set_sliding(left_sliding));
         let overlay_width = self.sidebar.read(cx).overlay_width();
         Chrome::publish(left, right, reserved, cx);
         let covered = self.sidebar_right.read(cx).covers_content(window);
@@ -225,9 +246,15 @@ impl Render for Workspace {
         // flow at a width this knows: an overlaid sidebar places itself, and a
         // closed one hides itself and takes no space at all.
         let sidebar_width = self.sidebar.read(cx).occupied_width();
-        let sidebar = match overlay || sidebar_width == gpui::Pixels::ZERO {
-            true => self.sidebar.clone().into_any_element(),
-            false => self
+        let sidebar = match (left_sliding, overlay || sidebar_width == gpui::Pixels::ZERO) {
+            (true, _) => slot(
+                self.sidebar.clone().into_any_element(),
+                left,
+                left_full,
+                false,
+            ),
+            (false, true) => self.sidebar.clone().into_any_element(),
+            (false, false) => self
                 .sidebar
                 .clone()
                 .cached(StyleRefinement::default().w(sidebar_width).h_full())
@@ -251,7 +278,11 @@ impl Render for Workspace {
         // around it for the length of the transition — a quad can only add coverage,
         // never replace it. There the content carries the fade itself, which is the
         // same curve at the price of leaving the cached layout path while it runs.
-        let dissolving = cx.theme().transparent;
+        //
+        // Liquid Glass is the same case: the page floats over the colour field rather than over
+        // the theme's background, so a scrim of the background would cover the field and the
+        // page with a flat dark sheet at the start of every switch, a black flash.
+        let dissolving = cx.theme().transparent || liquid;
         let scrim = match dissolving {
             true => 0.,
             false => hidden,
@@ -384,7 +415,15 @@ impl Render for Workspace {
                                     }),
                             ),
                     )
-                    .child(self.sidebar_right.clone())
+                    .map(|this| match right_sliding {
+                        true => this.child(slot(
+                            self.sidebar_right.clone().into_any_element(),
+                            right,
+                            right_full,
+                            true,
+                        )),
+                        false => this.child(self.sidebar_right.clone()),
+                    })
                     .when(overlay, |this| this.child(self.sidebar.clone())),
             )
             .child(
@@ -412,4 +451,29 @@ impl Render for Workspace {
             .child(self.jam_join.clone())
             .child(self.jam_code.clone())
     }
+}
+
+/// A sidebar sliding open or shut: `width` of room, clipped, with the panel at its `full` width
+/// pinned to the edge it slides from, so it travels in from that edge rather than squeezing.
+fn slot(panel: gpui::AnyElement, width: Pixels, full: Pixels, right: bool) -> gpui::AnyElement {
+    div()
+        .relative()
+        .flex_none()
+        .h_full()
+        .w(width)
+        .overflow_hidden()
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .bottom_0()
+                .w(full)
+                .flex()
+                .map(|this| match right {
+                    true => this.left_0(),
+                    false => this.right_0(),
+                })
+                .child(panel),
+        )
+        .into_any_element()
 }

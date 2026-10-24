@@ -17,6 +17,7 @@ pub(crate) struct SidebarRight {
     settings: Entity<AppSettings>,
     width: Pixels,
     open: bool,
+    sliding: bool,
 }
 
 impl SidebarRight {
@@ -36,7 +37,18 @@ impl SidebarRight {
             settings,
             width,
             open,
+            sliding: false,
         }
+    }
+
+    /// The width the panel stands at when open, whether or not it is.
+    pub(crate) fn panel_width(&self) -> Pixels {
+        self.width
+    }
+
+    /// Set while the workspace slides the panel open or shut, so it stays drawn as it goes.
+    pub(crate) fn set_sliding(&mut self, sliding: bool) {
+        self.sliding = sliding;
     }
 
     pub(crate) fn is_open(&self) -> bool {
@@ -116,7 +128,7 @@ impl SidebarRight {
 
 impl Render for SidebarRight {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        if !self.open || !Self::available(window) {
+        if !(self.open || self.sliding) || !Self::available(window) {
             return div().into_any_element();
         }
 

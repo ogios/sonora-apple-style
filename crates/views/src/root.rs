@@ -132,6 +132,9 @@ impl Root {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        // The title bar sits beside the sidebars, so it follows them as they slide.
+        let chrome = crate::chrome::Chrome::entity(cx);
+        cx.observe(&chrome, |_, _, cx| cx.notify()).detach();
         cx.observe(&session, |this, session, cx| {
             if matches!(session.read(cx).state(), SessionState::SignedOut) {
                 this.navigation_transition = None;
