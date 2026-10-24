@@ -8,7 +8,7 @@ use gpui::{
 };
 
 use crate::button::Button;
-use crate::glass::{blurring, glass};
+use crate::glass::{blurring, glass, liquid, liquid_control};
 use crate::glide::Glide;
 use crate::motion::{Motion, Motioned as _, animates};
 use crate::theme::ActiveTheme as _;
@@ -203,7 +203,10 @@ impl RenderOnce for TabBar {
             reveal,
         } = self;
         let theme = *cx.theme();
-        let glassy = blurred && blurring(cx);
+        // Under Liquid Glass the bar is a capsule of glass with capsule tabs, and the chosen
+        // tab wears the glass pill. A see-through bar paints no flat fade at a capped edge.
+        let liquid = liquid(cx);
+        let glassy = (blurred || liquid) && blurring(cx);
         let rem = window.rem_size();
         let overrides = std::mem::take(base.style());
         // Caller styles win over the bar defaults below, so the rounding the
@@ -274,11 +277,10 @@ impl RenderOnce for TabBar {
                         cx.stop_propagation();
                     })
             })
-            .children(
-                items
-                    .into_iter()
-                    .map(|item| item.flex_shrink_0().rounded(radius)),
-            );
+            .children(items.into_iter().map(|item| match liquid {
+                true => item.flex_shrink_0(),
+                false => item.flex_shrink_0().rounded(radius),
+            }));
         // A glass bar has no flat fill to paint a fade with: a wash of its own thin fill hides
         // nothing. It fades the tabs themselves instead, and leaves the blur behind them whole.
         let row = match (glassy, rails.as_ref()) {
@@ -305,8 +307,9 @@ impl RenderOnce for TabBar {
             .bg(theme.secondary)
             .border_1()
             .border_color(theme.border)
-            .when(blurred, |bar| bar.shadow_sm())
-            .when(glassy, |bar| glass(bar, cx))
+            .when(blurred && !liquid, |bar| bar.shadow_sm())
+            .when(glassy && !liquid, |bar| glass(bar, cx))
+            .when(liquid, |bar| liquid_control(bar.rounded_full(), cx))
             .child(row)
             .when_some(rails.filter(|_| !glassy), |bar, rails| {
                 bar.children(

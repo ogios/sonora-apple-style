@@ -1,5 +1,7 @@
 use gpui::prelude::*;
-use gpui::{App, Hsla, Pixels, px};
+use gpui::{
+    App, BoxShadow, Div, Hsla, Pixels, Window, div, linear_color_stop, linear_gradient, px,
+};
 
 use crate::theme::ActiveTheme as _;
 
@@ -14,6 +16,73 @@ const POPOVER_FILL: f32 = 0.82;
 /// read over whatever scrolls by.
 const BAR_FILL: f32 = 0.86;
 const BAR_BLUR: Pixels = px(18.);
+
+/// How much of the popover colour a Liquid Glass panel keeps over its blur, on a dark theme
+/// and a light one. Thinner than a bar, since the rim and the shading carry the edge and the
+/// colour under the panel is what makes it read as glass.
+const LIQUID_FILL_DARK: f32 = 0.42;
+const LIQUID_FILL_LIGHT: f32 = 0.5;
+/// What a Liquid Glass panel keeps of the popover colour with the blur turned off, where
+/// nothing behind it is softened and the text needs the fill to stand on.
+const LIQUID_FLAT: f32 = 0.9;
+/// How hard a Liquid Glass panel blurs what passes under it.
+const LIQUID_BLUR: Pixels = px(28.);
+/// How far the corners lean from a circle's arc toward a continuous, squircle-like curve.
+const LIQUID_SMOOTHING: f32 = 0.6;
+/// How many times the theme radius a floating panel is rounded by, so the Corners setting
+/// still scales it and Square keeps it square.
+const LIQUID_ROUNDING: f32 = 2.2;
+/// How much lighter the top of a panel's fill starts than its foot, the sheen a curved
+/// surface catches from above.
+const LIQUID_SHEEN: f32 = 0.06;
+/// The white of the hairline rim around a panel, on a dark theme and a light one.
+const RIM_DARK: f32 = 0.18;
+const RIM_LIGHT: f32 = 0.7;
+/// The specular line just inside the top edge, and the shade just inside the foot, which
+/// together make a flat panel read as a slab with thickness.
+const SPECULAR_DARK: f32 = 0.3;
+const SPECULAR_LIGHT: f32 = 0.95;
+const UNDERSIDE_DARK: f32 = 0.35;
+const UNDERSIDE_LIGHT: f32 = 0.08;
+/// The soft glow that fills a panel's inside edge, so the rim fades inward rather than
+/// stopping at the hairline.
+const GLOW: f32 = 0.05;
+const GLOW_BLUR: Pixels = px(10.);
+/// The drop shadow a floating panel casts on what is behind it.
+const DROP_DARK: f32 = 0.45;
+const DROP_LIGHT: f32 = 0.14;
+const DROP_OFFSET: Pixels = px(10.);
+const DROP_BLUR: Pixels = px(30.);
+/// The hairline a lit edge is drawn with, inside the panel's bounds.
+const EDGE: Pixels = px(1.);
+/// The fill of the glass pill that marks a selected entry, as a share of the foreground.
+const PILL_FILL: f32 = 0.12;
+const PILL_FOOT: f32 = 0.06;
+/// The drop shadow under a pill, much closer than a panel's since it sits on the panel.
+const PILL_DROP: f32 = 0.18;
+const PILL_DROP_BLUR: Pixels = px(6.);
+const PILL_DROP_OFFSET: Pixels = px(2.);
+/// The colour field painted behind Liquid Glass chrome: how strong each blob's core is, how
+/// wide a blob spans as a share of the window's longer side, how much of that span the sharp
+/// circle under its shadow takes, and how far the shadow feathers as a share of the span.
+const FIELD_DARK: f32 = 0.85;
+const FIELD_LIGHT: f32 = 0.6;
+const FIELD_SPAN: f32 = 0.5;
+const FIELD_CORE: f32 = 0.6;
+const FIELD_SOFT: f32 = 0.28;
+/// Blob centres as shares of the window, and how far round the colour wheel from the lead
+/// tint each one turns.
+const FIELD_BLOBS: [(f32, f32, f32); 4] = [
+    (0.1, 0.18, 0.),
+    (0.88, 0.22, 0.12),
+    (0.55, 0.95, -0.1),
+    (0.2, 0.9, 0.2),
+];
+/// The saturation and lightness a field blob is pinned to, on a dark theme and a light one,
+/// so a dull cover and the neutral fallback still glow.
+const FIELD_SATURATION: f32 = 0.75;
+const FIELD_LIGHTNESS_DARK: f32 = 0.5;
+const FIELD_LIGHTNESS_LIGHT: f32 = 0.62;
 
 /// Whether a surface that only frosts for the look of it should frost at all. A backdrop blur
 /// is the priciest thing the renderer does per frame, so the setting turns those off and each
@@ -71,4 +140,204 @@ pub fn bar_surface<E: Styled>(element: E, cx: &App) -> E {
 /// `blurring` first, since this one has no theme to read.
 pub fn frost<E: Styled>(element: E) -> E {
     element.backdrop_blur(GLASS_BLUR)
+}
+
+/// Whether the chrome is drawn as Liquid Glass: floating panels inset from the window edges,
+/// deeply rounded, with a lit rim and a shaded foot. The Liquid Glass appearance setting
+/// decides it, and every site that floats or rims for the look asks this first.
+pub fn liquid(cx: &App) -> bool {
+    cx.theme().liquid
+}
+
+/// The corner radius of a floating Liquid Glass panel, a multiple of the theme radius.
+pub fn liquid_radius(cx: &App) -> Pixels {
+    cx.theme().radius * LIQUID_ROUNDING
+}
+
+/// How far a floating Liquid Glass panel stands off the window edges and its neighbours.
+pub fn liquid_gap(cx: &App) -> Pixels {
+    cx.theme().metrics.pad
+}
+
+/// Styles an element as a Liquid Glass panel: a thin tinted fill that lightens toward the top,
+/// a hard blur of what is behind it, a hairline rim, a specular line inside the top edge, a
+/// shade inside the foot, and a soft drop shadow. The fill is the popover colour, so it takes
+/// the adaptive theme's cover tint with everything else. The caller sets the radius, and the
+/// corners are smoothed toward a continuous curve. Refraction is not drawn: the renderer only
+/// blurs what is behind an element.
+pub fn liquid_glass<E: Styled>(element: E, cx: &App) -> E {
+    let drop = match cx.theme().background.l < 0.5 {
+        true => DROP_DARK,
+        false => DROP_LIGHT,
+    };
+    material(
+        element,
+        BoxShadow::new(Pixels::ZERO, DROP_OFFSET, gpui::black().opacity(drop))
+            .blur_radius(DROP_BLUR),
+        cx,
+    )
+}
+
+/// The Liquid Glass material at the size of a control: the same fill, blur, rim and shading
+/// as `liquid_glass`, with the close shadow of something resting on the surface rather than
+/// floating over it.
+pub fn liquid_control<E: Styled>(element: E, cx: &App) -> E {
+    material(
+        element,
+        BoxShadow::new(
+            Pixels::ZERO,
+            PILL_DROP_OFFSET,
+            gpui::black().opacity(PILL_DROP),
+        )
+        .blur_radius(PILL_DROP_BLUR),
+        cx,
+    )
+}
+
+/// Styles an element as the glass pill that marks the selected entry in a Liquid Glass panel
+/// or segmented bar: a capsule of the foreground colour, faint and lighter at the top, with
+/// its own lit top edge and a close shadow, so it reads as a lens resting on the panel.
+pub fn liquid_pill<E: Styled>(element: E, cx: &App) -> E {
+    let theme = cx.theme();
+    let dark = theme.background.l < 0.5;
+    let white = gpui::white();
+    let (specular, rim) = match dark {
+        true => (SPECULAR_DARK, RIM_DARK),
+        false => (SPECULAR_LIGHT, RIM_LIGHT),
+    };
+
+    element
+        .rounded_full()
+        .corner_smoothing(LIQUID_SMOOTHING)
+        .bg(linear_gradient(
+            180.,
+            linear_color_stop(theme.foreground.opacity(PILL_FILL), 0.),
+            linear_color_stop(theme.foreground.opacity(PILL_FOOT), 1.),
+        ))
+        .border_1()
+        .border_color(white.opacity(rim))
+        .shadow(vec![
+            BoxShadow::new(
+                Pixels::ZERO,
+                PILL_DROP_OFFSET,
+                gpui::black().opacity(PILL_DROP),
+            )
+            .blur_radius(PILL_DROP_BLUR),
+            BoxShadow::new(Pixels::ZERO, EDGE, white.opacity(specular)).inset(),
+        ])
+}
+
+/// Marks a selected entry: the glass pill under Liquid Glass, and a flat `fallback` fill
+/// otherwise.
+pub fn chosen<E: Styled>(element: E, fallback: Hsla, cx: &App) -> E {
+    match liquid(cx) {
+        true => liquid_pill(element, cx),
+        false => element.bg(fallback),
+    }
+}
+
+/// The colour field Liquid Glass chrome floats over: wide, feathered blobs of the cover tint
+/// and hues near it over the page colour, so the panels have something to blur and their rims
+/// something to catch. Without a tint it falls back to the theme's selection hue. It is
+/// static, drawn as the blurred shadows of circles, and fills its `relative` parent.
+pub fn liquid_field(window: &Window, cx: &App) -> Div {
+    let theme = cx.theme();
+    let dark = theme.background.l < 0.5;
+    let lead = theme.tint.unwrap_or(theme.selection);
+    let (strength, lightness) = match dark {
+        true => (FIELD_DARK, FIELD_LIGHTNESS_DARK),
+        false => (FIELD_LIGHT, FIELD_LIGHTNESS_LIGHT),
+    };
+    let size = window.viewport_size();
+    let span = size.width.max(size.height) * FIELD_SPAN;
+    let core = span * FIELD_CORE;
+    // A drop shadow is cut away under its own element, so each circle stands off past the
+    // field's left edge and throws its shadow back onto the blob's place.
+    let away = size.width + span;
+
+    div()
+        .absolute()
+        .inset_0()
+        .overflow_hidden()
+        .children(
+            FIELD_BLOBS
+                .into_iter()
+                .enumerate()
+                .map(|(index, (x, y, turn))| {
+                    let hue = match (index, theme.tint_secondary) {
+                        (1, Some(second)) => second.h,
+                        _ => (lead.h + turn).rem_euclid(1.),
+                    };
+                    let color = Hsla {
+                        h: hue,
+                        s: FIELD_SATURATION,
+                        l: lightness,
+                        a: strength,
+                    };
+                    div()
+                        .absolute()
+                        .left(size.width * x - core / 2. - away)
+                        .top(size.height * y - core / 2.)
+                        .size(core)
+                        .rounded_full()
+                        .shadow(vec![
+                            BoxShadow::new(away, Pixels::ZERO, color)
+                                .blur_radius(span * FIELD_SOFT),
+                        ])
+                }),
+        )
+}
+
+/// The Liquid Glass material behind `liquid_glass` and `liquid_control`, casting `drop`.
+fn material<E: Styled>(element: E, drop: BoxShadow, cx: &App) -> E {
+    let theme = cx.theme();
+    let dark = theme.background.l < 0.5;
+    let pick = |on_dark: f32, on_light: f32| match dark {
+        true => on_dark,
+        false => on_light,
+    };
+    let fill = match blurring(cx) {
+        true => theme
+            .popover
+            .opacity(pick(LIQUID_FILL_DARK, LIQUID_FILL_LIGHT)),
+        false => theme.popover.opacity(LIQUID_FLAT),
+    };
+    let lit = Hsla {
+        l: (fill.l + LIQUID_SHEEN).min(1.),
+        ..fill
+    };
+    let white = gpui::white();
+    let black = gpui::black();
+    let element = match blurring(cx) {
+        true => element.backdrop_blur(LIQUID_BLUR),
+        false => element,
+    };
+
+    element
+        .corner_smoothing(LIQUID_SMOOTHING)
+        .bg(linear_gradient(
+            180.,
+            linear_color_stop(lit, 0.),
+            linear_color_stop(fill, 0.55),
+        ))
+        .border_1()
+        .border_color(white.opacity(pick(RIM_DARK, RIM_LIGHT)))
+        .shadow(vec![
+            drop,
+            BoxShadow::new(
+                Pixels::ZERO,
+                EDGE,
+                white.opacity(pick(SPECULAR_DARK, SPECULAR_LIGHT)),
+            )
+            .inset(),
+            BoxShadow::new(
+                Pixels::ZERO,
+                -EDGE,
+                black.opacity(pick(UNDERSIDE_DARK, UNDERSIDE_LIGHT)),
+            )
+            .inset(),
+            BoxShadow::new(Pixels::ZERO, Pixels::ZERO, white.opacity(GLOW))
+                .blur_radius(GLOW_BLUR)
+                .inset(),
+        ])
 }

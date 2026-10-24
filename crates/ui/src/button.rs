@@ -7,7 +7,7 @@ use gpui::{
     svg,
 };
 
-use crate::glass::{blurring, frost};
+use crate::glass::{blurring, frost, liquid, liquid_control, liquid_pill};
 use crate::metrics::Text;
 use crate::theme::ActiveTheme as _;
 use crate::tooltip::{Perch, Tipped as _};
@@ -342,6 +342,10 @@ impl RenderOnce for Button {
 
         let selected_background = theme.secondary_active;
         let radius = theme.radius;
+        // Under Liquid Glass every button is a capsule, a selected one wears the glass pill,
+        // and a filled neutral or frosted one, which floats over content, is a slab of glass.
+        let liquid = liquid(cx);
+        let slab = liquid && !disabled && (frosted || matches!(variant, Variant::Secondary));
         let interactive = !disabled;
         // The white hover tint follows `frosted` whatever the setting says, since it is
         // there for a button floating over artwork; only the blur itself is optional.
@@ -373,15 +377,20 @@ impl RenderOnce for Button {
             .gap(gap)
             .h(height)
             .px(padding)
-            .rounded(radius)
+            .map(|this| match liquid {
+                true => this.rounded_full(),
+                false => this.rounded(radius),
+            })
             .text_color(foreground)
             .when(small, |this| this.text_size(theme.text(Text::Label)))
             .when_some(palette.background, |this, background| this.bg(background))
-            .when(selected && !backgroundless, |this| {
-                this.bg(selected_background)
-            })
             .when_some(palette.border, |this, border| {
                 this.border_1().border_color(border)
+            })
+            .when(slab, |this| liquid_control(this, cx))
+            .when(selected && !backgroundless, |this| match liquid {
+                true => liquid_pill(this, cx),
+                false => this.bg(selected_background),
             })
             .when(interactive, |this| this.cursor_pointer())
             .when_some(tooltip.filter(|_| interactive), |this, (key, perch)| {

@@ -79,6 +79,8 @@ pub struct Look {
     pub blur: bool,
     /// Whether a see-through window asks the platform to blur the desktop behind it.
     pub blur_window: bool,
+    /// Whether the chrome is drawn as floating Liquid Glass panels. See `ui::liquid`.
+    pub liquid: bool,
     pub tint: Option<Hsla>,
     pub tint_secondary: Option<Hsla>,
 }
@@ -391,6 +393,9 @@ pub struct Theme {
     /// Whether a see-through window asks the platform to blur the desktop behind it. Only
     /// `ui::backdrop` reads it.
     pub blur_window: bool,
+    /// Whether the chrome floats as Liquid Glass panels: inset, deeply rounded, rimmed and
+    /// shaded so they read as having thickness. Read it through `ui::liquid`.
+    pub liquid: bool,
     pub tint: Option<Hsla>,
     /// The cover's runner-up hue, carried beside the lead tint for two-colour
     /// surfaces like the fullscreen ambient background. The selection itself stays single.
@@ -445,6 +450,7 @@ impl Theme {
             transparent: false,
             blur: false,
             blur_window: false,
+            liquid: false,
             tint: None,
             tint_secondary: None,
         }
@@ -488,6 +494,7 @@ impl Theme {
             transparent: false,
             blur: false,
             blur_window: false,
+            liquid: false,
             tint: None,
             tint_secondary: None,
         }
@@ -799,6 +806,7 @@ impl Theme {
         theme.transparent = look.transparent;
         theme.blur = look.blur;
         theme.blur_window = look.blur_window;
+        theme.liquid = look.liquid;
         theme.tint = look.tint;
         theme.tint_secondary = look.tint_secondary;
         theme
@@ -982,6 +990,7 @@ mod tests {
             transparency: 0.,
             blur: false,
             blur_window: false,
+            liquid: false,
             tint: Some(TINT),
             tint_secondary: None,
         };

@@ -141,6 +141,7 @@ fn main() {
                     transparency: 0.,
                     blur: false,
                     blur_window: false,
+                    liquid: false,
                     tint: None,
                     tint_secondary: None,
                 },
