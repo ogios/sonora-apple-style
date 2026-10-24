@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::rc::Rc;
 
 use ui::{
@@ -109,6 +110,12 @@ pub(crate) struct SidebarLeft {
     context_menu: Option<(Pin, Point<Pixels>)>,
     scrollbar: Entity<ui::Scrollbar>,
     popovers: ui::Popovers,
+    /// The glass lens that slides between navigation entries under Liquid Glass, the bounds of
+    /// the lit entry and of the rows it is drawn among, and whether a render lit one.
+    lens: ui::Lens,
+    lens_entry: ui::Mark,
+    lens_frame: ui::Mark,
+    lit: Cell<bool>,
 }
 
 impl SidebarLeft {
@@ -145,6 +152,10 @@ impl SidebarLeft {
         let local_open = matches!(at, Destination::Local(_));
 
         Self {
+            lens: ui::Lens::default(),
+            lens_entry: ui::Mark::new(),
+            lens_frame: ui::Mark::new(),
+            lit: Cell::new(false),
             settings,
             session,
             trail,
@@ -566,12 +577,17 @@ impl SidebarLeft {
                     this.flip(group);
                     cx.notify();
                 })),
-            None => row
-                .when(active, |button| ui::chosen(button, accent, cx))
-                .on_click(move |_, _, cx| match destination.in_settings() {
+            None => {
+                let row = row.on_click(move |_, _, cx| match destination.in_settings() {
                     true => open_settings(cx),
                     false => navigate(destination.clone(), cx),
-                }),
+                });
+                match (active, ui::liquid(cx)) {
+                    (true, true) => return self.lit_row(row).into_any_element(),
+                    (true, false) => row.bg(accent),
+                    (false, _) => row,
+                }
+            }
         }
         .into_any_element()
     }
@@ -580,6 +596,7 @@ impl SidebarLeft {
     fn tabs(&self, group: Group, cx: &mut Context<Self>) -> AnyElement {
         let theme = *cx.theme();
         let accent = theme.sidebar_accent;
+        let liquid = ui::liquid(cx);
         let current = self.trail.read(cx).current();
         let tab = |id: ElementId, key: &'static str, destination: Destination| {
             let chosen = destination == current;
@@ -588,10 +605,14 @@ impl SidebarLeft {
                 false => theme.muted_foreground,
             };
 
-            nav_row(id, key, tint, accent)
+            let row = nav_row(id, key, tint, accent)
                 .flex_1()
-                .when(chosen, |button| ui::chosen(button, accent, cx))
-                .on_click(move |_, _, cx| navigate(destination.clone(), cx))
+                .on_click(move |_, _, cx| navigate(destination.clone(), cx));
+            match (chosen, liquid) {
+                (true, true) => self.lit_row(row).into_any_element(),
+                (true, false) => row.bg(accent).into_any_element(),
+                (false, _) => row.into_any_element(),
+            }
         };
 
         match group {
@@ -607,6 +628,18 @@ impl SidebarLeft {
             )),
         }
         .into_any_element()
+    }
+
+    /// The lit navigation entry under Liquid Glass, which wears no pill of its own: it records
+    /// where it was laid out for the lens that slides beneath it.
+    fn lit_row(&self, row: ui::Button) -> gpui::Div {
+        self.lit.set(true);
+        div()
+            .relative()
+            .flex()
+            .flex_1()
+            .child(row.flex_1())
+            .child(ui::mark(&self.lens_entry))
     }
 
     fn persist(&self, cx: &mut Context<Self>) {
@@ -632,7 +665,21 @@ impl Render for SidebarLeft {
             self.drop_gap = None;
         }
 
+        self.lit.set(false);
         let mut rows = self.navigation(cx);
+        // The lens follows whichever entry the navigation rows lit. Pins draw their own pill,
+        // since the deck builds them later than this.
+        let lens = match ui::liquid(cx) && self.lit.get() {
+            true => {
+                self.lens.follow(&self.lens_entry, &self.lens_frame);
+                self.lens.render(window, cx)
+            }
+            false => {
+                self.lens.hide();
+                self.lens_entry.clear();
+                None
+            }
+        };
         rows.extend(self.pins(window, cx));
 
         let overlaid = self.overlays();
@@ -701,6 +748,7 @@ impl Render for SidebarLeft {
                             .size_full()
                             .child(
                                 div()
+                                    .relative()
                                     .flex()
                                     .flex_col()
                                     .gap_1()
@@ -709,6 +757,8 @@ impl Render for SidebarLeft {
                                     // Leave the last row somewhere to go, clear of the
                                     // button that floats over the bottom.
                                     .pb(ui::perch_room(cx))
+                                    .child(ui::mark(&self.lens_frame))
+                                    .children(lens)
                                     .children(rows),
                             ),
                     )

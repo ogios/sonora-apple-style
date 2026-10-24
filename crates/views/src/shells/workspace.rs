@@ -7,7 +7,7 @@ use input::WORKSPACE_CONTEXT;
 use state::{AppSettings, Playback, Queue, SideTab, Sonora};
 use ui::{
     Activate, ActiveTheme as _, Deselect, Entrance, Remove, SelectNext, SelectPrevious, entering,
-    shown_listing, veiled,
+    settling, shown_listing, veiled,
 };
 
 use crate::chrome::{
@@ -351,6 +351,9 @@ impl Render for Workspace {
                                             .map(|this| match dissolving {
                                                 true => entering(this, hidden),
                                                 false => veiled(this, hidden),
+                                            })
+                                            .when(liquid && hidden > 0., |this| {
+                                                settling(this, hidden)
                                             })
                                             .child(content),
                                     )
