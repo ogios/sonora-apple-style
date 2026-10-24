@@ -124,6 +124,12 @@ impl Workspace {
         self.sidebar_right.update(cx, |panel, cx| panel.toggle(cx));
     }
 
+    /// Turns the open right sidebar to `tab`, leaving it open whichever it showed.
+    pub fn switch_side(&self, tab: SideTab, cx: &mut Context<Self>) {
+        self.sidebar_right
+            .update(cx, |panel, cx| panel.switch(tab, cx));
+    }
+
     pub fn show_side(&self, tab: SideTab, cx: &mut Context<Self>) {
         self.sidebar_right
             .update(cx, |panel, cx| panel.show(tab, cx));
@@ -201,6 +207,7 @@ impl Shell for Workspace {
             navigation: true,
             sidebar_open: sidebar.is_open(),
             sidebar_right: Some(self.sidebar_right.read(cx).is_open()),
+            side_switch: ui::liquid(cx),
             offset: match sidebar.overlays() {
                 true => sidebar.occupied_width(),
                 false => Chrome::left(cx),

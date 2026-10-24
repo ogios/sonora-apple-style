@@ -4,16 +4,17 @@ use gpui::prelude::*;
 use gpui::{AnyElement, App, Window, div};
 use gpui::{
     AnyView, Context, Entity, EventEmitter, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, Pixels, Render,
+    MouseUpEvent, Pixels, Render, SharedString,
 };
 use ui::TrafficLightControls;
 use ui::WindowControls;
-use ui::{ActiveTheme as _, Button, Spin};
+use ui::{ActiveTheme as _, Button, Spin, TabBar};
 
-use crate::chrome::SidebarRight;
+use crate::chrome::{Chrome, SidebarRight};
+use i18n::t;
 use input::Refresh;
 use router::Navigation;
-use state::{AppSettings, Sonora};
+use state::{AppSettings, SideTab, Sonora};
 
 const SYSTEM_ZOOMS: bool = cfg!(target_os = "windows");
 
@@ -41,12 +42,21 @@ const TOOLS_CLEAR: Pixels = gpui::px(12.);
 /// Under Liquid Glass, how far inside the content sheet's left edge the history capsule
 /// stands, past the sheet's own gap from the sidebar.
 const SHEET_INSIDE: Pixels = gpui::px(14.);
+/// Under Liquid Glass, how far inside the right sidebar's left edge its queue/lyrics switch
+/// stands, in paddings: in line with the queue's own header below it.
+const SWITCH_INSIDE: f32 = 1.5;
+/// How many small controls of room the switch leaves free for the sidebar's toggle and the
+/// gap before it.
+const SWITCH_CLEAR: f32 = 2.;
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct TitleBarOptions {
     pub navigation: bool,
     pub sidebar_open: bool,
     pub sidebar_right: Option<bool>,
+    /// Under Liquid Glass with the right sidebar open, the bar carries the sidebar's
+    /// queue/lyrics switch at the sidebar's top left, across from its toggle.
+    pub side_switch: bool,
     pub offset: Pixels,
     /// How far in from the window's right edge the page's tools end: under Liquid Glass they
     /// stand inside the content sheet, clear of an open right sidebar.
@@ -63,6 +73,7 @@ impl Default for TitleBarOptions {
             navigation: false,
             sidebar_open: false,
             sidebar_right: None,
+            side_switch: false,
             offset: Pixels::ZERO,
             trailing: Pixels::ZERO,
             border: true,
@@ -75,6 +86,7 @@ impl Default for TitleBarOptions {
 pub(crate) enum TitleBarEvent {
     ToggleSidebar,
     ToggleSidebarRight,
+    SwitchSide(SideTab),
 }
 
 pub(crate) struct TitleBar {
@@ -227,6 +239,76 @@ impl TitleBar {
             )
     }
 
+    /// The right sidebar's switch between the queue and the lyrics, standing over the
+    /// sidebar's top left edge.
+    fn side_switch(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = *cx.theme();
+        let showing = self.settings.read(cx).sidebar_right_tab();
+        let left =
+            window.viewport_size().width - Chrome::right(cx) + theme.metrics.pad * SWITCH_INSIDE;
+        // The tabs carry their names where the sidebar has room for them beside its toggle,
+        // and only their glyphs where it does not, as at a large font in a narrow sidebar.
+        let queue = t!("queue-title");
+        let lyrics = t!("lyrics-title");
+        let per_tab = theme.metrics.control_small + theme.metrics.button_inset_small * 2.;
+        let needed = ui::text_width(queue.clone(), window)
+            + ui::text_width(lyrics.clone(), window)
+            + per_tab * 2.;
+        let room = Chrome::right(cx)
+            - theme.metrics.pad * SWITCH_INSIDE
+            - theme.metrics.control_small * SWITCH_CLEAR;
+        let named = needed <= room;
+        let tab = |id: &'static str,
+                   icon: &'static str,
+                   label: SharedString,
+                   key: &'static str,
+                   tab: SideTab| {
+            let chosen = showing == tab;
+            Button::new(id)
+                .ghost()
+                .small()
+                .icon(icon)
+                .when(named, |button| button.label(label))
+                .when(!named, |button| button.tooltip(key))
+                .selected(chosen)
+                .tint(match chosen {
+                    true => theme.foreground,
+                    false => theme.muted_foreground,
+                })
+                .on_click(cx.listener(move |_, _, _, cx| cx.emit(TitleBarEvent::SwitchSide(tab))))
+        };
+
+        div()
+            .absolute()
+            .top_0()
+            .bottom_0()
+            .left(left)
+            .pt(ui::BAR_ABOVE - ui::BAR_BELOW)
+            .flex()
+            .items_center()
+            .child(
+                div()
+                    .occlude()
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .child(TabBar::new("side-switch").p_0p5().items([
+                        tab(
+                            "side-switch-queue",
+                            "icons/list-music.svg",
+                            queue.clone(),
+                            "queue-title",
+                            SideTab::Queue,
+                        ),
+                        tab(
+                            "side-switch-lyrics",
+                            "icons/mic-vocal.svg",
+                            lyrics.clone(),
+                            "lyrics-title",
+                            SideTab::Lyrics,
+                        ),
+                    ])),
+            )
+    }
+
     fn toggle(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let icon = match self.options.sidebar_open {
             true => "icons/panel-left-close.svg",
@@ -288,7 +370,12 @@ impl Render for TitleBar {
         #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
         let radius: Option<Pixels> = None;
 
+        let side_switch = self.options.side_switch
+            && self.options.sidebar_right == Some(true)
+            && SidebarRight::available(window);
+
         div()
+            .relative()
             .flex()
             .items_center()
             .w_full()
@@ -374,6 +461,7 @@ impl Render for TitleBar {
                     this.child(div().flex_none().pr_3().child(self.lyrics_toggle(open, cx)))
                 },
             )
+            .when(side_switch, |this| this.child(self.side_switch(window, cx)))
             .when(decorated && !leading, |this| {
                 this.child(
                     div()

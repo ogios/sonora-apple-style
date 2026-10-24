@@ -246,6 +246,10 @@ impl Root {
                 .shells
                 .workspace
                 .update(cx, |workspace, cx| workspace.toggle_sidebar_right(cx)),
+            TitleBarEvent::SwitchSide(tab) => this
+                .shells
+                .workspace
+                .update(cx, |workspace, cx| workspace.switch_side(*tab, cx)),
         })
         .detach();
 
