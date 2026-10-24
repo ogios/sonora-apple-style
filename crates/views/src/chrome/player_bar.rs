@@ -37,7 +37,10 @@ const CAPSULE_MAX: f32 = 520.;
 const SEEK_WEIGHT: f32 = 1.5;
 const VOLUME_ROOMY: f32 = 160.;
 /// How much taller the Liquid Glass bar stands than the standard one, in paddings.
-const ROOMY_RISE: f32 = 3.5;
+const ROOMY_RISE: f32 = 7.5;
+/// How many times the theme's padding the Liquid Glass bar keeps above its seek bar and below
+/// its row of controls, so the track's capsule never sits on the bar's foot.
+const ROOMY_BREATH: f32 = 2.;
 const CAPSULE_FILL: f32 = 0.06;
 const CAPSULE_RIM: f32 = 0.08;
 const VOLUME_WIDTH: f32 = 110.;
@@ -702,6 +705,7 @@ impl Render for PlayerBar {
                 .flex_col()
                 .justify_center()
                 .gap_2()
+                .py(theme.metrics.pad * ROOMY_BREATH)
                 .child(div().w_full().child(seek))
                 .child(
                     div()
