@@ -99,6 +99,8 @@ const ACCOUNT_PAD: f32 = 1.25;
 const ACCOUNT_MARGIN: f32 = 1.5;
 const ACCOUNT_FILL: f32 = 0.06;
 const ACCOUNT_RIM: f32 = 0.08;
+/// How much brighter than its rim the account card's fill turns under the pointer.
+const ACCOUNT_LIT: f32 = 1.5;
 /// How much of an entry's height the account card's disc takes.
 const ACCOUNT_AVATAR: f32 = 0.9;
 /// How rounded the search field is under Liquid Glass, as a multiple of the theme radius.
@@ -890,75 +892,11 @@ impl SidebarLeft {
     /// The account card at the foot of the sidebar under Liquid Glass: a rounded block of its
     /// own, floating clear of the entries above it, with the provider's initial in a disc and
     /// its name, opening settings.
+    /// The account card at the sidebar's foot under Liquid Glass, built as it is drawn so its
+    /// hover fade lasts from frame to frame.
     fn account(&self, cx: &App) -> AnyElement {
-        let theme = *cx.theme();
         let name = self.session.read(cx).provider_name().unwrap_or_default();
-        let initial: SharedString = name
-            .chars()
-            .next()
-            .map(String::from)
-            .unwrap_or_default()
-            .into();
-        let disc = entry_height(cx) * ACCOUNT_AVATAR;
-        let pad = theme.metrics.pad;
-
-        div()
-            .flex_none()
-            .p(pad * ACCOUNT_MARGIN)
-            .pt(pad)
-            .child(
-                div()
-                    .id("sidebar-account")
-                    .flex()
-                    .items_center()
-                    .gap(pad * 1.25)
-                    .w_full()
-                    .min_w_0()
-                    .p(pad * ACCOUNT_PAD)
-                    .rounded(ui::liquid_radius(cx))
-                    .corner_smoothing(0.6)
-                    .bg(theme.foreground.opacity(ACCOUNT_FILL))
-                    .border_1()
-                    .border_color(theme.foreground.opacity(ACCOUNT_RIM))
-                    .cursor_pointer()
-                    .hover(move |style| style.bg(theme.foreground.opacity(ACCOUNT_RIM * 1.5)))
-                    .child(
-                        div()
-                            .flex()
-                            .flex_none()
-                            .items_center()
-                            .justify_center()
-                            .size(disc)
-                            .rounded_full()
-                            .bg(theme.primary)
-                            .text_color(theme.primary_foreground)
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .child(initial),
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .min_w_0()
-                            .child(
-                                div()
-                                    .min_w_0()
-                                    .overflow_hidden()
-                                    .font_weight(gpui::FontWeight::SEMIBOLD)
-                                    .child(ui::fade_line(SharedString::from(name))),
-                            )
-                            .child(
-                                div()
-                                    .min_w_0()
-                                    .overflow_hidden()
-                                    .text_size(theme.text(Text::Small))
-                                    .text_color(theme.muted_foreground)
-                                    .child(ui::fade_line(i18n::lookup("nav-settings", None))),
-                            ),
-                    )
-                    .on_click(|_, _, cx| open_settings(cx)),
-            )
-            .into_any_element()
+        Drawn::new(move |window, cx| account_card(name, window, cx)).into_any_element()
     }
 
     fn persist(&self, cx: &mut Context<Self>) {
@@ -1088,7 +1026,7 @@ impl Render for SidebarLeft {
                                     // button that floats over the bottom.
                                     .pb(ui::perch_room(cx))
                                     .child(ui::mark(&self.lens_frame))
-                                    .children(liquid.then(|| search_field(window, cx)))
+                                    .children(liquid.then(|| Drawn::new(search_field)))
                                     .children(lens)
                                     .children(rows),
                             ),
@@ -1309,5 +1247,108 @@ mod tests {
         for destination in away {
             assert_eq!(expanded(&destination), (false, false), "{destination:?}");
         }
+    }
+}
+
+/// The account card itself: your provider's initial on a disc nested in the card's curve, its
+/// name, and a way into Settings, with a hover fill that fades in and out.
+fn account_card(name: &'static str, window: &mut Window, cx: &mut App) -> AnyElement {
+    let theme = *cx.theme();
+    let initial: SharedString = name
+        .chars()
+        .next()
+        .map(String::from)
+        .unwrap_or_default()
+        .into();
+    let disc = entry_height(cx) * ACCOUNT_AVATAR;
+    let pad = theme.metrics.pad;
+    let radius = ui::liquid_radius(cx);
+    // The avatar nests in the card's curve, and the card's hover fill fades in and out.
+    let nested = ui::nest(radius, pad * ACCOUNT_PAD, disc, true);
+    let fill = theme.foreground.opacity(ACCOUNT_FILL);
+    let hover = theme.foreground.opacity(ACCOUNT_RIM * ACCOUNT_LIT);
+    let glow = ui::Glow::new("sidebar-account".into(), window, cx);
+    let lit = glow.as_ref().and_then(|glow| glow.fill(Some(fill), hover));
+
+    div()
+        .flex_none()
+        .p(pad * ACCOUNT_MARGIN)
+        .pt(pad)
+        .child(
+            div()
+                .id("sidebar-account")
+                .flex()
+                .items_center()
+                .gap(pad * 1.25)
+                .w_full()
+                .min_w_0()
+                .py(nested.inset)
+                .pl(nested.lead)
+                .pr(nested.inset)
+                .rounded(radius)
+                .corner_smoothing(0.6)
+                .bg(lit.unwrap_or(fill))
+                .border_1()
+                .border_color(theme.foreground.opacity(ACCOUNT_RIM))
+                .cursor_pointer()
+                .map(|this| match glow {
+                    Some(glow) => glow.attach(this),
+                    None => this.hover(move |style| style.bg(hover)),
+                })
+                .child(
+                    div()
+                        .flex()
+                        .flex_none()
+                        .items_center()
+                        .justify_center()
+                        .size(disc)
+                        .rounded_full()
+                        .bg(theme.primary)
+                        .text_color(theme.primary_foreground)
+                        .font_weight(gpui::FontWeight::BOLD)
+                        .child(initial),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .min_w_0()
+                        .child(
+                            div()
+                                .min_w_0()
+                                .overflow_hidden()
+                                .font_weight(gpui::FontWeight::SEMIBOLD)
+                                .child(ui::fade_line(SharedString::from(name))),
+                        )
+                        .child(
+                            div()
+                                .min_w_0()
+                                .overflow_hidden()
+                                .text_size(theme.text(Text::Small))
+                                .text_color(theme.muted_foreground)
+                                .child(ui::fade_line(i18n::lookup("nav-settings", None))),
+                        ),
+                )
+                .on_click(|_, _, cx| open_settings(cx)),
+        )
+        .into_any_element()
+}
+
+type Build = Box<dyn FnOnce(&mut Window, &mut App) -> AnyElement>;
+
+/// Content built as it is drawn rather than while the sidebar renders, so per-element state,
+/// such as a hover fade, lasts from one frame to the next.
+#[derive(IntoElement)]
+struct Drawn(Build);
+
+impl Drawn {
+    fn new(build: impl FnOnce(&mut Window, &mut App) -> AnyElement + 'static) -> Self {
+        Self(Box::new(build))
+    }
+}
+
+impl RenderOnce for Drawn {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        (self.0)(window, cx)
     }
 }
