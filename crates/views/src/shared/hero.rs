@@ -9,7 +9,7 @@ use i18n::t;
 use music::{Album, Track};
 use state::{Origin, Playback};
 use ui::{
-    ActiveTheme as _, Artwork, Button, ExplicitBadge, LEADING, Pin, Pinnable as _, Skeleton,
+    ActiveTheme as _, Artwork, Banner, Button, ExplicitBadge, LEADING, Pin, Pinnable as _, Skeleton,
     TableState, Text, upper,
 };
 
@@ -43,9 +43,14 @@ const ARTIST_BLEED: Pixels = px(160.);
 const ARTIST_SOLID: f32 = 0.45;
 const ARTIST_FADE: Pixels = px(160.);
 const ARTIST_BANDS: usize = 24;
-/// The picture fills the sheet's width and is cropped top and bottom like a cover, keeping
-/// this share of what is cut from above, so a face in the upper part of a portrait stays in.
+/// The picture is laid like a cover over the sheet's width at its own proportions, in a box
+/// `ARTIST_ASPECT` wide to high. Where it is
+/// cut top and bottom, this share of the cut comes from above, so a face in the upper part of
+/// a portrait stays in.
 const ARTIST_FOCUS: f32 = 0.3;
+/// The width-to-height shape of the box an artist's picture is laid over, near the shape
+/// artist header pictures come in, so one is cut little at the sides.
+const ARTIST_ASPECT: f32 = 1.9;
 /// How far the dissolving bands are blurred, so the picture turns to frost as it fades.
 const ARTIST_FROST: Pixels = px(12.);
 /// Below the solid part the sharp picture crossfades into the frosted one over this far, in
@@ -661,9 +666,14 @@ fn artist_backdrop(
 ) -> AnyElement {
     let theme = cx.theme();
     let height = rise + tall + ARTIST_FADE;
-    let edge = crate::chrome::Chrome::content(window, cx).max(height);
+    let width = crate::chrome::Chrome::content(window, cx);
     let solid = rise + tall * ARTIST_SOLID;
-    let picture = ui::snapped(-(edge - height) * ARTIST_FOCUS, window);
+    // The picture's box keeps a wide shape so a wide picture shows most of its width, and
+    // ends partway down the frost, where the dissolving bands are faint enough to hide its foot.
+    let frame = ui::snapped(
+        (width / ARTIST_ASPECT).clamp(solid + ARTIST_SHARPEN, height),
+        window,
+    );
     let band = (height - solid) / ARTIST_BANDS as f32;
     // A strip of the picture at `top` within a box that starts `base` down the backdrop.
     let slice = |base: Pixels, top: Pixels, high: Pixels, opacity: f32| {
@@ -681,8 +691,8 @@ fn artist_backdrop(
             .child(
                 div()
                     .flex_none()
-                    .mt(picture - base - top)
-                    .child(Artwork::new(cover.clone()).size(edge)),
+                    .mt(Pixels::ZERO - base - top)
+                    .child(Banner::new(cover.clone(), width, frame).focus(ARTIST_FOCUS)),
             )
     };
 

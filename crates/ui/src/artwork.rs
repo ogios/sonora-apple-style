@@ -691,6 +691,14 @@ impl ArtworkCache {
         Some(image)
     }
 
+    /// The pixel size of a picture decoded at its own size, once it has loaded.
+    fn natural_size(&self, resource: &Resource) -> Option<(f32, f32)> {
+        let cached = self.items.get(&(resource.clone(), 0))?;
+        let size = cached.value.as_ref().ok()?.size(0);
+        (size.width.0 > 0 && size.height.0 > 0)
+            .then(|| (size.width.0 as f32, size.height.0 as f32))
+    }
+
     /// Whether a cover at `edge` can be drawn without waiting on a load, counting a failed load,
     /// which draws the placeholder, and a stand-in at a nearby edge.
     /// Notes that a cover is on screen ahead of its image, so it fades in once it lands.
@@ -1151,6 +1159,71 @@ impl RenderOnce for Artwork {
             None => refined(blank(size, rounded, muted, glyph, fallback), interactivity)
                 .into_any_element(),
         }
+    }
+}
+
+/// A picture laid like a cover over a box of any shape, at its own proportions rather than
+/// cropped to a square first: it fills the box and is cut where it runs over. Side to side
+/// the cut is even; top to bottom `focus` of it comes from above. For an artist's header
+/// picture, which is often far wider than it is tall. It is decoded at its full size, so it
+/// suits one large picture on a page rather than a grid of them.
+#[derive(IntoElement)]
+pub struct Banner {
+    url: Option<SharedString>,
+    width: Pixels,
+    height: Pixels,
+    focus: f32,
+}
+
+impl Banner {
+    pub fn new(url: Option<impl Into<SharedString>>, width: Pixels, height: Pixels) -> Self {
+        Self {
+            url: url.map(Into::into),
+            width,
+            height,
+            focus: 0.5,
+        }
+    }
+
+    /// The share of a top-to-bottom cut taken from above the picture's subject.
+    pub fn focus(mut self, focus: f32) -> Self {
+        self.focus = focus.clamp(0., 1.);
+        self
+    }
+}
+
+impl RenderOnce for Banner {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let Self {
+            url,
+            width,
+            height,
+            focus,
+        } = self;
+        let frame = div().flex_none().w(width).h(height).overflow_hidden();
+        let Some(url) = url else {
+            return frame;
+        };
+        let cache = ArtworkCache::entity(cx);
+        let resource = resource(url);
+        let natural = cache.read(cx).natural_size(&resource);
+        let picture = img(ImageSource::Resource(resource)).image_cache(&cache);
+
+        // Until the picture's own size is known it is drawn centred by the image itself.
+        let Some((wide, high)) = natural else {
+            return frame.child(picture.size_full().object_fit(ObjectFit::Cover));
+        };
+        let scale = (width / px(wide)).max(height / px(high));
+        let (drawn_wide, drawn_high) = (px(wide) * scale, px(high) * scale);
+        frame.relative().child(
+            picture
+                .absolute()
+                .left((width - drawn_wide) / 2.)
+                .top((height - drawn_high) * focus)
+                .w(drawn_wide)
+                .h(drawn_high)
+                .object_fit(ObjectFit::Fill),
+        )
     }
 }
 

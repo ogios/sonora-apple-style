@@ -63,7 +63,7 @@ mod visualizer;
 
 pub use arrow_ring::ArrowRing;
 pub use artwork::{
-    Artwork, Avatar, PREFETCH_REACH, Prefetch, artwork_usage, cover_palette, prefetch,
+    Artwork, Avatar, Banner, PREFETCH_REACH, Prefetch, artwork_usage, cover_palette, prefetch,
 };
 pub use button::{Button, SMALL_INSET};
 pub use card::CARD_GROUP;
