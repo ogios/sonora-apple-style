@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use gpui::{
     Animation, AnimationElement, AnimationExt as _, App, ElementId, Hsla, IntoElement, Pixels,
-    Rgba, SharedString, SpringConfig, Styled, ease_in_out, ease_out_quint, px,
+    Rgba, SharedString, SpringConfig, SpringState, Styled, ease_in_out, ease_out_quint, point, px,
 };
 use i18n::t;
 
@@ -15,6 +15,8 @@ const SLOW: Duration = Duration::from_millis(320);
 const ENTRANCE_EXTRA: Duration = Duration::from_millis(50);
 const ENTRANCE_BLUR: Pixels = px(1.5);
 const ENTRANCE_ZOOM: f32 = 0.01;
+/// How far below its place a page starts as it settles in under Liquid Glass.
+const ENTRANCE_RISE: Pixels = px(12.);
 
 /// Shared physical-motion presets. Call sites still own their stopping threshold and maximum
 /// timestep because those values depend on whether the spring moves pixels, opacity, or scale.
@@ -29,6 +31,16 @@ impl Springs {
     pub const RESPONSIVE: SpringConfig = SpringConfig::new(360., 38., 1.);
     /// A soft spring that overshoots a little and swings back, for an icon settling after it spun.
     pub const SETTLE: SpringConfig = SpringConfig::new(160., 17., 1.);
+    /// The leading edge of a sliding selection lens: quick and a touch underdamped, so the lens
+    /// reaches out toward the new entry first.
+    pub const LENS_LEAD: SpringConfig = SpringConfig::new(700., 48., 1.);
+    /// The trailing edge of a sliding selection lens: slower and springier, so the lens stretches
+    /// while it travels and wobbles once as the far edge catches up.
+    pub const LENS_TRAIL: SpringConfig = SpringConfig::new(330., 30., 1.);
+    /// A control sinking under the pointer: stiff and critically damped, so it answers at once.
+    pub const PRESS: SpringConfig = SpringConfig::new(900., 60., 1.);
+    /// A control springing back once released, overshooting its rest size a little.
+    pub const RELEASE: SpringConfig = SpringConfig::new(380., 18., 1.);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -209,6 +221,12 @@ pub fn veiled<E: Styled>(element: E, hidden: f32) -> E {
     element
         .layer_scale(1. - ENTRANCE_ZOOM * hidden)
         .blur(ENTRANCE_BLUR * hidden)
+}
+
+/// The rise that goes with the veil under Liquid Glass: the page starts a little low and
+/// floats up into place as it clears. A paint filter like the veil, so a cached view keeps it.
+pub fn settling<E: Styled>(element: E, hidden: f32) -> E {
+    element.layer_translate(point(Pixels::ZERO, ENTRANCE_RISE * hidden.clamp(0., 1.)))
 }
 
 /// The whole entrance: the veil plus the fade that goes with it. Use this where
@@ -464,6 +482,18 @@ impl HoverFade {
         css_ease(at)
     }
 
+    /// How far the fade has come, from 0 at rest to 1 hovered, before any easing, for a caller
+    /// that bends it with a curve of its own. It asks for frames the way `level` does.
+    pub fn progress(&mut self, window: &mut gpui::Window, cx: &App) -> f32 {
+        self.level(window, cx);
+        self.linear()
+    }
+
+    /// Whether the pointer is over the element, as last told.
+    pub fn hovered(&self) -> bool {
+        self.hovered
+    }
+
     /// Where the fade stands before easing, moving from `from` towards the target at one span
     /// for the whole way.
     fn linear(&self) -> f32 {
@@ -477,6 +507,100 @@ impl HoverFade {
             false => (self.from - travelled).max(target),
         }
     }
+}
+
+/// A number a spring pulls toward the target it was last given. A new target keeps the speed
+/// the value already has, so a change of mind halfway bends the motion instead of restarting
+/// it. Keep one in a view or in `window.use_keyed_state`, and read `value` while drawing: it
+/// steps the spring by the time since the last read, asks for the next frame until it settles,
+/// and lands at once under reduced motion. Nothing redraws while it rests.
+pub struct Sprung {
+    state: SpringState,
+    target: f32,
+    config: SpringConfig,
+    /// How close to the target, in the value's own unit, counts as there.
+    epsilon: f32,
+    stepped: Option<Instant>,
+}
+
+impl Sprung {
+    pub fn new(value: f32, config: SpringConfig, epsilon: f32) -> Self {
+        Self {
+            state: SpringState {
+                position: value,
+                velocity: 0.,
+            },
+            target: value,
+            config,
+            epsilon,
+            stepped: None,
+        }
+    }
+
+    /// Sends the value toward `target` on `config`, from where and how fast it moves now.
+    pub fn aim(&mut self, target: f32, config: SpringConfig) {
+        if target == self.target && config == self.config {
+            return;
+        }
+        self.target = target;
+        self.config = config;
+        self.stepped.get_or_insert_with(Instant::now);
+    }
+
+    /// Puts the value at `value` and stops it there, with nothing left to animate.
+    pub fn snap(&mut self, value: f32) {
+        self.state = SpringState {
+            position: value,
+            velocity: 0.,
+        };
+        self.target = value;
+        self.stepped = None;
+    }
+
+    pub fn target(&self) -> f32 {
+        self.target
+    }
+
+    /// Whether the value has come to rest on its target.
+    pub fn resting(&self) -> bool {
+        self.stepped.is_none()
+    }
+
+    /// Where the value stands now, stepping the spring by the time since the last read.
+    pub fn value(&mut self, window: &gpui::Window, cx: &App) -> f32 {
+        let Some(stepped) = self.stepped else {
+            return self.state.position;
+        };
+        if cx.reduce_motion() {
+            self.snap(self.target);
+            return self.target;
+        }
+        let now = Instant::now();
+        // A long gap, a window that slept, is taken as one ordinary frame so nothing leaps.
+        let elapsed = now.duration_since(stepped).as_secs_f32().min(SPRING_STEP);
+        self.state = self.config.step(self.state, self.target, elapsed);
+        match self
+            .config
+            .is_settled(self.state, self.target, self.epsilon)
+        {
+            true => self.snap(self.target),
+            false => {
+                self.stepped = Some(now);
+                window.request_animation_frame();
+            }
+        }
+        self.state.position
+    }
+}
+
+/// The longest step a spring takes between two reads, a frame at 30 fps.
+const SPRING_STEP: f32 = 1. / 30.;
+
+/// Overshoots its end and settles back, the curve of something that pops into place.
+pub fn ease_out_back(progress: f32) -> f32 {
+    const PULL: f32 = 1.70158;
+    let t = progress.clamp(0., 1.) - 1.;
+    1. + (PULL + 1.) * t * t * t + PULL * t * t
 }
 
 pub(crate) struct Movement {

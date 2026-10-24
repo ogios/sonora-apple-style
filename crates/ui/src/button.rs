@@ -9,6 +9,7 @@ use gpui::{
 
 use crate::glass::{blurring, frost, liquid, liquid_control, liquid_pill};
 use crate::metrics::Text;
+use crate::motion::{Springs, Sprung, animates};
 use crate::theme::ActiveTheme as _;
 use crate::tooltip::{Perch, Tipped as _};
 
@@ -20,6 +21,9 @@ const TINT_HOVER: f32 = 0.14;
 const TINT_ACTIVE: f32 = 0.24;
 /// How far a small button's label sits from its edge, which text set beside one lines up with.
 pub const SMALL_INSET: Pixels = px(8.);
+/// How far a Liquid Glass button gives under the pointer while held, springing back on release.
+const PRESSED_SCALE: f32 = 0.96;
+const PRESS_EPSILON: f32 = 0.0005;
 
 type Click = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;
 
@@ -169,6 +173,11 @@ impl Button {
         self
     }
 
+    /// Whether the button is marked as the chosen one, for a bar that draws the mark itself.
+    pub(crate) fn is_selected(&self) -> bool {
+        self.selected
+    }
+
     /// Paints an active-state dot below the icon without changing the button's layout or hit area.
     pub fn indicator(mut self, indicator: bool) -> Self {
         self.indicator = indicator;
@@ -252,7 +261,7 @@ struct Palette {
 }
 
 impl RenderOnce for Button {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let Self {
             mut base,
             label,
@@ -277,6 +286,27 @@ impl RenderOnce for Button {
             on_click,
         } = self;
 
+        // Under Liquid Glass a clickable button gives a little while held and springs back.
+        // Glass that frosts what it covers is left still: the scale is a paint filter, and
+        // the renderer drops a backdrop blur inside one, so the slab would flash clear.
+        let glassy = frosted || matches!(variant, Variant::Secondary);
+        let pressable = liquid(cx)
+            && !disabled
+            && on_click.is_some()
+            && !(glassy && blurring(cx))
+            && animates(cx);
+        let press = match pressable {
+            true => base.interactivity().element_id.clone().map(|id| {
+                window.use_keyed_state((id, "press"), cx, |_, _| {
+                    Sprung::new(1., Springs::RELEASE, PRESS_EPSILON)
+                })
+            }),
+            false => None,
+        };
+        let squeeze = match &press {
+            Some(press) => press.update(cx, |press, cx| press.value(window, cx)),
+            None => 1.,
+        };
         let theme = cx.theme();
         // A plain ghost floats over flat paint, so it hovers with the themed
         // secondary fill that stays visible on both dark and light surfaces. A
@@ -368,6 +398,7 @@ impl RenderOnce for Button {
         };
         let pressed = state_style(active, pressed, frosting);
         let overrides = std::mem::take(base.style());
+        let view = window.current_view();
 
         let mut button = base
             .flex()
@@ -450,6 +481,23 @@ impl RenderOnce for Button {
                         .rounded_full()
                         .bg(foreground),
                 )
+            })
+            .when(squeeze != 1., |this| this.layer_scale(squeeze))
+            .when_some(press, |this, press| {
+                let release = press.clone();
+                let released = press.clone();
+                this.on_mouse_down(MouseButton::Left, move |_, _, cx| {
+                    press.update(cx, |press, _| press.aim(PRESSED_SCALE, Springs::PRESS));
+                    cx.notify(view);
+                })
+                .on_mouse_up(MouseButton::Left, move |_, _, cx| {
+                    release.update(cx, |press, _| press.aim(1., Springs::RELEASE));
+                    cx.notify(view);
+                })
+                .on_mouse_up_out(MouseButton::Left, move |_, _, cx| {
+                    released.update(cx, |press, _| press.aim(1., Springs::RELEASE));
+                    cx.notify(view);
+                })
             })
             .when(interactive, |this| {
                 this.when_some(on_click, |this, handler| {

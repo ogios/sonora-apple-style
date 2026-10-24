@@ -19,6 +19,7 @@ mod kbd;
 mod label;
 mod layout;
 mod lazy;
+mod lens;
 mod level_meter;
 mod menu;
 mod metrics;
@@ -94,14 +95,15 @@ pub use kbd::Kbd;
 pub use label::{eyebrow, faint, heading, upper, vacant};
 pub use layout::{ALWAYS, MIN_CONTENT, ROOMY, Room, SNUG, VAST, WIDE};
 pub use lazy::Lazy;
+pub use lens::{Lens, Mark, mark};
 pub use level_meter::LevelMeter;
 pub use menu::{MENU_CONTEXT, Menu, MenuItem, MenuSearch, SubmenuState};
 pub use metrics::{LEADING, Metrics, Rounding, Text, snapped, tucked};
 pub use modal::Modal;
 pub use motion::{
-    Entrance, Fading, HoverFade, Motion, Motioned, Pace, Rising, Saver, Springs, Stillness,
-    css_ease, css_ease_out, ease_in_out_cubic, ease_in_out_expo, ease_out_cubic, ease_out_expo,
-    ease_out_quad, entering, entrance_span, mix, paced, veiled,
+    Entrance, Fading, HoverFade, Motion, Motioned, Pace, Rising, Saver, Springs, Sprung, Stillness,
+    css_ease, css_ease_out, ease_in_out_cubic, ease_in_out_expo, ease_out_back, ease_out_cubic,
+    ease_out_expo, ease_out_quad, entering, entrance_span, mix, paced, settling, veiled,
 };
 pub use notice::Notice;
 pub use option_card::OptionCard;

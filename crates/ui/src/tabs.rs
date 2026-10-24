@@ -10,6 +10,7 @@ use gpui::{
 use crate::button::Button;
 use crate::glass::{blurring, glass, liquid, liquid_control};
 use crate::glide::Glide;
+use crate::lens::{Lens, Mark, mark};
 use crate::motion::{Motion, Motioned as _, animates};
 use crate::theme::ActiveTheme as _;
 
@@ -109,6 +110,15 @@ enum Wash {
 struct Edge {
     shown: bool,
     leaving: Option<Instant>,
+}
+
+/// The lens a Liquid Glass bar slides under its chosen tab, and where the tab and the row sat on
+/// the last frame.
+#[derive(Default)]
+struct TabLens {
+    lens: Lens,
+    entry: Mark,
+    frame: Mark,
 }
 
 /// The sideways scroll of a bar too wide for its room: the handle gpui moves, and the glide
@@ -252,8 +262,27 @@ impl RenderOnce for TabBar {
             }
         });
 
+        // Under Liquid Glass the chosen tab wears no pill of its own: one glass lens slides
+        // under the row from tab to tab, stretching toward the new one as it goes.
+        let lens = (liquid && moving)
+            .then(|| window.use_keyed_state((id.clone(), "lens"), cx, |_, _| TabLens::default()));
+        let chosen = items.iter().any(Button::is_selected);
+        let drawn = lens.as_ref().and_then(|lens| {
+            lens.update(cx, |lens, cx| {
+                if !chosen {
+                    lens.entry.clear();
+                }
+                lens.lens.follow(&lens.entry, &lens.frame);
+                lens.lens.render(window, cx)
+            })
+        });
+        let marks = lens.map(|lens| {
+            let lens = lens.read(cx);
+            (lens.entry.clone(), lens.frame.clone())
+        });
         let row = div()
             .id(id)
+            .relative()
             .flex()
             .items_center()
             .gap_1()
@@ -277,9 +306,19 @@ impl RenderOnce for TabBar {
                         cx.stop_propagation();
                     })
             })
-            .children(items.into_iter().map(|item| match liquid {
-                true => item.flex_shrink_0(),
-                false => item.flex_shrink_0().rounded(radius),
+            .when_some(marks.clone(), |row, (_, frame)| row.child(mark(&frame)))
+            .children(drawn)
+            .children(items.into_iter().map(|item| {
+                match (&marks, liquid, item.is_selected()) {
+                    (Some((entry, _)), _, true) => div()
+                        .relative()
+                        .flex_shrink_0()
+                        .child(item.selected(false))
+                        .child(mark(entry))
+                        .into_any_element(),
+                    (_, true, _) => item.flex_shrink_0().into_any_element(),
+                    (_, false, _) => item.flex_shrink_0().rounded(radius).into_any_element(),
+                }
             }));
         // A glass bar has no flat fill to paint a fade with: a wash of its own thin fill hides
         // nothing. It fades the tabs themselves instead, and leaves the blur behind them whole.
