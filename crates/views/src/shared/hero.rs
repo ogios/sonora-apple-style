@@ -463,7 +463,9 @@ impl RenderOnce for PageHero {
                     .flex_col()
                     .flex_1()
                     .min_w_0()
-                    .h(art)
+                    // At least the artwork's height, and taller when a large font needs it,
+                    // so the eyebrow never rises out of the hero.
+                    .min_h(art)
                     .justify_end()
                     .gap_2()
                     .line_height(relative(LEADING))
