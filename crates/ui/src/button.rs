@@ -1,16 +1,17 @@
 use std::f32::consts::TAU;
+use std::time::Instant;
 
 use gpui::prelude::*;
 use gpui::{
     AnyElement, App, ClickEvent, Div, ElementId, Hsla, Interactivity, MouseButton, Pixels,
     SharedString, Stateful, StyleRefinement, Transformation, Window, div, px, radians, relative,
-    svg,
+    size, svg,
 };
 
 use crate::glass::{blurring, frost, liquid, liquid_control, liquid_pill};
 use crate::glow::{Glow, Hover, hover_fill};
 use crate::metrics::Text;
-use crate::motion::{Springs, Sprung, animates};
+use crate::motion::{Motion, Springs, Sprung, animates, ease_out_cubic};
 use crate::theme::ActiveTheme as _;
 use crate::tooltip::{Perch, Tipped as _};
 
@@ -25,6 +26,20 @@ pub const SMALL_INSET: Pixels = px(8.);
 /// How far a Liquid Glass button gives under the pointer while held, springing back on release.
 const PRESSED_SCALE: f32 = 0.96;
 const PRESS_EPSILON: f32 = 0.0005;
+/// How small an icon shrinks to as it hands over to the next one, as play turns to pause.
+/// How far a slab of liquid glass brightens under the pointer.
+const SHEEN: f32 = 0.08;
+
+const SWAP_SHRINK: f32 = 0.5;
+/// The edge of a button's icon.
+const ICON: Pixels = px(16.);
+
+/// The icon a button showed last, and the one it is handing over from while they cross.
+struct IconSwap {
+    shown: SharedString,
+    previous: Option<SharedString>,
+    since: Instant,
+}
 
 type Click = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;
 
@@ -324,6 +339,35 @@ impl RenderOnce for Button {
             }),
             false => None,
         };
+        // A change of icon crossfades: the old one shrinks away as the new one grows in.
+        let swap = match (&icon, animates(cx)) {
+            (Some(icon), true) => base.interactivity().element_id.clone().map(|id| {
+                window.use_keyed_state((id, "icon"), cx, |_, _| IconSwap {
+                    shown: icon.clone(),
+                    previous: None,
+                    since: Instant::now(),
+                })
+            }),
+            _ => None,
+        };
+        let crossing = swap.and_then(|swap| {
+            let icon = icon.clone()?;
+            let span = Motion::Base.span().as_secs_f32();
+            swap.update(cx, |swap, _| {
+                if swap.shown != icon {
+                    swap.previous = Some(std::mem::replace(&mut swap.shown, icon));
+                    swap.since = Instant::now();
+                }
+                let progress = (swap.since.elapsed().as_secs_f32() / span).min(1.);
+                if progress >= 1. {
+                    swap.previous = None;
+                }
+                Some((swap.previous.clone()?, progress))
+            })
+        });
+        if crossing.is_some() {
+            window.request_animation_frame();
+        }
         let squeeze = match &press {
             Some(press) => press.update(cx, |press, cx| press.value(window, cx)),
             None => 1.,
@@ -415,7 +459,7 @@ impl RenderOnce for Button {
         };
         // The hover fill fades in and out where motion is on. A frosted button keeps the
         // plain style, since its hover also turns on a blur that cannot fade.
-        let glow = match hoverless || frosting || selected || !interactive {
+        let glow = match hoverless || (frosting && !slab) || selected || !interactive {
             true => None,
             false => base
                 .interactivity()
@@ -423,8 +467,15 @@ impl RenderOnce for Button {
                 .clone()
                 .and_then(|id| Glow::new(id, window, cx)),
         };
+        // A slab of liquid glass keeps its material under the pointer and brightens instead,
+        // rather than trading the glass for a flat fill.
+        let sheen = glow.as_ref().filter(|_| slab).map(Glow::level);
         let (hovered, glowing) = match (hoverless, &glow) {
             (true, _) => (None, None),
+            (false, Some(_)) if slab => (
+                hovered.and_then(|style| state_style(None, Some(hover_fill(style).1), false)),
+                None,
+            ),
             (false, Some(glow)) => {
                 let (fill, rest) = match hovered {
                     Some(style) => hover_fill(style),
@@ -467,6 +518,15 @@ impl RenderOnce for Button {
                 this.border_1().border_color(border)
             })
             .when(slab, |this| liquid_control(this, cx))
+            .when_some(sheen.filter(|level| *level > 0.), |this, level| {
+                this.relative().child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .rounded_full()
+                        .bg(gpui::white().opacity(SHEEN * level)),
+                )
+            })
             .when(selected && !backgroundless, |this| match liquid {
                 true => liquid_pill(this, cx),
                 false => this.bg(selected_background),
@@ -478,14 +538,41 @@ impl RenderOnce for Button {
             .when_some(hovered, |this, style| this.hover(move |_| style))
             .when_some(pressed, |this, style| this.active(move |_| style))
             .when_some(icon, |this, path| {
-                this.child(
+                let glyph = |path: SharedString, scale: f32, opacity: f32| {
                     svg()
                         .path(icons::path(path))
-                        .size(px(16.))
+                        .size(ICON)
                         .flex_none()
-                        .text_color(foreground)
-                        .with_transformation(Transformation::rotate(radians(turn * TAU))),
-                )
+                        .text_color(foreground.opacity(opacity))
+                        .with_transformation(
+                            Transformation::rotate(radians(turn * TAU))
+                                .with_scaling(size(scale, scale)),
+                        )
+                };
+                match crossing.clone() {
+                    None => this.child(glyph(path, 1., 1.)),
+                    Some((previous, progress)) => {
+                        let eased = ease_out_cubic(progress);
+                        this.child(
+                            div()
+                                .relative()
+                                .flex_none()
+                                .size(ICON)
+                                .child(
+                                    glyph(previous, 1. - SWAP_SHRINK * eased, 1. - eased)
+                                        .absolute()
+                                        .top_0()
+                                        .left_0(),
+                                )
+                                .child(
+                                    glyph(path, SWAP_SHRINK + (1. - SWAP_SHRINK) * eased, eased)
+                                        .absolute()
+                                        .top_0()
+                                        .left_0(),
+                                ),
+                        )
+                    }
+                }
             })
             .children(leading)
             .when_some(label, |this, label| {

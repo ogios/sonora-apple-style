@@ -102,8 +102,8 @@ pub(crate) fn toggle(playback: &Entity<Playback>, big: bool, frosted: bool, cx: 
     let playback = playback.clone();
 
     let (id, icon, tooltip) = match playing {
-        true => ("pause", "icons/pause.svg", "play-pause"),
-        false => ("play", "icons/play.svg", "play-resume"),
+        true => ("play-pause", "icons/pause.svg", "play-pause"),
+        false => ("play-pause", "icons/play.svg", "play-resume"),
     };
 
     Button::new(id)
