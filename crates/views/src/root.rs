@@ -1190,12 +1190,15 @@ impl Render for Root {
             .when(ambient, |this| this.child(self.ambient.clone()))
             // Liquid Glass floats its chrome over a colour field of the cover's tint, which is
             // what its panels blur and their rims catch. Fullscreen's ambient field stands in.
-            .when(!ambient && theme.liquid, |this| match self.view {
+            .when(theme.liquid, |this| match self.view {
+                // Fullscreen under Liquid Glass stands on the blurred cover itself, over the
+                // ambient field when that is on too.
                 RootView::Fullscreen => {
                     let cover = self.shells.fullscreen.read(cx).cover(cx);
                     this.child(crate::shells::fullscreen::backdrop(cover, window, cx))
                 }
-                RootView::Workspace => this.child(ui::liquid_field(window, cx)),
+                RootView::Workspace if !ambient => this.child(ui::liquid_field(window, cx)),
+                RootView::Workspace => this,
             })
             // The bar only changes when it is told to, so a frame drawn for the lyrics or the
             // progress bar replays it rather than building it again.
