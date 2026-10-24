@@ -3,6 +3,8 @@ use std::rc::Rc;
 use gpui::prelude::*;
 use gpui::{App, Div, ElementId, Hsla, Pixels, SharedString, StyleRefinement, Window, div};
 
+use crate::fade_line;
+
 const RAMP: f32 = 6.;
 const DEPTH: usize = 5;
 
@@ -32,6 +34,7 @@ pub struct InlineLinks {
     color: Hsla,
     text_size: Option<Pixels>,
     clip: bool,
+    fade: bool,
     on_click: Option<ClickHandler>,
 }
 
@@ -50,6 +53,7 @@ impl InlineLinks {
             color,
             text_size: None,
             clip: false,
+            fade: false,
             on_click: None,
         }
     }
@@ -61,6 +65,13 @@ impl InlineLinks {
 
     pub fn truncate(mut self) -> Self {
         self.clip = true;
+        self
+    }
+
+    /// Keeps every name whole on one line that fades out at its trailing edge where it runs
+    /// out of room, rather than ellipsizing each name; see [`crate::FadeLine`].
+    pub fn fade(mut self) -> Self {
+        self.fade = true;
         self
     }
 
@@ -90,8 +101,10 @@ impl RenderOnce for InlineLinks {
             color,
             text_size,
             clip,
+            fade,
             on_click,
         } = self;
+        let clip = clip && !fade;
         let empty = items.is_empty();
         let overrides = std::mem::take(base.style());
 
@@ -100,7 +113,8 @@ impl RenderOnce for InlineLinks {
         let mut links = base
             .flex()
             .min_w_0()
-            .when(!clip, |this| this.overflow_hidden())
+            .when(!clip && !fade, |this| this.overflow_hidden())
+            .when(fade, |this| this.flex_none().whitespace_nowrap())
             .text_color(color)
             .when_some(text_size, |this, text_size| this.text_size(text_size))
             .when(clip, |this| this.whitespace_nowrap())
@@ -149,7 +163,12 @@ impl RenderOnce for InlineLinks {
                     }
                 }))
             });
+        if fade {
+            let mut line = fade_line(links);
+            line.style().refine(&overrides);
+            return line.into_any_element();
+        }
         links.style().refine(&overrides);
-        links
+        links.into_any_element()
     }
 }

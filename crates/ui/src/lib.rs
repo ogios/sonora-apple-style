@@ -8,6 +8,7 @@ mod cover_fade;
 mod deck;
 mod drag;
 mod explicit;
+mod fade_line;
 mod filters;
 mod form;
 mod glass;
@@ -76,6 +77,7 @@ pub use cover_fade::crossfade;
 pub use deck::Deck;
 pub use drag::{Edge, Ghost, drop_gap, drop_marker, grip};
 pub use explicit::ExplicitBadge;
+pub use fade_line::{FadeLine, fade_line};
 pub use filters::{
     Filter, FilterChange, FlagAxis, RangeAxis, RangeScrubber, RangeState, SortAxis, Unit,
 };
