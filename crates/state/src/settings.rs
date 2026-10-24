@@ -665,6 +665,7 @@ struct StateValues {
     views: HashMap<String, Mode>,
     pinned: Vec<Held>,
     sidebar_pinned_open: bool,
+    sidebar_library_open: bool,
     sidebar_full_library: bool,
     sidebar_pin_sort: String,
     sidebar_pin_reversed: bool,
@@ -695,6 +696,7 @@ impl Default for StateValues {
             views: HashMap::new(),
             pinned: Vec::new(),
             sidebar_pinned_open: false,
+            sidebar_library_open: true,
             sidebar_full_library: false,
             sidebar_pin_sort: String::new(),
             sidebar_pin_reversed: false,
@@ -1854,6 +1856,16 @@ impl AppSettings {
 
     pub fn set_sidebar_pinned_open(&mut self, open: bool, cx: &mut Context<Self>) {
         self.state.sidebar_pinned_open = open;
+        self.schedule_state_save(cx);
+    }
+
+    /// Whether the Liquid Glass sidebar's Library section is unfolded. Open on a first run.
+    pub fn sidebar_library_open(&self) -> bool {
+        self.state.sidebar_library_open
+    }
+
+    pub fn set_sidebar_library_open(&mut self, open: bool, cx: &mut Context<Self>) {
+        self.state.sidebar_library_open = open;
         self.schedule_state_save(cx);
     }
 

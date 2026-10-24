@@ -165,6 +165,7 @@ impl SidebarLeft {
         let width = sidebar_width(settings.read(cx));
         let open = settings.read(cx).sidebar_open();
         let pinned_open = settings.read(cx).sidebar_pinned_open();
+        let section_open = settings.read(cx).sidebar_library_open();
         let trail = router::trail(cx);
 
         cx.observe(&session, |_, _, cx| cx.notify()).detach();
@@ -187,8 +188,8 @@ impl SidebarLeft {
             lit: Cell::new(false),
             sliding: false,
             library_fold: ui::Unfold::new(library_open),
-            section_open: true,
-            section_fold: ui::Unfold::new(true),
+            section_open,
+            section_fold: ui::Unfold::new(section_open),
             local_fold: ui::Unfold::new(local_open),
             pins_fold: ui::Unfold::new(pinned_open),
             settings,
@@ -419,6 +420,10 @@ impl SidebarLeft {
             )
             .on_click(cx.listener(|this, _, _, cx| {
                 this.section_open = !this.section_open;
+                let open = this.section_open;
+                this.settings.update(cx, |settings, cx| {
+                    settings.set_sidebar_library_open(open, cx)
+                });
                 cx.notify();
             }))
             .into_any_element()
