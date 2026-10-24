@@ -352,6 +352,7 @@ pub(crate) fn count(value: u64) -> SharedString {
     SharedString::from(grouped)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn title<F>(
     cell: &Cell<F>,
     value: impl Into<SharedString>,
