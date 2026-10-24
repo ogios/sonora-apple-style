@@ -766,7 +766,7 @@ impl Render for DetailView {
 
         self.table.claim(cx);
         let inset = cx.theme().metrics.inset;
-        let width = cells::content_width(window, Pixels::ZERO, cx);
+        let width = cells::table_width(window, cx);
         if (width - self.width).abs() >= px(0.5) {
             self.width = width;
             self.table.set_width(width, cx);
@@ -819,7 +819,7 @@ impl Render for DetailView {
                             .pt(inset + under)
                             .pb(inset)
                             .child(div().px(inset).child(self.header(cx)))
-                            .child(table(&self.table))
+                            .child(table(&self.table).mx(cells::table_gutter(cx)))
                             .children(self.notices(cx))
                             .child(div().px(inset).pt_10().children(rails)),
                     ),

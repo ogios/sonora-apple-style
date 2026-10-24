@@ -15,10 +15,10 @@ use gpui::{
 
 use crate::artwork::{PREFETCH_REACH, Prefetch};
 use crate::filters::FilterChange;
-use crate::glass::{blurring, popover_surface};
+use crate::glass::{blurring, liquid, liquid_radius, popover_surface};
 use crate::glow::Glow;
 use crate::menu::Menu;
-use crate::metrics::{snapped, text_width};
+use crate::metrics::{Text, snapped, text_width};
 use crate::pin::{Pin, Pinnable};
 use crate::popup::Popup;
 use crate::skeleton::Skeleton;
@@ -49,6 +49,11 @@ const SKELETON_BAR: f32 = 0.3;
 const SKELETON_REACH: [f32; 5] = [0.6, 0.85, 0.45, 0.7, 0.55];
 
 pub const ROW_GROUP: &str = "table-row";
+/// Under Liquid Glass, Cider's: every other row is a rounded strip this faintly lit with the
+/// foreground colour instead of rows ruled off by lines, and rows set their text this much
+/// larger than the body size.
+const STRIPE: f32 = 0.035;
+const ROW_TEXT: f32 = 1.07;
 
 pub struct Cell<F> {
     pub field: F,
@@ -914,8 +919,18 @@ impl<S: TableSource> TableState<S> {
         cx.notify();
     }
 
-    fn header(&self, head: Pixels, top: Corners<Pixels>, cx: &mut Context<Self>) -> Div {
+    /// The column heads. Under Liquid Glass they stand bare over the rows until the table is
+    /// scrolled and the head pins (`stuck`), and only the sorted column shows its arrow.
+    fn header(
+        &self,
+        head: Pixels,
+        top: Corners<Pixels>,
+        stuck: bool,
+        cx: &mut Context<Self>,
+    ) -> Div {
         let theme = *cx.theme();
+        let bare = liquid(cx);
+        let surfaced = !bare || stuck;
         let last = self.delegate.columns.len().saturating_sub(1);
         let heads: Vec<_> = self
             .delegate
@@ -962,15 +977,20 @@ impl<S: TableSource> TableState<S> {
             .flex()
             .flex_none()
             .h(head)
-            .when_else(
-                blurring(cx),
-                |this| popover_surface(this, cx),
-                |this| this.bg(theme.table_head),
-            )
+            .when(surfaced, |this| {
+                this.when_else(
+                    blurring(cx),
+                    |this| popover_surface(this, cx),
+                    |this| this.bg(theme.table_head),
+                )
+            })
             .rounded_tl(top.top_left)
             .rounded_tr(top.top_right)
             .border_b_1()
-            .border_color(theme.table_row_border)
+            .border_color(match surfaced && !bare {
+                true => theme.table_row_border,
+                false => gpui::transparent_black(),
+            })
             .text_color(theme.table_head_foreground)
             .on_mouse_up(
                 MouseButton::Left,
@@ -1030,7 +1050,7 @@ impl<S: TableSource> TableState<S> {
                             )
                         })
                         .child(frame(inner, align).child(header))
-                        .when(sortable, |this| {
+                        .when(sortable && (!bare || direction.is_some()), |this| {
                             this.child(
                                 svg()
                                     .path(icons::path(sort_icon(direction)))
@@ -1075,6 +1095,8 @@ impl<S: TableSource> TableState<S> {
         let last = (first + self.viewport.rows(row_height)).min(count);
         let bottom = self.corners.bottom_left.max(self.corners.bottom_right);
         let marked = &self.delegate.marked;
+        let bare = liquid(cx);
+        let radius = liquid_radius(cx);
 
         let mut rows: Vec<AnyElement> = (first..last)
             .map(|display| {
@@ -1119,8 +1141,15 @@ impl<S: TableSource> TableState<S> {
                         this.rounded_bl(self.corners.bottom_left)
                             .rounded_br(self.corners.bottom_right)
                     })
-                    .when(!tail || bottom == Pixels::ZERO, |this| {
+                    .when(!bare && (!tail || bottom == Pixels::ZERO), |this| {
                         this.border_b_1().border_color(theme.table_row_border)
+                    })
+                    .when(bare, |this| {
+                        this.rounded(radius)
+                            .text_size(theme.text(Text::Body) * ROW_TEXT)
+                            .when(display % 2 == 1, |this| {
+                                this.bg(theme.foreground.opacity(STRIPE))
+                            })
                     })
                     .when(playing, |this| this.bg(theme.muted))
                     .when(selected, |this| this.bg(theme.table_active))
@@ -1376,7 +1405,7 @@ impl<S: TableSource> Render for TableState<S> {
                     .when_some(backdrop, |this, backdrop| this.bg(backdrop))
                     .rounded_tl(top.top_left)
                     .rounded_tr(top.top_right)
-                    .child(self.header(head, top, cx)),
+                    .child(self.header(head, top, pinned > Pixels::ZERO, cx)),
             )
             .when_some(context_menu, |this, menu| this.child(menu))
     }

@@ -455,6 +455,21 @@ pub(crate) fn blank<F>(cell: &Cell<F>) -> AnyElement {
     cell.frame().into_any_element()
 }
 
+/// How far a track table stands in from the sheet's sides under Liquid Glass, where its rows
+/// are rounded strips, as Cider's are: enough that a row's text lines up with the page's
+/// margin. Nothing otherwise, where rows run edge to edge.
+pub(crate) fn table_gutter(cx: &App) -> Pixels {
+    match ui::liquid(cx) {
+        true => (cx.theme().metrics.inset - cx.theme().metrics.pad).max(Pixels::ZERO),
+        false => Pixels::ZERO,
+    }
+}
+
+/// The width a track table is laid out at: the content width less its gutter on both sides.
+pub(crate) fn table_width(window: &Window, cx: &App) -> Pixels {
+    content_width(window, table_gutter(cx) * 2., cx)
+}
+
 pub(crate) fn content_width(window: &Window, inset: Pixels, cx: &App) -> Pixels {
     (Chrome::content(window, cx) - inset).max(ui::MIN_CONTENT)
 }

@@ -45,7 +45,7 @@ impl HistoryView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let width = cells::content_width(window, Pixels::ZERO, cx);
+        let width = cells::table_width(window, cx);
         let id = cx.entity_id();
         let scrollbar = cx.new(|_| Scrollbar::new(ScrollHandle::new()).watching(id));
         let scroll = scrollbar.read(cx).scroll().clone();
@@ -184,7 +184,7 @@ impl Render for HistoryView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.table.claim(cx);
         let inset = cx.theme().metrics.inset;
-        let width = cells::content_width(window, Pixels::ZERO, cx);
+        let width = cells::table_width(window, cx);
         if (width - self.width).abs() >= gpui::px(0.5) {
             self.width = width;
             self.table.set_width(width, cx);
@@ -201,7 +201,7 @@ impl Render for HistoryView {
             .pt(inset)
             .pb(inset)
             .child(div().px(inset).child(self.header(cx)))
-            .child(table(&self.table))
+            .child(table(&self.table).mx(cells::table_gutter(cx)))
             .when_some(note, |this, note| this.child(vacant(note, cx)));
 
         div()

@@ -217,7 +217,7 @@ impl LibraryView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let width = cells::content_width(window, Pixels::ZERO, cx);
+        let width = cells::table_width(window, cx);
         let settings = Sonora::global(cx).settings.clone();
         let stored = |section: Section, cx: &App| {
             let settings = settings.read(cx);
@@ -839,7 +839,7 @@ impl LibraryView {
     }
 
     fn resize(&mut self, window: &Window, cx: &mut Context<Self>) {
-        let width = cells::content_width(window, Pixels::ZERO, cx);
+        let width = cells::table_width(window, cx);
         if (width - self.width).abs() < px(0.5) {
             return;
         }
@@ -1183,14 +1183,18 @@ impl Render for LibraryView {
                     .pt(inset)
                     .pb(inset)
                     .child(div().px(inset).child(self.header(cx)))
-                    .child(table(self.tracks()))
+                    .child(table(self.tracks()).mx(cells::table_gutter(cx)))
                     .when_some(note, |this, note| this.child(note))
                     .into_any_element()
             }
             (_, Mode::List) => Scroller::new("library-page", &self.scrollbar)
                 .bottom_inset(crate::chrome::Chrome::bottom(cx))
                 .pb(inset)
-                .child(self.table(self.section).element())
+                .child(
+                    div()
+                        .mx(cells::table_gutter(cx))
+                        .child(self.table(self.section).element()),
+                )
                 .when_some(note, |this, note| this.child(note))
                 .into_any_element(),
             (_, Mode::Grid) if note.is_none() && self.waiting(cx) => self.pending_cards(window, cx),
