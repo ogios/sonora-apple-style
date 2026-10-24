@@ -58,7 +58,7 @@ const EDGE: Pixels = px(1.);
 /// How much of the page colour the floating content sheet keeps over the colour field, on a
 /// dark theme and a light one: dense enough that pages read as one surface, as in Apple Music,
 /// thin enough that the field still tints its edges.
-const SHEET_DARK: f32 = 0.62;
+const SHEET_DARK: f32 = 0.9;
 const SHEET_LIGHT: f32 = 0.72;
 /// The hairline rim around the content sheet, fainter than a glass panel's.
 const SHEET_RIM_DARK: f32 = 0.08;
@@ -73,7 +73,7 @@ const PILL_DROP_OFFSET: Pixels = px(2.);
 /// The colour field painted behind Liquid Glass chrome: how strong each blob's core is, how
 /// wide a blob spans as a share of the window's longer side, how much of that span the sharp
 /// circle under its shadow takes, and how far the shadow feathers as a share of the span.
-const FIELD_DARK: f32 = 0.85;
+const FIELD_DARK: f32 = 0.3;
 const FIELD_LIGHT: f32 = 0.6;
 const FIELD_SPAN: f32 = 0.5;
 const FIELD_CORE: f32 = 0.6;
@@ -89,7 +89,7 @@ const FIELD_BLOBS: [(f32, f32, f32); 4] = [
 /// The saturation and lightness a field blob is pinned to, on a dark theme and a light one,
 /// so a dull cover and the neutral fallback still glow.
 const FIELD_SATURATION: f32 = 0.75;
-const FIELD_LIGHTNESS_DARK: f32 = 0.5;
+const FIELD_LIGHTNESS_DARK: f32 = 0.3;
 const FIELD_LIGHTNESS_LIGHT: f32 = 0.62;
 
 /// Whether a surface that only frosts for the look of it should frost at all. A backdrop blur
@@ -273,6 +273,24 @@ pub fn chosen<E: Styled>(element: E, fallback: Hsla, cx: &App) -> E {
     match liquid(cx) {
         true => liquid_pill(element, cx),
         false => element.bg(fallback),
+    }
+}
+
+/// How much of its lightness the dark page colour keeps where it lies under the sidebars, so
+/// the window around the sheet reads near black, the way Cider's does.
+const GROUND_DARK: f32 = 0.35;
+
+/// The colour of the window around the content sheet under Liquid Glass, which the sidebars
+/// stand on without a panel of their own: the page colour taken most of the way to black in a
+/// dark theme, and left as it is in a light one.
+pub fn liquid_ground(cx: &App) -> Hsla {
+    let background = cx.theme().background;
+    match background.l < 0.5 {
+        true => Hsla {
+            l: background.l * GROUND_DARK,
+            ..background
+        },
+        false => background,
     }
 }
 

@@ -142,6 +142,16 @@ impl Chrome {
         Self::get(cx).player_bottom
     }
 
+    /// How far the sidebars keep their last row clear of the player bar: nothing under Liquid
+    /// Glass, where the bar sits inside the content sheet and the sidebars run to the foot of
+    /// the window beside it.
+    pub fn beside(cx: &App) -> Pixels {
+        match ui::liquid(cx) {
+            true => Pixels::ZERO,
+            false => Self::bottom(cx),
+        }
+    }
+
     /// Publishes the player bar's overlap after its responsive height has been resolved.
     pub(crate) fn set_bottom(bottom: Pixels, cx: &mut App) {
         Self::entity(cx).update(cx, |chrome, cx| {

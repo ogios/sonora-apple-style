@@ -133,15 +133,14 @@ impl Render for SidebarRight {
         }
 
         let theme = *cx.theme();
-        // Under Liquid Glass the queue and lyrics sit on a glass slab inset from the window's
-        // right edge, the mirror of the left sidebar's.
+        // Under Liquid Glass the queue and lyrics stand straight on the dark window, with no
+        // panel or border of their own, the way Cider's queue does; only the page is framed.
         let liquid = ui::liquid(cx);
-        let gap = ui::liquid_gap(cx);
 
         Panel::new("sidebar-right", Side::Right, self.width)
             .limits(MIN_WIDTH, MAX_WIDTH)
             .reach(super::cap(MIN_WIDTH, MAX_WIDTH, MIN_CONTENT, window))
-            .grip_above(super::Chrome::bottom(cx))
+            .grip_above(super::Chrome::beside(cx))
             .on_resize(cx.listener(|this, width: &Pixels, _, cx| {
                 this.width = *width;
                 this.persist(cx);
@@ -151,7 +150,7 @@ impl Render for SidebarRight {
                 this.bg(theme.background)
             })
             .map(|this| match liquid {
-                true => this.border_color(gpui::transparent_black()).pr(gap).pb(gap),
+                true => this.border_color(gpui::transparent_black()),
                 false => this.border_color(theme.border),
             })
             .child(
@@ -161,9 +160,6 @@ impl Render for SidebarRight {
                     .flex_col()
                     .flex_1()
                     .min_h_0()
-                    .when(liquid, |this| {
-                        ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
-                    })
                     .child(
                         self.aside
                             .clone()

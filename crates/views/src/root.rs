@@ -1146,7 +1146,10 @@ impl Render for Root {
             .when_some(radius, |this, radius| {
                 this.rounded(radius).overflow_hidden()
             })
-            .when(!ambient, |this| this.bg(theme.background))
+            .when(!ambient, |this| match theme.liquid {
+                true => this.bg(ui::liquid_ground(cx)),
+                false => this.bg(theme.background),
+            })
             .text_color(theme.foreground)
             .capture_any_mouse_down(|_, window, cx| {
                 if ui::cancel_middle_scroll(cx) {

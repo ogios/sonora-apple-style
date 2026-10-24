@@ -1166,7 +1166,7 @@ impl Aside {
     /// Only workspace asides sit behind the player bar; fullscreen keeps its own clearance.
     fn bottom(&self, cx: &App) -> Pixels {
         match self.titled {
-            true => Chrome::bottom(cx),
+            true => Chrome::beside(cx),
             false => Pixels::ZERO,
         }
     }
