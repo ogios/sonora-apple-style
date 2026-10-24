@@ -32,6 +32,9 @@ use crate::shared::pins::Pinned as _;
 
 /// How far the queue or the lyrics slide in from as the panel switches between them.
 const TAB_SLIDE: f32 = 24.;
+/// Under Liquid Glass, the fill of the card under the song playing now and of a section's count.
+const CURRENT_FILL: f32 = 0.08;
+const COUNT_FILL: f32 = 0.08;
 const QUEUE: &str = "queue";
 /// How many text heights across the picture of whoever queued a song is.
 const ADDER_FACE: f32 = 1.4;
@@ -215,6 +218,17 @@ impl Sections {
                 0 => 0,
                 count => count + 1,
             }
+    }
+
+    /// How many songs stand under the header `key`, for the count beside it.
+    fn count(self, key: &str) -> Option<usize> {
+        match key {
+            "queue-history" => Some(self.past),
+            "queue-next-in-queue" => Some(self.manual),
+            "queue-up-next" => Some(self.upcoming - self.manual),
+            "queue-similar" => Some(self.similar),
+            _ => None,
+        }
     }
 
     fn len(self) -> usize {
@@ -986,8 +1000,16 @@ impl Aside {
             None => this.pin(pin),
         });
 
+        // Under Liquid Glass the song playing now stands on a soft card of its own, as in
+        // Apple Music's queue.
+        let lifted = current && ui::liquid(cx);
+
         div()
             .id(("queue-track-container", index))
+            .when(lifted, |this| {
+                this.rounded(theme.radius * 1.5)
+                    .bg(theme.foreground.opacity(CURRENT_FILL))
+            })
             .relative()
             .min_w_0()
             .child(card)
@@ -2001,7 +2023,10 @@ impl Aside {
                     .map(|(index, slot, found)| match (slot, found) {
                         (None, _) => div().into_any_element(),
                         (Some(Slot::Header(key)), _) => {
-                            let label = section_label(key, cx);
+                            let label = match ui::liquid(cx) {
+                                true => liquid_section(key, sections.count(key), cx),
+                                false => section_label(key, cx),
+                            };
                             match (key, from.clone()) {
                                 ("queue-now-playing", Some((name, place))) => label
                                     .w_full()
@@ -2161,6 +2186,41 @@ impl Render for Aside {
             )
             .children(self.menu(cx))
     }
+}
+
+/// A queue section's header under Liquid Glass: its name as a small title rather than an
+/// eyebrow, and beside it, for the sections that list songs, how many they hold on a pill.
+fn liquid_section(key: &'static str, count: Option<usize>, cx: &App) -> Div {
+    let theme = cx.theme();
+
+    div()
+        .flex()
+        .flex_none()
+        .items_end()
+        .when(count.is_some(), |this| this.justify_between())
+        .gap_2()
+        .h(theme.metrics.list_row)
+        .px_2()
+        .pb_1()
+        .child(
+            div()
+                .min_w_0()
+                .truncate()
+                .text_size(theme.text(Text::Body))
+                .font_weight(FontWeight::BOLD)
+                .text_color(theme.foreground)
+                .child(i18n::lookup(key, None)),
+        )
+        .children(count.filter(|count| *count > 0).map(|count| {
+            div()
+                .flex_none()
+                .px(theme.metrics.pad)
+                .rounded_full()
+                .bg(theme.foreground.opacity(COUNT_FILL))
+                .text_size(theme.text(Text::Small))
+                .text_color(theme.muted_foreground)
+                .child(count.to_string())
+        }))
 }
 
 /// The part of a queue row that names who queued the song: a bullet, their round picture or
