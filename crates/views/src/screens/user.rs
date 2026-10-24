@@ -171,7 +171,7 @@ impl Render for UserView {
         }
 
         div().flex().flex_col().size_full().child(
-            Scroller::new("user-page", &self.scrollbar)
+            crate::chrome::edge_fade(Scroller::new("user-page", &self.scrollbar), false, cx)
                 .bottom_inset(crate::chrome::Chrome::bottom(cx))
                 .p(pad)
                 .child(

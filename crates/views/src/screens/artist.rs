@@ -1150,28 +1150,29 @@ impl Render for ArtistView {
         // Under Liquid Glass the page runs up under the title bar, so the artist's picture
         // reaches the top edge of the sheet.
         let under = crate::chrome::Chrome::under_bar(window, cx);
-        let page = Scroller::new("artist-page", &self.scrollbar)
-            .bottom_inset(crate::chrome::Chrome::bottom(cx))
-            .px(inset)
-            .pt(inset + under)
-            .pb(inset)
-            .on_scroll_wheel(cx.listener(Self::release_scroll))
-            .child(div().child(head).when(listed, |this| {
-                this.child(
-                    div()
-                        .pb_3()
-                        .text_size(theme.text(Text::Title))
-                        .font_weight(FontWeight::BOLD)
-                        .child(t!("artist-popular")),
-                )
-            }))
-            .child(tracks)
-            .children(grid)
-            .children(rails)
-            .children(about)
-            .when(release_padding > Pixels::ZERO, |this| {
-                this.child(div().h(release_padding).flex_none())
-            });
+        let page =
+            crate::chrome::edge_fade(Scroller::new("artist-page", &self.scrollbar), false, cx)
+                .bottom_inset(crate::chrome::Chrome::bottom(cx))
+                .px(inset)
+                .pt(inset + under)
+                .pb(inset)
+                .on_scroll_wheel(cx.listener(Self::release_scroll))
+                .child(div().child(head).when(listed, |this| {
+                    this.child(
+                        div()
+                            .pb_3()
+                            .text_size(theme.text(Text::Title))
+                            .font_weight(FontWeight::BOLD)
+                            .child(t!("artist-popular")),
+                    )
+                }))
+                .child(tracks)
+                .children(grid)
+                .children(rails)
+                .children(about)
+                .when(release_padding > Pixels::ZERO, |this| {
+                    this.child(div().h(release_padding).flex_none())
+                });
 
         div()
             .relative()

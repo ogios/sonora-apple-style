@@ -877,25 +877,29 @@ impl LibraryView {
             .max(1.) as usize;
         let circle = self.section == Section::Artists;
 
-        Scroller::new("library-cards", &self.card_scrollbar)
-            .bottom_inset(crate::chrome::Chrome::bottom(cx))
-            .py(inset)
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .px(inset)
-                    .gap(gap)
-                    .children((0..rows).map(|row| {
-                        CardGrid::new(room).children((0..layout.columns).map(move |column| {
-                            Card::skeleton(("library-pending", row * layout.columns + column))
-                                .tile(layout.card)
-                                .when(circle, Card::circle)
-                                .into_any_element()
-                        }))
-                    })),
-            )
-            .into_any_element()
+        crate::chrome::edge_fade(
+            Scroller::new("library-cards", &self.card_scrollbar),
+            false,
+            cx,
+        )
+        .bottom_inset(crate::chrome::Chrome::bottom(cx))
+        .py(inset)
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .px(inset)
+                .gap(gap)
+                .children((0..rows).map(|row| {
+                    CardGrid::new(room).children((0..layout.columns).map(move |column| {
+                        Card::skeleton(("library-pending", row * layout.columns + column))
+                            .tile(layout.card)
+                            .when(circle, Card::circle)
+                            .into_any_element()
+                    }))
+                })),
+        )
+        .into_any_element()
     }
 
     fn cards(&mut self, window: &Window, cx: &App) -> AnyElement {
@@ -960,72 +964,76 @@ impl LibraryView {
         let section = self.section;
         let view = self.me.clone();
 
-        Scroller::new("library-cards", &self.card_scrollbar)
-            .bottom_inset(crate::chrome::Chrome::bottom(cx))
-            .py(inset)
-            .child(
-                Deck::new("library-deck")
-                    .rows(heights)
-                    .gap(gap)
-                    .draw(move |index, _, cx| {
-                        let Some(row) = rows.get(index) else {
-                            return div().into_any_element();
-                        };
-                        let Some(view) = view.upgrade() else {
-                            return div().into_any_element();
-                        };
-                        let view = view.read(cx);
+        crate::chrome::edge_fade(
+            Scroller::new("library-cards", &self.card_scrollbar),
+            false,
+            cx,
+        )
+        .bottom_inset(crate::chrome::Chrome::bottom(cx))
+        .py(inset)
+        .child(
+            Deck::new("library-deck")
+                .rows(heights)
+                .gap(gap)
+                .draw(move |index, _, cx| {
+                    let Some(row) = rows.get(index) else {
+                        return div().into_any_element();
+                    };
+                    let Some(view) = view.upgrade() else {
+                        return div().into_any_element();
+                    };
+                    let view = view.read(cx);
 
-                        match row {
-                            DeckRow::Heading(display) => {
-                                let label = match section {
-                                    Section::Songs => {
-                                        view.songs.read(cx).delegate().group(*display, cx)
-                                    }
-                                    Section::Albums => {
-                                        view.albums.read(cx).delegate().group(*display, cx)
-                                    }
-                                    Section::Playlists => {
-                                        view.playlists.read(cx).delegate().group(*display, cx)
-                                    }
-                                    Section::Artists => {
-                                        view.artists.read(cx).delegate().group(*display, cx)
-                                    }
-                                };
+                    match row {
+                        DeckRow::Heading(display) => {
+                            let label = match section {
+                                Section::Songs => {
+                                    view.songs.read(cx).delegate().group(*display, cx)
+                                }
+                                Section::Albums => {
+                                    view.albums.read(cx).delegate().group(*display, cx)
+                                }
+                                Section::Playlists => {
+                                    view.playlists.read(cx).delegate().group(*display, cx)
+                                }
+                                Section::Artists => {
+                                    view.artists.read(cx).delegate().group(*display, cx)
+                                }
+                            };
 
-                                div()
-                                    .px(inset)
-                                    .children(label.map(|label| head(label, cx)))
-                                    .into_any_element()
-                            }
-                            DeckRow::Cards(cards) => {
-                                let row = match section {
-                                    Section::Songs => CardGrid::new(room)
-                                        .children(cards.iter().filter_map(|&(display, row)| {
-                                            view.track_card(display, row, card, cx)
-                                        }))
-                                        .into_any_element(),
-                                    Section::Albums => {
-                                        view.album_grid(cards, room, cx).into_any_element()
-                                    }
-                                    Section::Playlists => CardGrid::new(room)
-                                        .children(cards.iter().filter_map(|&(display, row)| {
-                                            view.playlist_card(display, row, card, cx)
-                                        }))
-                                        .into_any_element(),
-                                    Section::Artists => CardGrid::new(room)
-                                        .children(cards.iter().filter_map(|&(display, row)| {
-                                            view.artist_card(display, row, card, cx)
-                                        }))
-                                        .into_any_element(),
-                                };
-
-                                div().px(inset).child(row).into_any_element()
-                            }
+                            div()
+                                .px(inset)
+                                .children(label.map(|label| head(label, cx)))
+                                .into_any_element()
                         }
-                    }),
-            )
-            .into_any_element()
+                        DeckRow::Cards(cards) => {
+                            let row = match section {
+                                Section::Songs => CardGrid::new(room)
+                                    .children(cards.iter().filter_map(|&(display, row)| {
+                                        view.track_card(display, row, card, cx)
+                                    }))
+                                    .into_any_element(),
+                                Section::Albums => {
+                                    view.album_grid(cards, room, cx).into_any_element()
+                                }
+                                Section::Playlists => CardGrid::new(room)
+                                    .children(cards.iter().filter_map(|&(display, row)| {
+                                        view.playlist_card(display, row, card, cx)
+                                    }))
+                                    .into_any_element(),
+                                Section::Artists => CardGrid::new(room)
+                                    .children(cards.iter().filter_map(|&(display, row)| {
+                                        view.artist_card(display, row, card, cx)
+                                    }))
+                                    .into_any_element(),
+                            };
+
+                            div().px(inset).child(row).into_any_element()
+                        }
+                    }
+                }),
+        )
+        .into_any_element()
     }
 
     fn track_card(&self, display: usize, row: usize, card: Pixels, cx: &App) -> Option<AnyElement> {
@@ -1178,7 +1186,7 @@ impl Render for LibraryView {
                 .size_full()
                 .into_any_element(),
             (section, Mode::List) if section.listing() => {
-                Scroller::new("library-page", &self.scrollbar)
+                crate::chrome::edge_fade(Scroller::new("library-page", &self.scrollbar), true, cx)
                     .bottom_inset(crate::chrome::Chrome::bottom(cx))
                     .pt(inset)
                     .pb(inset)
@@ -1187,16 +1195,18 @@ impl Render for LibraryView {
                     .when_some(note, |this, note| this.child(note))
                     .into_any_element()
             }
-            (_, Mode::List) => Scroller::new("library-page", &self.scrollbar)
-                .bottom_inset(crate::chrome::Chrome::bottom(cx))
-                .pb(inset)
-                .child(
-                    div()
-                        .mx(cells::table_gutter(cx))
-                        .child(self.table(self.section).element()),
-                )
-                .when_some(note, |this, note| this.child(note))
-                .into_any_element(),
+            (_, Mode::List) => {
+                crate::chrome::edge_fade(Scroller::new("library-page", &self.scrollbar), false, cx)
+                    .bottom_inset(crate::chrome::Chrome::bottom(cx))
+                    .pb(inset)
+                    .child(
+                        div()
+                            .mx(cells::table_gutter(cx))
+                            .child(self.table(self.section).element()),
+                    )
+                    .when_some(note, |this, note| this.child(note))
+                    .into_any_element()
+            }
             (_, Mode::Grid) if note.is_none() && self.waiting(cx) => self.pending_cards(window, cx),
             (_, Mode::Grid) => match note {
                 Some(note) => note.size_full().into_any_element(),

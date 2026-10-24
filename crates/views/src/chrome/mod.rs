@@ -197,3 +197,30 @@ impl Chrome {
         Room::of(window.viewport_size().width)
     }
 }
+
+/// How far a Liquid Glass page's top fade reaches, and its bottom fade past the player bar so
+/// content dissolves before it slides under it; and the whole reach of a side panel's fades.
+const FADE_TAIL: Pixels = px(48.);
+
+/// Under Liquid Glass, fades a page's content out at its top edge and above the player bar
+/// while there is more of it to scroll to that way, as Settings does. A page whose table pins
+/// its head to the top keeps that edge sharp, since the fade would dim the head itself.
+pub(crate) fn edge_fade(scroller: ui::Scroller, pinned: bool, cx: &App) -> ui::Scroller {
+    let top = match pinned {
+        true => Pixels::ZERO,
+        false => FADE_TAIL,
+    };
+    match ui::liquid(cx) && ui::effects() {
+        true => scroller.edge_fade(top, Chrome::bottom(cx) + FADE_TAIL),
+        false => scroller,
+    }
+}
+
+/// Under Liquid Glass, fades a side panel's content out towards its top and bottom edges while
+/// there is more of it to scroll to that way.
+pub(crate) fn panel_fade(scroller: ui::Scroller, cx: &App) -> ui::Scroller {
+    match ui::liquid(cx) && ui::effects() {
+        true => scroller.edge_fade(FADE_TAIL, FADE_TAIL),
+        false => scroller,
+    }
+}

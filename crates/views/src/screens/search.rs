@@ -750,7 +750,7 @@ impl SearchView {
             .gap_3()
             .child(div().px(gutter).child(eyebrow(t!("search-browse"), cx)))
             .child(
-                Scroller::new("search-browse", &self.browsing)
+                crate::chrome::edge_fade(Scroller::new("search-browse", &self.browsing), false, cx)
                     .bottom_inset(crate::chrome::Chrome::bottom(cx))
                     .px(gutter)
                     .pb(pad)
@@ -865,7 +865,7 @@ impl SearchView {
             .flex_1()
             .min_h_0()
             .child(
-                Scroller::new(id, bar)
+                crate::chrome::edge_fade(Scroller::new(id, bar), false, cx)
                     .bottom_inset(crate::chrome::Chrome::bottom(cx))
                     .px(gutter)
                     .pb(theme.metrics.inset)

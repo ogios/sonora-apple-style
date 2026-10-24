@@ -196,13 +196,14 @@ impl Render for HistoryView {
             .update(cx, |table, _| table.set_viewport(viewport));
 
         let note = self.note(cx);
-        let page = Scroller::new("history-page", &self.scrollbar)
-            .bottom_inset(crate::chrome::Chrome::bottom(cx))
-            .pt(inset)
-            .pb(inset)
-            .child(div().px(inset).child(self.header(cx)))
-            .child(table(&self.table).mx(cells::table_gutter(cx)))
-            .when_some(note, |this, note| this.child(vacant(note, cx)));
+        let page =
+            crate::chrome::edge_fade(Scroller::new("history-page", &self.scrollbar), true, cx)
+                .bottom_inset(crate::chrome::Chrome::bottom(cx))
+                .pt(inset)
+                .pb(inset)
+                .child(div().px(inset).child(self.header(cx)))
+                .child(table(&self.table).mx(cells::table_gutter(cx)))
+                .when_some(note, |this, note| this.child(vacant(note, cx)));
 
         div()
             .size_full()

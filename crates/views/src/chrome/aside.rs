@@ -1357,8 +1357,11 @@ impl Aside {
                             div().flex_1().min_h_0().child(
                                 Scroller::listing("queue-rows", &self.scrollbar)
                                     .bottom_inset(self.bottom(cx))
-                                    .when(effects(), |this| {
-                                        this.fade_edges(px(FADE * 0.5), Pixels::ZERO)
+                                    .map(|this| match ui::liquid(cx) {
+                                        true => crate::chrome::panel_fade(this, cx),
+                                        false => this.when(effects(), |this| {
+                                            this.fade_edges(px(FADE * 0.5), Pixels::ZERO)
+                                        }),
                                     })
                                     .child(
                                         self.rows(listing, sections, window, cx)

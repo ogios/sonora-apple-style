@@ -217,7 +217,7 @@ impl Render for HomeView {
                 false => vec![shelves.render(sections, Mode::Grid, width, window, cx)],
             });
 
-        Scroller::new("home-page", &self.scrollbar)
+        crate::chrome::edge_fade(Scroller::new("home-page", &self.scrollbar), false, cx)
             .bottom_inset(crate::chrome::Chrome::bottom(cx))
             .p(theme.metrics.inset)
             .child(

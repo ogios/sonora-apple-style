@@ -143,7 +143,7 @@ impl Render for GenreView {
             });
 
         div().flex().flex_col().size_full().child(
-            Scroller::new("genre", &self.scrollbar)
+            crate::chrome::edge_fade(Scroller::new("genre", &self.scrollbar), false, cx)
                 .bottom_inset(crate::chrome::Chrome::bottom(cx))
                 .p(pad)
                 .child(

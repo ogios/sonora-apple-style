@@ -539,7 +539,7 @@ impl Render for SongView {
             .relative()
             .size_full()
             .child(
-                Scroller::new("song-page", &self.scrollbar)
+                crate::chrome::edge_fade(Scroller::new("song-page", &self.scrollbar), false, cx)
                     .bottom_inset(crate::chrome::Chrome::bottom(cx))
                     .px(theme.metrics.inset)
                     .py(theme.metrics.inset)
