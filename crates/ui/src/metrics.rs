@@ -1,4 +1,7 @@
-use gpui::{Pixels, SharedString, TextRun, Window, px};
+use gpui::{App, FontWeight, Pixels, SharedString, Styled, TextRun, Window, px};
+
+use crate::glass::liquid;
+use crate::theme::ActiveTheme as _;
 use i18n::t;
 
 const HEADER: f32 = 0.75;
@@ -165,6 +168,113 @@ impl Text {
         }
     }
 }
+
+/// The size Material 3 sets its body-medium role in, which the type scale is anchored to: that
+/// role takes the user's font size and every other role scales with it.
+const TYPE_ANCHOR: f32 = 14.;
+
+/// Material 3's type scale: fifteen roles in five families, each with its own size, line height
+/// and weight, laid out at the user's font size where body-medium stands at 14 / 20. Sizes and
+/// line heights keep Material's proportions. Weights keep Cider's: display and headline roles
+/// stand bold where Material sets them regular, so page and section titles read as Cider's do.
+/// Material's letter spacing is left out, as text here cannot be tracked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Type {
+    DisplayLarge,
+    DisplayMedium,
+    DisplaySmall,
+    HeadlineLarge,
+    HeadlineMedium,
+    HeadlineSmall,
+    TitleLarge,
+    TitleMedium,
+    TitleSmall,
+    BodyLarge,
+    BodyMedium,
+    BodySmall,
+    LabelLarge,
+    LabelMedium,
+    LabelSmall,
+}
+
+impl Type {
+    /// The role's size and line height at the anchor, in Material's own pixels.
+    fn spec(self) -> (f32, f32) {
+        match self {
+            Self::DisplayLarge => (57., 64.),
+            Self::DisplayMedium => (45., 52.),
+            Self::DisplaySmall => (36., 44.),
+            Self::HeadlineLarge => (32., 40.),
+            Self::HeadlineMedium => (28., 36.),
+            Self::HeadlineSmall => (24., 32.),
+            Self::TitleLarge => (22., 28.),
+            Self::TitleMedium => (16., 24.),
+            Self::TitleSmall => (14., 20.),
+            Self::BodyLarge => (16., 24.),
+            Self::BodyMedium => (14., 20.),
+            Self::BodySmall => (12., 16.),
+            Self::LabelLarge => (14., 20.),
+            Self::LabelMedium => (12., 16.),
+            Self::LabelSmall => (11., 16.),
+        }
+    }
+
+    /// The role's size at `base`, the user's font size.
+    pub fn size(self, base: Pixels) -> Pixels {
+        px((base / px(1.) * self.spec().0 / TYPE_ANCHOR).round())
+    }
+
+    /// The role's line height at `base`, the user's font size.
+    pub fn line(self, base: Pixels) -> Pixels {
+        px((base / px(1.) * self.spec().1 / TYPE_ANCHOR).round())
+    }
+
+    pub fn weight(self) -> FontWeight {
+        match self {
+            Self::DisplayLarge
+            | Self::DisplayMedium
+            | Self::DisplaySmall
+            | Self::HeadlineLarge
+            | Self::HeadlineMedium
+            | Self::HeadlineSmall => FontWeight::BOLD,
+            Self::TitleLarge => FontWeight::SEMIBOLD,
+            Self::TitleMedium | Self::TitleSmall => FontWeight::MEDIUM,
+            Self::BodyLarge | Self::BodyMedium | Self::BodySmall => FontWeight::NORMAL,
+            Self::LabelLarge | Self::LabelMedium | Self::LabelSmall => FontWeight::MEDIUM,
+        }
+    }
+}
+
+/// Sets an element's text in one role of the [`Type`] scale. The scale is part of the Liquid
+/// Glass look: with it off, text keeps the sizes it was given before, so the flat look stands
+/// as it was.
+pub trait Typeset: Styled + Sized {
+    /// Sets this element's text size, line height and weight to `role`'s at the user's font
+    /// size. A weight set after it wins, for a role that needs to stand out further.
+    fn typeset(self, role: Type, cx: &App) -> Self {
+        let base = cx.theme().font_size;
+        match liquid(cx) {
+            true => self
+                .text_size(role.size(base))
+                .line_height(role.line(base))
+                .font_weight(role.weight()),
+            false => self,
+        }
+    }
+
+    /// Sets this element's text size and weight to `role`'s but leaves its line height, for
+    /// text centred in a row of fixed height, as a table cell's is.
+    fn typeset_inline(self, role: Type, cx: &App) -> Self {
+        match liquid(cx) {
+            true => self
+                .text_size(role.size(cx.theme().font_size))
+                .font_weight(role.weight()),
+            false => self,
+        }
+    }
+}
+
+impl<E: Styled + Sized> Typeset for E {}
 
 const INSET: f32 = 0.25;
 const BORDER: Pixels = px(1.);

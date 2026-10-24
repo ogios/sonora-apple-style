@@ -106,7 +106,8 @@ pub use lens::{Corner, Lens, Mark, lens_radius, mark};
 pub use level_meter::LevelMeter;
 pub use menu::{MENU_CONTEXT, Menu, MenuItem, MenuSearch, SubmenuState};
 pub use metrics::{
-    BAR_ABOVE, BAR_BELOW, LEADING, Metrics, Rounding, Text, snapped, text_width, tucked,
+    BAR_ABOVE, BAR_BELOW, LEADING, Metrics, Rounding, Text, Type, Typeset, snapped, text_width,
+    tucked,
 };
 pub use modal::Modal;
 pub use motion::{
