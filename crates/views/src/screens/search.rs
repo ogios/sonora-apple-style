@@ -32,6 +32,13 @@ use crate::shared::trouble;
 
 const RAIL: Pixels = gpui::px(12.);
 const ROW_GAP: f32 = 0.25;
+/// A Liquid Glass result row, Cider's: how much taller than the theme's list row it stands,
+/// the gap between rows in text heights, its artwork as a share of its height, and its title
+/// this much larger than the body text.
+const LIQUID_AIR: Pixels = gpui::px(18.);
+const LIQUID_GAP: f32 = 0.5;
+const LIQUID_ART: f32 = 0.8;
+const LIQUID_TITLE: f32 = 1.12;
 const SONGS: &[Kind] = &[Kind::Song];
 const ARTISTS: &[Kind] = &[Kind::Artist];
 const RELEASES: &[Kind] = &[Kind::Album, Kind::Playlist];
@@ -340,9 +347,8 @@ impl SearchView {
         .read(cx)
         .scroll()
         .clone();
-        let theme = *cx.theme();
-        let height = snapped(theme.metrics.list_row, window);
-        let gap = theme.font_size * ROW_GAP;
+        let height = snapped(hit_height(cx), window);
+        let gap = hit_gap(cx);
         let above = match stacked && !liquid {
             true => self.lead.get(),
             false => Pixels::ZERO,
@@ -520,6 +526,17 @@ impl SearchView {
                 .press(pressed(Press::Playlist(list.id.clone()), me)),
         };
 
+        // Under Liquid Glass a result is roomier: taller, with larger artwork and title.
+        let card = match ui::liquid(cx) {
+            true => {
+                let height = hit_height(cx);
+                card.h(height)
+                    .art(gpui::px((height * LIQUID_ART / gpui::px(1.)).round()))
+                    .gap_4()
+                    .text_size(theme.text(Text::Body) * LIQUID_TITLE)
+            }
+            false => card,
+        };
         card.when_some(self.transport(hit, me, cx), |card, (playing, play)| {
             card.play(playing, play)
         })
@@ -808,14 +825,14 @@ impl SearchView {
             false => column_of(only),
         };
         let theme = *cx.theme();
-        let row = snapped(theme.metrics.list_row, window);
+        let row = snapped(hit_height(cx), window);
         let scroll = bar.read(cx).scroll().clone();
         let me = cx.entity().downgrade();
         let measured = self.lead.clone();
         let tracked = scroll.clone();
         let deck = Deck::new(format!("{id}-deck"))
             .rows((0..seats.len()).map(|_| row))
-            .gap(theme.font_size * ROW_GAP)
+            .gap(hit_gap(cx))
             .when(lead.is_some(), |deck| {
                 deck.on_measure(move |top, _, _| {
                     let content = tracked.bounds().origin.y - scrolled(&tracked);
@@ -1133,4 +1150,22 @@ impl Render for SearchView {
             .child(results)
             .when_some(context_menu, |this, menu| this.child(menu))
     }
+}
+
+/// The height of one result row: under Liquid Glass taller than a list row by `LIQUID_AIR`.
+fn hit_height(cx: &App) -> Pixels {
+    let air = match ui::liquid(cx) {
+        true => LIQUID_AIR,
+        false => Pixels::ZERO,
+    };
+    cx.theme().metrics.list_row + air
+}
+
+/// The gap between result rows, wider under Liquid Glass.
+fn hit_gap(cx: &App) -> Pixels {
+    let share = match ui::liquid(cx) {
+        true => LIQUID_GAP,
+        false => ROW_GAP,
+    };
+    cx.theme().font_size * share
 }
