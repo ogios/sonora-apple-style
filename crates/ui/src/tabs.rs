@@ -10,7 +10,7 @@ use gpui::{
 use crate::button::Button;
 use crate::glass::{blurring, glass, liquid, liquid_control};
 use crate::glide::Glide;
-use crate::lens::{Lens, Mark, mark};
+use crate::lens::{Corner, Lens, Mark, mark};
 use crate::motion::{Motion, Motioned as _, animates};
 use crate::theme::ActiveTheme as _;
 
@@ -232,6 +232,14 @@ impl RenderOnce for TabBar {
             .max(px(0.));
         // Concentric corners: the items sit one padding inside the bar.
         let radius = (rounding - rem * PAD).max(px(0.));
+        // Under Liquid Glass the bar is a capsule unless the caller rounds it, and the chosen
+        // tab's lens and every tab's hover match it: capsules in a capsule, concentric rounded
+        // rectangles in a rounded rectangle.
+        let squared = liquid && overrides.corner_radii.top_left.is_some();
+        let corner = match squared {
+            true => Corner::Fixed(radius),
+            false => Corner::Capsule,
+        };
         let capped = overrides.max_size.width.is_some();
         let moving = animates(cx);
         let rails = capped.then(|| {
@@ -274,6 +282,7 @@ impl RenderOnce for TabBar {
                     lens.entry.clear();
                 }
                 lens.lens.follow(&lens.entry, &lens.frame);
+                lens.lens.corner(corner);
                 lens.lens.render(window, cx)
             })
         });
@@ -314,10 +323,16 @@ impl RenderOnce for TabBar {
                     (Some((entry, _)), _, true) => div()
                         .relative()
                         .flex_shrink_0()
-                        .child(item.selected(false))
+                        .child(
+                            item.selected(false)
+                                .when(squared, |item| item.rounded(radius)),
+                        )
                         .child(mark(entry))
                         .into_any_element(),
-                    (_, true, _) => item.flex_shrink_0().into_any_element(),
+                    (_, true, _) => item
+                        .flex_shrink_0()
+                        .when(squared, |item| item.rounded(radius))
+                        .into_any_element(),
                     (_, false, _) => item.flex_shrink_0().rounded(radius).into_any_element(),
                 }
             }));

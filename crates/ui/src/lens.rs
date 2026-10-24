@@ -61,6 +61,20 @@ pub struct Lens {
     right: Sprung,
     bottom: Sprung,
     shown: bool,
+    corner: Corner,
+}
+
+/// The corners a lens takes, so it matches the shape of what it slides inside.
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum Corner {
+    /// As round as a capsule of the lens's height allows, up to the panel radius: the
+    /// sidebar's entries.
+    #[default]
+    Panel,
+    /// Always a capsule, inside a capsule track.
+    Capsule,
+    /// This radius, concentric with a rounded-rectangle track.
+    Fixed(Pixels),
 }
 
 impl Default for Lens {
@@ -72,6 +86,7 @@ impl Default for Lens {
             right: edge(),
             bottom: edge(),
             shown: false,
+            corner: Corner::default(),
         }
     }
 }
@@ -131,6 +146,11 @@ impl Lens {
         }
     }
 
+    /// Sets the corners the lens is drawn with.
+    pub fn corner(&mut self, corner: Corner) {
+        self.corner = corner;
+    }
+
     pub fn hide(&mut self) {
         self.shown = false;
     }
@@ -147,7 +167,11 @@ impl Lens {
         let right = self.right.value(window, cx).max(left);
         let bottom = self.bottom.value(window, cx).max(top);
         let height = px(bottom - top);
-        let radius = lens_radius(height, cx);
+        let radius = match self.corner {
+            Corner::Panel => lens_radius(height, cx),
+            Corner::Capsule => height / 2.,
+            Corner::Fixed(radius) => radius.min(height / 2.),
+        };
 
         Some(
             liquid_pill(

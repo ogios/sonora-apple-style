@@ -100,7 +100,7 @@ pub use kbd::Kbd;
 pub use label::{eyebrow, faint, heading, upper, vacant};
 pub use layout::{ALWAYS, MIN_CONTENT, ROOMY, Room, SNUG, VAST, WIDE};
 pub use lazy::Lazy;
-pub use lens::{Lens, Mark, lens_radius, mark};
+pub use lens::{Corner, Lens, Mark, lens_radius, mark};
 pub use level_meter::LevelMeter;
 pub use menu::{MENU_CONTEXT, Menu, MenuItem, MenuSearch, SubmenuState};
 pub use metrics::{BAR_ABOVE, BAR_BELOW, LEADING, Metrics, Rounding, Text, snapped, tucked};
