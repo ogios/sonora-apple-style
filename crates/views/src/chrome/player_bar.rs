@@ -43,6 +43,13 @@ const ROOMY_RISE: f32 = 7.5;
 const ROOMY_BREATH: f32 = 2.;
 const CAPSULE_FILL: f32 = 0.06;
 const CAPSULE_RIM: f32 = 0.08;
+/// The track capsule's cover: the padding above and below it, the largest share of its edge
+/// its corners may round to, and the least room kept after the title, as a share of the
+/// capsule's corner radius.
+const CAPSULE_INSET: f32 = 6.;
+const CAPSULE_ART_ROUND: f32 = 0.3;
+const CAPSULE_TAIL: f32 = 0.6;
+const CAPSULE_TAIL_MIN: f32 = 16.;
 const VOLUME_WIDTH: f32 = 110.;
 const VOLUME_TIGHT: f32 = 72.;
 const CLOCK_SHORT: f32 = 3.4;
@@ -301,12 +308,18 @@ impl PlayerBar {
             .gap_3()
             .flex_1()
             .min_w_0()
-            .child(self.artwork(window, cx))
+            .child(self.artwork(None, window, cx))
             .when(room, |this| this.child(self.track_details(false, cx)))
     }
 
     /// The playing cover keeps its album link and context menu in every layout.
-    fn artwork(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    /// `corner` rounds the cover by that radius instead of the artwork's own.
+    fn artwork(
+        &self,
+        corner: Option<Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let theme = cx.theme();
         let layout = self.settings.read(cx).player_bar_layout();
         let artwork = ui::snapped(
@@ -339,7 +352,12 @@ impl PlayerBar {
                 cover,
                 window,
                 cx,
-                move |cover| Artwork::new(cover).size(artwork).into_any_element(),
+                move |cover| {
+                    Artwork::new(cover)
+                        .size(artwork)
+                        .when_some(corner, Artwork::corner_radius)
+                        .into_any_element()
+                },
             ))
             .flex_none()
     }
@@ -454,6 +472,41 @@ impl PlayerBar {
     }
 }
 
+/// The Liquid Glass track capsule's corners and padding, concentric at every corner setting:
+/// the cover rounds with the capsule, and steps in from its rounded end far enough that the
+/// gap round the cover's corner is the same as above and below it.
+#[derive(Clone, Copy)]
+struct Capsule {
+    radius: Pixels,
+    art_radius: Pixels,
+    inset: Pixels,
+    lead: Pixels,
+    tail: Pixels,
+}
+
+impl Capsule {
+    fn of(window: &Window, cx: &gpui::App) -> Self {
+        let theme = cx.theme();
+        let art = ui::snapped(theme.metrics.row, window);
+        let inset = px(CAPSULE_INSET);
+        // The border adds a pixel on either side.
+        let height = art + inset * 2. + px(2.);
+        let radius = ui::liquid_radius(cx).min(height / 2.);
+        let art_radius = (radius - inset).clamp(Pixels::ZERO, art * CAPSULE_ART_ROUND);
+        // Stepping the cover in by the difference of the two radii puts its corner circle
+        // straight below the capsule's corner centre, which leaves `inset` round the corner.
+        let lead = (radius - art_radius).max(inset);
+        let tail = (radius * CAPSULE_TAIL).max(px(CAPSULE_TAIL_MIN));
+        Self {
+            radius,
+            art_radius,
+            inset,
+            lead,
+            tail,
+        }
+    }
+}
+
 impl PlayerBar {
     /// Centered needs room for its three columns; smaller windows keep every control reachable
     /// in the shared responsive layout. Only the whole window's width determines the choice.
@@ -521,6 +574,7 @@ impl Render for PlayerBar {
         let centered_wing = theme.metrics.control * 4. + px(VOLUME_WIDTH) + theme.metrics.pad * 3.;
 
         let show_track = span.fits(Room::Snug);
+        let capsule = Capsule::of(window, cx);
         let sides = match SidebarRight::available(window) {
             true => Some(self.side_buttons(cx)),
             false => None,
@@ -659,7 +713,7 @@ impl Render for PlayerBar {
                         .flex()
                         .items_center()
                         .gap_3()
-                        .child(self.artwork(window, cx))
+                        .child(self.artwork(None, window, cx))
                         .child(transport(&self.playback, &self.queue, false, cx)),
                 )
                 .child(
@@ -729,13 +783,14 @@ impl Render for PlayerBar {
                                 .max_w(px(CAPSULE_MAX))
                                 .items_center()
                                 .gap_3()
-                                .p_1p5()
-                                .pr_4()
-                                .rounded(ui::liquid_radius(cx))
+                                .py(capsule.inset)
+                                .pl(capsule.lead)
+                                .pr(capsule.tail)
+                                .rounded(capsule.radius)
                                 .bg(theme.foreground.opacity(CAPSULE_FILL))
                                 .border_1()
                                 .border_color(theme.foreground.opacity(CAPSULE_RIM))
-                                .child(self.artwork(window, cx))
+                                .child(self.artwork(Some(capsule.art_radius), window, cx))
                                 .when(show_track, |this| {
                                     this.child(self.track_details(false, cx).flex_1().min_w_0())
                                 }),
