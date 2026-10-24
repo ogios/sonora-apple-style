@@ -22,7 +22,7 @@ use ui::{
     ActiveTheme as _, Avatar, Button, Card, DraggedPin, Edge, Initials, Motion, Motioned as _,
     PREFETCH_REACH, Pin, Pinnable as _, Popup, Scrollbar, Scroller, Spot, Springs, Text, Vacancy,
     drop_gap, drop_marker, ease_out_cubic, ease_out_expo, eyebrow, faint, mix, prefetch, snapped,
-    vacant,
+    text_width, vacant,
 };
 
 use crate::chrome::{Chrome, section_label};
@@ -1229,6 +1229,19 @@ impl Aside {
         let tool = |button: Button| button.ghost().size(side).px_0().glyph(glyph);
         let radio = Sonora::global(cx).session.read(cx).capabilities().radio;
         let total = sections.ahead();
+        let tools = usize::from(radio && !remote) + usize::from(!remote) * 2;
+        let items = t!("queue-items", count = total);
+        let pill = text_width(items.clone(), window)
+            * (theme.text(Text::Small) / theme.text(Text::Body))
+            + theme.metrics.pad * 3.
+            + px(2.);
+        let needed = theme.metrics.pad * 3. + side * tools as f32 + px(6.) + px(8.) + pill;
+        // Where the sidebar is too narrow for the words, as at the largest type, the pill keeps
+        // the bare count rather than clipping it.
+        let items = match needed > Chrome::right(cx) {
+            true => total.to_string(),
+            false => items.to_string(),
+        };
 
         div()
             .flex()
@@ -1300,7 +1313,7 @@ impl Aside {
                     .border_color(theme.foreground.opacity(TOOLS_RIM))
                     .text_size(theme.text(Text::Small))
                     .font_weight(FontWeight::SEMIBOLD)
-                    .child(t!("queue-items", count = total)),
+                    .child(items),
             )
     }
 
