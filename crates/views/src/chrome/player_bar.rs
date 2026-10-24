@@ -43,11 +43,8 @@ const ROOMY_RISE: f32 = 7.5;
 const ROOMY_BREATH: f32 = 2.;
 const CAPSULE_FILL: f32 = 0.06;
 const CAPSULE_RIM: f32 = 0.08;
-/// The track capsule's cover: the padding above and below it, the largest share of its edge
-/// its corners may round to, and the least room kept after the title, as a share of the
-/// capsule's corner radius.
-const CAPSULE_INSET: f32 = 6.;
-const CAPSULE_ART_ROUND: f32 = 0.3;
+/// The least room kept after the track capsule's title, as a share of the capsule's corner
+/// radius and at the least. The cover nests in the capsule by [`ui::nest`].
 const CAPSULE_TAIL: f32 = 0.6;
 const CAPSULE_TAIL_MIN: f32 = 16.;
 /// The Liquid Glass bar reflows into three rows, the seek bar over the buttons over the track
@@ -523,14 +520,15 @@ impl Capsule {
     fn of(window: &Window, cx: &gpui::App) -> Self {
         let theme = cx.theme();
         let art = ui::snapped(theme.metrics.row, window);
-        let inset = px(CAPSULE_INSET);
+        let inset = ui::NEST_INSET;
         // The border adds a pixel on either side.
         let height = art + inset * 2. + px(2.);
         let radius = ui::liquid_radius(cx).min(height / 2.);
-        let art_radius = (radius - inset).clamp(Pixels::ZERO, art * CAPSULE_ART_ROUND);
-        // Stepping the cover in by the difference of the two radii puts its corner circle
-        // straight below the capsule's corner centre, which leaves `inset` round the corner.
-        let lead = (radius - art_radius).max(inset);
+        let ui::Nest {
+            radius: art_radius,
+            lead,
+            ..
+        } = ui::nest(radius, inset, art, false);
         let tail = (radius * CAPSULE_TAIL).max(px(CAPSULE_TAIL_MIN));
         Self {
             height,

@@ -206,3 +206,39 @@ fn lead(to: f32, from: f32) -> (gpui::SpringConfig, gpui::SpringConfig) {
         _ => (Springs::LENS_LEAD, Springs::LENS_LEAD),
     }
 }
+
+/// The least room art keeps between itself and the edge of a rounded container it sits in.
+pub const NEST_INSET: Pixels = px(6.);
+/// How round nested art may get, as a share of its side, so a cover in a capsule stays a
+/// rounded square rather than turning into a circle.
+const NEST_ROUND: f32 = 0.3;
+
+/// Where art sits inside a rounded container so its corners run along the container's curve
+/// instead of poking into it: the art's corner radius is the container's less the room around
+/// it, as nested rounded rectangles are drawn concentric, and it stands in from the container's
+/// side by `lead`, far enough that its corner keeps that room all the way round the curve even
+/// where its own radius had to be capped.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Nest {
+    /// The art's corner radius.
+    pub radius: Pixels,
+    /// The room above and below the art.
+    pub inset: Pixels,
+    /// The room between the container's side and the art.
+    pub lead: Pixels,
+}
+
+/// Nests art of side `art` in a container rounded by `outer` with at least `inset` around it.
+/// Round art, such as an avatar, passes `round` and keeps its circle.
+pub fn nest(outer: Pixels, inset: Pixels, art: Pixels, round: bool) -> Nest {
+    let inset = inset.max(NEST_INSET);
+    let radius = match round {
+        true => art / 2.,
+        false => (outer - inset).clamp(Pixels::ZERO, art * NEST_ROUND),
+    };
+    Nest {
+        radius,
+        inset,
+        lead: (outer - radius).max(inset),
+    }
+}
