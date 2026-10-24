@@ -493,6 +493,8 @@ struct Appearance {
     blur: bool,
     /// Whether a see-through window asks the platform to blur the desktop behind it.
     blur_window: bool,
+    /// Whether the chrome floats as Liquid Glass panels rather than sitting flush.
+    liquid_glass: bool,
     font_size: f32,
     transparent: bool,
     transparency: f32,
@@ -782,6 +784,7 @@ impl Default for Appearance {
             rounding: Rounding::Rounded.id().to_owned(),
             blur: true,
             blur_window: true,
+            liquid_glass: true,
             font_size: DEFAULT_FONT_SIZE,
             transparent: false,
             transparency: ui::BACKDROP_TRANSPARENCY,
@@ -1315,6 +1318,11 @@ impl AppSettings {
         self.values.appearance.blur_window
     }
 
+    /// Whether the chrome floats as Liquid Glass panels. See `ui::liquid`.
+    pub fn liquid_glass(&self) -> bool {
+        self.values.appearance.liquid_glass
+    }
+
     /// Whether opening the fullscreen view also puts the window into OS fullscreen.
     pub fn os_fullscreen(&self) -> bool {
         self.values.appearance.os_fullscreen
@@ -1345,6 +1353,7 @@ impl AppSettings {
             transparency: self.transparency(),
             blur: self.blur(),
             blur_window: self.blur_window(),
+            liquid: self.liquid_glass(),
             tint: None,
             tint_secondary: None,
         }
@@ -2042,6 +2051,11 @@ impl AppSettings {
 
     pub fn set_blur_window(&mut self, blur: bool, cx: &mut Context<Self>) {
         self.values.appearance.blur_window = blur;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_liquid_glass(&mut self, liquid: bool, cx: &mut Context<Self>) {
+        self.values.appearance.liquid_glass = liquid;
         self.schedule_save(cx);
     }
 
