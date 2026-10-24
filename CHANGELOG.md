@@ -40,6 +40,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   between them, and fullscreen's panel slides in as it opens. Glass buttons brighten under the
   pointer, and Liquid Glass menus pop out of the corner they hang from on rounder glass, with
   dialogs to match.
+- Liquid Glass is laid out like Cider. Only the page in the middle sits on a framed sheet, and the
+  sidebars stand on the dark window around it. Sidebar entries are larger and touch, so there is
+  no dead gap between them, under muted section headers, with a larger search field and your
+  account on a floating card. An artist's picture runs edge to edge up to the top of the page at
+  its own shape and frosts over as it fades, under a large name and round play, more and
+  favourite buttons, with their latest release beside a Top songs grid. The player bar is larger
+  with a thick seek bar, the queue heads its sections with large titles, the source and a count,
+  under a capsule of queue tools and an item count, and rows, controls and margins are roomier.
+  Search sorts its results under Songs, Artists, Albums and Playlists tabs. Text is set in the
+  bundled Pretendard, the face Cider uses, falling back to Inter and the system's CJK fonts.
 
 ### Fixed
 
@@ -50,6 +60,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Liquid Glass.
 - With a large font, the pinned section's header no longer runs into its empty state, and the
   title and buttons of an album or playlist header no longer rise out of it.
+- The sidebar remembers whether its Library section is folded.
+- Under Liquid Glass an album's cover colour now washes the page right up to the top of the sheet,
+  and Now playing and Up next fit in the queue at a large font size.
 
 ## [0.44.1] - 2026-10-22
 
