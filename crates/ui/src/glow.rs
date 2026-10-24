@@ -1,8 +1,8 @@
 //! Hover fills that fade in and out instead of snapping.
 
 use gpui::{
-    App, ElementId, Entity, EntityId, Fill, Hsla, StatefulInteractiveElement, StyleRefinement,
-    Window,
+    App, ElementId, Entity, EntityId, Fill, Hsla, Rgba, StatefulInteractiveElement,
+    StyleRefinement, Window,
 };
 
 use crate::motion::{HoverFade, Motion, animates};
@@ -52,7 +52,8 @@ impl Glow {
         }
         let lit = fill.opacity(self.level);
         Some(match under {
-            Some(under) => under.blend(lit),
+            Some(under) if under.a >= 1. => under.blend(lit),
+            Some(under) => toward(under, fill, self.level),
             None => lit,
         })
     }
@@ -91,4 +92,20 @@ pub fn hover_fill(style: StyleRefinement) -> (Option<Hsla>, StyleRefinement) {
         None => None,
     };
     (fill, rest)
+}
+
+/// A translucent background turned `level` of the way to `fill`, colour and cover alike, so a
+/// hover fill takes the background's place as it fades in rather than mixing into it and
+/// keeping the background's cover.
+fn toward(under: Hsla, fill: Hsla, level: f32) -> Hsla {
+    let low = Rgba::from(under);
+    let high = Rgba::from(fill);
+    let mix = |low: f32, high: f32| low + (high - low) * level;
+    Rgba {
+        r: mix(low.r, high.r),
+        g: mix(low.g, high.g),
+        b: mix(low.b, high.b),
+        a: mix(low.a, high.a),
+    }
+    .into()
 }
