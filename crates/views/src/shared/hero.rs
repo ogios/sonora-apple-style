@@ -10,7 +10,7 @@ use music::{Album, Track};
 use state::{Origin, Playback};
 use ui::{
     ActiveTheme as _, Artwork, Banner, Button, ExplicitBadge, LEADING, Pin, Pinnable as _,
-    Skeleton, TableState, Text, upper,
+    Skeleton, TableState, Text, Type, Typeset as _, upper,
 };
 
 use crate::shared::tracks::{self, TrackSource};
@@ -622,7 +622,8 @@ impl RenderOnce for PageHero {
                                     .font_weight(FontWeight::EXTRA_BOLD),
                                 false => this
                                     .text_size(theme.text(Text::Display))
-                                    .font_weight(FontWeight::BOLD),
+                                    .font_weight(FontWeight::BOLD)
+                                    .typeset(Type::DisplaySmall, cx),
                             })
                             .child(
                                 div()
@@ -781,6 +782,7 @@ fn eyebrow_label(label: SharedString, cx: &App) -> Div {
     div()
         .text_size(theme.text(Text::Small))
         .text_color(theme.muted_foreground)
+        .typeset_inline(Type::LabelSmall, cx)
         .font_weight(FontWeight::SEMIBOLD)
         .child(upper(label))
 }

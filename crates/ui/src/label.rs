@@ -1,11 +1,14 @@
 use gpui::prelude::*;
 use gpui::{App, Div, FontWeight, SharedString, div};
 
-use crate::metrics::Text;
+use crate::metrics::{Text, Type, Typeset as _};
 use crate::theme::ActiveTheme as _;
 
 pub fn eyebrow(label: impl Into<SharedString>, cx: &App) -> Div {
-    faint(cx).child(upper(label))
+    faint(cx)
+        .typeset_inline(Type::LabelSmall, cx)
+        .font_weight(FontWeight::SEMIBOLD)
+        .child(upper(label))
 }
 
 pub fn faint(cx: &App) -> Div {
@@ -42,5 +45,6 @@ pub fn heading(label: impl Into<SharedString>, cx: &App) -> Div {
         .flex_none()
         .text_size(cx.theme().text(Text::Title))
         .font_weight(FontWeight::SEMIBOLD)
+        .typeset_inline(Type::HeadlineSmall, cx)
         .child(label.into())
 }

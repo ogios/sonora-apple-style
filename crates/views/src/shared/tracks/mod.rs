@@ -448,6 +448,7 @@ impl TrackSource {
             None,
             download_mark(cell, track, cx),
             self.liked_button(cell, track, cx),
+            cx,
         )
     }
 

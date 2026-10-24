@@ -4,8 +4,8 @@ use std::rc::Rc;
 
 use ui::{
     ActiveTheme as _, Button, Card, Deck, DraggedPin, Edge, MenuItem, Panel, Picker, Pin,
-    Pinnable as _, Popup, SNUG, Scroller, Shield, Side, Spot, Tabs, Text, Vacancy, drop_gap,
-    drop_marker,
+    Pinnable as _, Popup, SNUG, Scroller, Shield, Side, Spot, Tabs, Text, Type, Typeset as _,
+    Vacancy, drop_gap, drop_marker,
 };
 
 use gpui::prelude::*;
@@ -1267,6 +1267,7 @@ fn roomy(row: Button, cx: &App) -> Button {
         .px(theme.metrics.pad * ENTRY_INSET)
         .gap(theme.metrics.pad * 1.5)
         .text_size(theme.text(Text::Body))
+        .typeset_inline(Type::LabelLarge, cx)
         .rounded(ui::lens_radius(height, cx))
         .hover(move |style| style.bg(hover))
         .active(move |style| style.bg(press))

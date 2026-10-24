@@ -20,9 +20,9 @@ use state::{
 };
 use ui::{
     ActiveTheme as _, Avatar, Button, Card, DraggedPin, Edge, Initials, Motion, Motioned as _,
-    PREFETCH_REACH, Pin, Pinnable as _, Popup, Scrollbar, Scroller, Spot, Springs, Text, Vacancy,
-    drop_gap, drop_marker, ease_out_cubic, ease_out_expo, eyebrow, fade_line, faint, mix, prefetch,
-    snapped, text_width, vacant,
+    PREFETCH_REACH, Pin, Pinnable as _, Popup, Scrollbar, Scroller, Spot, Springs, Text, Type,
+    Typeset as _, Vacancy, drop_gap, drop_marker, ease_out_cubic, ease_out_expo, eyebrow,
+    fade_line, faint, mix, prefetch, snapped, text_width, vacant,
 };
 
 use crate::chrome::{Chrome, section_label};
@@ -2526,6 +2526,7 @@ fn liquid_section(
                         .overflow_hidden()
                         .text_size(theme.text(Text::Large))
                         .line_height(theme.text(Text::Large) * SECTION_LEADING)
+                        .typeset(Type::TitleLarge, cx)
                         .font_weight(FontWeight::BOLD)
                         .text_color(theme.foreground)
                         .child(fade_line(i18n::lookup(key, None))),

@@ -18,7 +18,7 @@ use crate::filters::FilterChange;
 use crate::glass::{blurring, liquid, popover_surface};
 use crate::glow::Glow;
 use crate::menu::Menu;
-use crate::metrics::{Text, snapped, text_width};
+use crate::metrics::{Text, Type, Typeset as _, snapped, text_width};
 use crate::pin::{Pin, Pinnable};
 use crate::popup::Popup;
 use crate::skeleton::Skeleton;
@@ -1004,6 +1004,7 @@ impl<S: TableSource> TableState<S> {
                 false => gpui::transparent_black(),
             })
             .text_color(theme.table_head_foreground)
+            .typeset_inline(Type::LabelMedium, cx)
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(|this, _: &MouseUpEvent, _, cx| this.finish_column_drag(cx)),

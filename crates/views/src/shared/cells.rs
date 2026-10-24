@@ -13,7 +13,7 @@ use router::{Destination, Link as _, navigate};
 use state::Playback;
 use ui::{
     ActiveTheme as _, Artwork, Avatar, Cell, ExplicitBadge, InlineLink, InlineLinks, ROW_GROUP,
-    Theme, clock, fade_line, tabular,
+    Theme, Type, clock, fade_line, tabular,
 };
 
 use crate::chrome::Chrome;
@@ -360,6 +360,7 @@ pub(crate) fn title<F>(
     press: Option<Tap>,
     status: Option<AnyElement>,
     is_liked: Option<AnyElement>,
+    cx: &App,
 ) -> AnyElement {
     let text = div()
         .id(("track-title", cell.row))
@@ -375,7 +376,12 @@ pub(crate) fn title<F>(
                 })
         });
 
+    // A title takes title-small's weight on the row's own size, so it leads the row's other
+    // cells without standing taller than them.
     line(cell, color)
+        .when(ui::liquid(cx), |this| {
+            this.font_weight(Type::TitleSmall.weight())
+        })
         .flex()
         .items_center()
         .gap_1p5()
