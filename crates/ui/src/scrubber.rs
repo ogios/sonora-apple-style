@@ -96,6 +96,7 @@ pub struct Scrubber {
     vertical: bool,
     bubble: Option<(f32, SharedString)>,
     lift: Pixels,
+    weight: f32,
     on_move: Option<Slide>,
     on_release: Option<Release>,
 }
@@ -114,6 +115,7 @@ impl Scrubber {
             vertical: false,
             bubble: None,
             lift: px(12.),
+            weight: 1.,
             on_move: None,
             on_release: None,
         }
@@ -133,6 +135,14 @@ impl Scrubber {
         self.filled = filled;
         self.empty = empty;
         self.thumb = thumb;
+        self
+    }
+
+    /// Scales the track, the thumb and the reach of the pointer together, for a bar that
+    /// should be thick and easy to grab. The pointer's own `hovered` test takes the same scale
+    /// on the padding it is given.
+    pub fn weight(mut self, weight: f32) -> Self {
+        self.weight = weight;
         self
     }
 
@@ -168,7 +178,7 @@ impl Styled for Scrubber {
 
 impl RenderOnce for Scrubber {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let pad = cx.theme().metrics.pad;
+        let pad = cx.theme().metrics.pad * self.weight;
         let line = track(pad);
         let pin = thumb(pad);
         let reach = hit(pad);
@@ -190,6 +200,7 @@ impl RenderOnce for Scrubber {
             vertical,
             bubble,
             lift,
+            weight: _,
             on_move,
             on_release,
         } = self;

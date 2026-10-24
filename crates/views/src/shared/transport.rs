@@ -4,12 +4,19 @@ use gpui::prelude::*;
 use gpui::{App, Entity, SharedString, div};
 use i18n::t;
 use state::{Playback, Queue, Repeat, Sonora, Steered};
-use ui::{ActiveTheme as _, Button};
+use ui::{ActiveTheme as _, Button, Text};
 
 use crate::shared::ambient;
 
 pub(crate) const NOTCH: f32 = 0.05;
 const STEP: f32 = 0.004;
+/// The roomy transport under Liquid Glass: how much taller than a standard control each button
+/// stands, how much larger the play button is again, and how large their glyphs are against
+/// the body text.
+const ROOMY_GROW: f32 = 1.15;
+const ROOMY_PLAY: f32 = 1.3;
+const ROOMY_GLYPH: f32 = 1.45;
+const ROOMY_PLAY_GLYPH: f32 = 1.85;
 
 /// The other device playback is on, which the player shows instead of this app's own.
 pub(crate) fn steered(cx: &App) -> Option<Steered> {
@@ -90,6 +97,34 @@ pub(crate) fn transport(
         .child(toggle(playback, big, frosted, cx))
         .child(next(playback, queue, frosted, cx))
         .child(repeat(playback, frosted, cx))
+}
+
+/// The transport the Liquid Glass player bar carries: the same five buttons, round and large
+/// enough to hit without aiming, the play button the largest of them, as Cider's are.
+pub(crate) fn roomy_transport(
+    playback: &Entity<Playback>,
+    queue: &Entity<Queue>,
+    cx: &App,
+) -> impl IntoElement {
+    let theme = *cx.theme();
+    let side = theme.metrics.control * ROOMY_GROW;
+    let glyph = theme.text(Text::Body) * ROOMY_GLYPH;
+    let sized = |button: Button| button.size(side).px_0().glyph(glyph);
+
+    div()
+        .flex()
+        .items_center()
+        .gap_2()
+        .child(sized(shuffle(playback, false, cx)))
+        .child(sized(previous(playback, false, cx)))
+        .child(
+            toggle(playback, false, false, cx)
+                .size(side * ROOMY_PLAY)
+                .px_0()
+                .glyph(theme.text(Text::Body) * ROOMY_PLAY_GLYPH),
+        )
+        .child(sized(next(playback, queue, false, cx)))
+        .child(sized(repeat(playback, false, cx)))
 }
 
 pub(crate) fn toggle(playback: &Entity<Playback>, big: bool, frosted: bool, cx: &App) -> Button {

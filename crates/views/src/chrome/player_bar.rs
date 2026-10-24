@@ -23,13 +23,21 @@ use crate::chrome::devices::DevicePicker;
 use crate::chrome::jam::{self, JamPeople};
 use crate::chrome::{Chrome, SidebarRight};
 use crate::shared::menus::ItemMenu;
-use crate::shared::transport::{NOTCH, fraction, like, moved, percent, transport, volume_icon};
+use crate::shared::transport::{
+    NOTCH, fraction, like, moved, percent, roomy_transport, transport, volume_icon,
+};
 
 const SEEK_MAX: f32 = 560.;
 /// Under Liquid Glass the classic bar takes Apple Music's arrangement: the seek bar runs across
 /// the top, and the playing track sits in a capsule in the middle no wider than this, filled
 /// and rimmed with these shares of the foreground.
-const CAPSULE_MAX: f32 = 440.;
+const CAPSULE_MAX: f32 = 520.;
+/// The Liquid Glass bar's seek and volume bars, this many times as thick as the standard ones
+/// and as easy to grab, and the volume bar's width there.
+const SEEK_WEIGHT: f32 = 1.5;
+const VOLUME_ROOMY: f32 = 160.;
+/// How much taller the Liquid Glass bar stands than the standard one, in paddings.
+const ROOMY_RISE: f32 = 3.5;
 const CAPSULE_FILL: f32 = 0.06;
 const CAPSULE_RIM: f32 = 0.08;
 const VOLUME_WIDTH: f32 = 110.;
@@ -131,7 +139,10 @@ impl PlayerBar {
     }
 
     fn hover(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
-        let pad = cx.theme().metrics.pad;
+        let pad = match ui::liquid(cx) {
+            true => cx.theme().metrics.pad * SEEK_WEIGHT,
+            false => cx.theme().metrics.pad,
+        };
         let seek = self.seek.hovered(event.position, pad);
         let volume = self.volume.hovered(event.position, pad);
 
@@ -205,6 +216,7 @@ impl PlayerBar {
                 div().w(width).flex_none().child(
                     Scrubber::new(&self.volume, level)
                         .colors(theme.progress_bar, empty, theme.foreground)
+                        .when(ui::liquid(cx), |this| this.weight(SEEK_WEIGHT))
                         .when_some(bubble, |this, (at, text)| this.bubble(at, text))
                         .on_move(cx.listener(|this, fraction: &f32, _, cx| {
                             let level = *fraction;
@@ -478,7 +490,7 @@ impl PlayerBar {
             (false, PlayerBarLayout::Compact) => theme.metrics.row + theme.metrics.pad * 2.,
             // Apple Music's arrangement stacks the seek bar over the row of controls.
             (false, PlayerBarLayout::Classic) if ui::liquid(cx) => {
-                theme.metrics.player_bar + theme.metrics.pad * 1.5
+                theme.metrics.player_bar + theme.metrics.pad * ROOMY_RISE
             }
             _ => theme.metrics.player_bar,
         };
@@ -496,7 +508,12 @@ impl Render for PlayerBar {
         let stacked = Self::stacked(window, layout);
         let transparent = self.settings.read(cx).player_bar_translucent();
         let height = Self::height(window, cx);
-        let clock_text = theme.text(ui::Text::Tiny);
+        // The Liquid Glass classic bar is Cider's: larger throughout, with a thick seek bar.
+        let roomy = ui::liquid(cx) && !stacked && layout == PlayerBarLayout::Classic;
+        let clock_text = match roomy {
+            true => theme.text(ui::Text::Small),
+            false => theme.text(ui::Text::Tiny),
+        };
         // Equal wings keep the title centered while reserving the original volume slider width.
         let centered_wing = theme.metrics.control * 4. + px(VOLUME_WIDTH) + theme.metrics.pad * 3.;
 
@@ -543,6 +560,7 @@ impl Render for PlayerBar {
                 div().flex_1().min_w_0().child(
                     Scrubber::new(&self.seek, progress)
                         .colors(theme.progress_bar, empty, theme.foreground)
+                        .when(roomy, |this| this.weight(SEEK_WEIGHT))
                         .enabled(seekable)
                         .when_some(seek_bubble, |this, (at, text)| this.bubble(at, text))
                         .on_move(cx.listener(|this, fraction: &f32, _, cx| {
@@ -570,7 +588,10 @@ impl Render for PlayerBar {
             .w_full()
             .h(height)
             .flex_none()
-            .px_5()
+            .map(|this| match roomy {
+                true => this.px_6(),
+                false => this.px_5(),
+            })
             .when(stacked, |this| this.py_2())
             .map(|this| match liquid {
                 true => ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
@@ -680,7 +701,7 @@ impl Render for PlayerBar {
             (false, PlayerBarLayout::Classic) if liquid => base
                 .flex_col()
                 .justify_center()
-                .gap_1()
+                .gap_2()
                 .child(div().w_full().child(seek))
                 .child(
                     div()
@@ -694,7 +715,7 @@ impl Render for PlayerBar {
                                 .flex_1()
                                 .min_w_0()
                                 .items_center()
-                                .child(transport(&self.playback, &self.queue, false, cx)),
+                                .child(roomy_transport(&self.playback, &self.queue, cx)),
                         )
                         .child(
                             div()
@@ -704,8 +725,8 @@ impl Render for PlayerBar {
                                 .max_w(px(CAPSULE_MAX))
                                 .items_center()
                                 .gap_3()
-                                .p_1()
-                                .pr_3()
+                                .p_1p5()
+                                .pr_4()
                                 .rounded(ui::liquid_radius(cx))
                                 .bg(theme.foreground.opacity(CAPSULE_FILL))
                                 .border_1()
@@ -725,7 +746,7 @@ impl Render for PlayerBar {
                                 .gap_2()
                                 .child(self.devices.clone())
                                 .children(sides)
-                                .child(self.sound(px(VOLUME_WIDTH), cx))
+                                .child(self.sound(px(VOLUME_ROOMY), cx))
                                 .child(self.fullscreen_button()),
                         ),
                 ),
