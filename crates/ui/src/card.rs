@@ -11,6 +11,7 @@ use crate::ExplicitBadge;
 use crate::artwork::cover_palette;
 use crate::artwork::{Artwork, Avatar, ROUNDED};
 use crate::button::Button;
+use crate::fade_line;
 use crate::glass::{GLASS_BLUR, blurring, liquid};
 use crate::glow::{Glow, hover_fill};
 use crate::label::upper;
@@ -517,7 +518,7 @@ impl RenderOnce for Card {
         let title = div()
             .id("card-title")
             .min_w_0()
-            .truncate()
+            .overflow_hidden()
             .when_some(drag_start.clone(), |this, drag_start| {
                 this.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                     drag_start(event, window, cx)
@@ -530,7 +531,7 @@ impl RenderOnce for Card {
             })
             .text_color(tint.unwrap_or(theme.foreground))
             .when_some(size, |this, size| this.text_size(theme.text(size)))
-            .child(title);
+            .child(fade_line(title));
         let heading = match explicit {
             false => title.into_any_element(),
             true => div()
@@ -546,10 +547,10 @@ impl RenderOnce for Card {
             true => div().child(meta),
             false => div()
                 .min_w_0()
-                .truncate()
+                .overflow_hidden()
                 .text_size(theme.text(Text::Small))
                 .text_color(theme.muted_foreground)
-                .child(meta),
+                .child(fade_line(meta)),
         });
 
         let mut card = base

@@ -21,8 +21,8 @@ use state::{
 use ui::{
     ActiveTheme as _, Avatar, Button, Card, DraggedPin, Edge, Initials, Motion, Motioned as _,
     PREFETCH_REACH, Pin, Pinnable as _, Popup, Scrollbar, Scroller, Spot, Springs, Text, Vacancy,
-    drop_gap, drop_marker, ease_out_cubic, ease_out_expo, eyebrow, faint, mix, prefetch, snapped,
-    text_width, vacant,
+    drop_gap, drop_marker, ease_out_cubic, ease_out_expo, eyebrow, fade_line, faint, mix, prefetch,
+    snapped, text_width, vacant,
 };
 
 use crate::chrome::{Chrome, section_label};
@@ -933,7 +933,7 @@ impl Aside {
                         theme.muted_foreground,
                     )
                     .text_size(theme.text(Text::Small))
-                    .truncate(),
+                    .fade(),
                 )
                 .when_some(
                     track.added_by.as_deref().filter(|_| queued),
@@ -2523,12 +2523,12 @@ fn liquid_section(
                 .child(
                     div()
                         .min_w_0()
-                        .truncate()
+                        .overflow_hidden()
                         .text_size(theme.text(Text::Large))
                         .line_height(theme.text(Text::Large) * SECTION_LEADING)
                         .font_weight(FontWeight::BOLD)
                         .text_color(theme.foreground)
-                        .child(i18n::lookup(key, None)),
+                        .child(fade_line(i18n::lookup(key, None))),
                 )
                 .children(from.map(|(name, place)| {
                     div()
@@ -2585,14 +2585,14 @@ fn source_link(name: SharedString, to: Destination, cx: &App) -> impl IntoElemen
         .id("queue-source")
         .min_w_0()
         .flex_shrink(1.)
-        .truncate()
+        .overflow_hidden()
         .text_size(theme.text(Text::Small))
         .text_color(theme.muted_foreground)
         .font_weight(FontWeight::SEMIBOLD)
         .cursor_pointer()
         .hover(|style| style.text_color(theme.foreground).underline())
         .link(to)
-        .child(name)
+        .child(fade_line(name))
 }
 
 fn fixed_lyrics_lane(rows: &[SharedString], voice: Voice, sung: Sung) -> Div {

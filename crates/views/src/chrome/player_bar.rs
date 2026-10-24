@@ -16,7 +16,7 @@ use input::{ToggleFullscreen, ToggleLyrics, ToggleQueue};
 use state::{AppSettings, Playback, PlayerBarLayout, Queue, SideTab, Sonora};
 use ui::{
     Artwork, Button, ExplicitBadge, HoverFade, InlineLink, InlineLinks, Motion, Motioned as _,
-    Popup, Room, Scrollbar, Scrubber, ScrubberState, Springs, Sprung, clock, tabular,
+    Popup, Room, Scrollbar, Scrubber, ScrubberState, Springs, Sprung, clock, fade_line, tabular,
 };
 
 use crate::chrome::devices::DevicePicker;
@@ -419,15 +419,15 @@ impl PlayerBar {
                         this.open_playing_menu(event.position, cx);
                     }),
                 )
-                .child(SharedString::from(track.name.clone()))
+                .child(fade_line(SharedString::from(track.name.clone())))
                 .min_w_0()
-                .truncate(),
+                .overflow_hidden(),
             None => div()
                 .id("now-playing-album")
-                .child(t!("player-nothing-playing"))
+                .child(fade_line(t!("player-nothing-playing")))
                 .min_w_0()
-                .text_color(muted)
-                .truncate(),
+                .overflow_hidden()
+                .text_color(muted),
         };
         let actions = div()
             .flex()
@@ -496,8 +496,8 @@ impl PlayerBar {
                         muted,
                     )
                     .text_size(artists)
-                    .when(centered, |this| this.justify_center())
-                    .truncate()
+                    .when(centered, |this| this.text_center())
+                    .fade()
                     .on_click(|id, cx| {
                         navigate(Destination::Artist(id), cx);
                     }),

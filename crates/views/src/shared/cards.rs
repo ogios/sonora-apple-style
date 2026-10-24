@@ -4,7 +4,7 @@ use i18n::t;
 use music::{Album, ArtistRef, Genre, GenreItem, Playlist, ReleaseType, SavedArtist, Track};
 use router::{Destination, navigate};
 use state::{Origin, Playback};
-use ui::{ActiveTheme as _, Card, InlineLinks, Pinnable, Text, Theme};
+use ui::{ActiveTheme as _, Card, InlineLinks, Pinnable, Text, Theme, fade_line};
 
 use crate::shared::cells;
 use crate::shared::menus::{CardMenu, Item};
@@ -130,7 +130,7 @@ pub(crate) fn track_artists(
         theme.muted_foreground,
     )
     .text_size(theme.text(Text::Small))
-    .truncate()
+    .fade()
 }
 
 /// A shelf item as a card, whatever it is: an album, playlist or artist opens its page and
@@ -293,7 +293,7 @@ fn tagged(kind: SharedString, rest: impl IntoElement, theme: &Theme) -> impl Int
         .text_size(theme.text(Text::Small))
         .text_color(theme.muted_foreground)
         .child(div().flex_none().child(format!("{kind} {BULLET}")))
-        .child(div().min_w_0().truncate().child(rest))
+        .child(fade_line(rest))
 }
 
 /// The line under a playlist on a shelf: who it is by, and how many songs when that is known,
@@ -353,7 +353,7 @@ pub(crate) fn released(
     let named = !credited.is_empty() || !fallback.is_empty();
     let artists = cells::artist_links(id, credited, fallback, muted)
         .text_size(small)
-        .truncate();
+        .fade();
 
     div()
         .flex()

@@ -8,6 +8,7 @@ use gpui::{
     size, svg,
 };
 
+use crate::fade_line;
 use crate::glass::{blurring, frost, liquid, liquid_control, liquid_pill};
 use crate::glow::{Glow, Hover, hover_fill};
 use crate::metrics::Text;
@@ -607,9 +608,9 @@ impl RenderOnce for Button {
                 this.child(
                     div()
                         .min_w_0()
-                        .truncate()
+                        .overflow_hidden()
                         .when(trailing.is_some() || detail.is_some(), |this| this.flex_1())
-                        .child(label),
+                        .child(fade_line(label)),
                 )
             })
             .when_some(detail, |this, detail| {

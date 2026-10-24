@@ -627,14 +627,14 @@ impl RenderOnce for PageHero {
                             .child(
                                 div()
                                     .min_w_0()
-                                    .truncate()
+                                    .overflow_hidden()
                                     .when_some(drag_start, |this, drag_start: Rc<DragStart>| {
                                         this.on_mouse_down(
                                             MouseButton::Right,
                                             move |event, window, cx| drag_start(event, window, cx),
                                         )
                                     })
-                                    .child(self.title),
+                                    .child(ui::fade_line(self.title)),
                             )
                             .when(self.explicit, |this| {
                                 this.child(div().flex_none().child(ExplicitBadge::new()))

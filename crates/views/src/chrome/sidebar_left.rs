@@ -943,17 +943,17 @@ impl SidebarLeft {
                             .child(
                                 div()
                                     .min_w_0()
-                                    .truncate()
+                                    .overflow_hidden()
                                     .font_weight(gpui::FontWeight::SEMIBOLD)
-                                    .child(SharedString::from(name)),
+                                    .child(ui::fade_line(SharedString::from(name))),
                             )
                             .child(
                                 div()
                                     .min_w_0()
-                                    .truncate()
+                                    .overflow_hidden()
                                     .text_size(theme.text(Text::Small))
                                     .text_color(theme.muted_foreground)
-                                    .child(i18n::lookup("nav-settings", None)),
+                                    .child(ui::fade_line(i18n::lookup("nav-settings", None))),
                             ),
                     )
                     .on_click(|_, _, cx| open_settings(cx)),
@@ -1156,7 +1156,7 @@ fn caption(kind: &'static str, marked: bool, cx: &App) -> impl IntoElement {
                     .text_color(theme.primary.opacity(PIN_MARK)),
             )
         })
-        .child(div().min_w_0().truncate().child(i18n::lookup(kind, None)))
+        .child(ui::fade_line(i18n::lookup(kind, None)))
 }
 
 fn hint(cx: &App) -> AnyElement {

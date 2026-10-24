@@ -13,7 +13,7 @@ use router::{Destination, Link as _, navigate};
 use state::Playback;
 use ui::{
     ActiveTheme as _, Artwork, Avatar, Cell, ExplicitBadge, InlineLink, InlineLinks, ROW_GROUP,
-    Theme, clock, tabular,
+    Theme, clock, fade_line, tabular,
 };
 
 use crate::chrome::Chrome;
@@ -253,7 +253,7 @@ pub(crate) fn link<F>(
         .id((id, cell.row))
         .hover(|style| style.underline())
         .link(to)
-        .child(value.into())
+        .child(fade_line(value.into()))
         .into_any_element()
 }
 
@@ -281,9 +281,7 @@ pub(crate) fn artists<F>(
     color: Hsla,
 ) -> AnyElement {
     cell.frame()
-        .child(
-            artist_links(SharedString::new_static("artist"), artists, fallback, color).truncate(),
-        )
+        .child(artist_links(SharedString::new_static("artist"), artists, fallback, color).fade())
         .into_any_element()
 }
 
@@ -294,7 +292,7 @@ fn line<F>(cell: &Cell<F>, color: Option<Hsla>) -> Div {
 
 pub(crate) fn dim<F>(cell: &Cell<F>, value: impl Into<SharedString>, muted: Hsla) -> AnyElement {
     line(cell, Some(muted))
-        .child(value.into())
+        .child(fade_line(value.into()))
         .into_any_element()
 }
 
@@ -366,8 +364,8 @@ pub(crate) fn title<F>(
     let text = div()
         .id(("track-title", cell.row))
         .min_w_0()
-        .truncate()
-        .child(value.into())
+        .overflow_hidden()
+        .child(fade_line(value.into()))
         .when_some(press, |this, press| {
             this.cursor_pointer()
                 .hover(|style| style.underline())
@@ -424,10 +422,10 @@ pub(crate) fn added_by<F>(cell: &Cell<F>, added: &Contributor, color: Hsla) -> A
             div()
                 .id(("added-name", cell.row))
                 .min_w_0()
-                .truncate()
+                .overflow_hidden()
                 .hover(|style| style.underline())
                 .link(Destination::User(added.id.clone().into()))
-                .child(SharedString::from(added.name.clone())),
+                .child(fade_line(SharedString::from(added.name.clone()))),
         )
         .into_any_element()
 }
@@ -447,7 +445,7 @@ pub(crate) fn credited<F>(
         .items_center()
         .gap_2()
         .child(portrait(added, cell.row))
-        .child(div().min_w_0().truncate().child(value.into()))
+        .child(fade_line(value.into()))
         .into_any_element()
 }
 
