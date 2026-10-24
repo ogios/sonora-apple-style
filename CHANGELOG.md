@@ -28,10 +28,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   pages wash their header in the cover's colour under a larger cover, the sidebar is denser with
   a search field at the top and your account at the foot, and the player bar puts the seek bar
   across the top with the playing track in a capsule in the middle.
+- Liquid Glass takes more from Apple Music. An artist's picture fills the top of their page and
+  fades into it. An album's artist, year, song count and length sit on small pills. The queue
+  heads Now playing, Next in queue and Up next as small titles with a count, and the song playing
+  now gets a card of its own. Fullscreen stands on the blurred cover, with the lyrics or the queue
+  on a rounded glass card and the controls on a floating glass bar. The page's tools are small
+  glass circles inside the top of the page, and the sidebar groups your libraries and history
+  under a Library header that folds away.
+- The play and pause icons cross over as they swap. A new cover dissolves into the last one in
+  the player bar, in fullscreen and behind it. The queue and the lyrics slide in as you switch
+  between them, and fullscreen's panel slides in as it opens. Glass buttons brighten under the
+  pointer, and Liquid Glass menus pop out of the corner they hang from on rounder glass, with
+  dialogs to match.
 
 ### Fixed
 
 - Switching pages under Liquid Glass no longer flashes the content area black.
+- Covers and cards no longer jump bigger and smaller while a sidebar slides open or shut. The
+  page settles into its new layout once, as the sidebar starts to move.
+- Settings and other heavy pages no longer show as an empty sheet for a moment as they open under
+  Liquid Glass.
 - With a large font, the pinned section's header no longer runs into its empty state, and the
   title and buttons of an album or playlist header no longer rise out of it.
 
