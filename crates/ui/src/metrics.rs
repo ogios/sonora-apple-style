@@ -2,6 +2,11 @@ use gpui::{Pixels, SharedString, TextRun, Window, px};
 use i18n::t;
 
 const HEADER: f32 = 0.75;
+/// How much taller a table row and a control stand under Liquid Glass, and the page margin
+/// there.
+const ROOMY_ROW: Pixels = px(6.);
+const ROOMY_CONTROL: Pixels = px(2.);
+const ROOMY_INSET: Pixels = px(32.);
 
 pub const LEADING: f32 = 1.25;
 
@@ -94,6 +99,20 @@ impl Metrics {
             list_row: roomy(52., 3.2),
             thumb: px(34.),
             cover: px(140.),
+        }
+    }
+
+    /// The roomier measures Liquid Glass lays the app out in, Cider's: taller table rows and
+    /// controls, and wider page margins, so nothing feels cramped.
+    pub fn roomy(self) -> Self {
+        let row = self.row + ROOMY_ROW;
+
+        Self {
+            row,
+            header: px((row / px(1.) * HEADER).round()),
+            inset: self.inset.max(ROOMY_INSET),
+            control: self.control + ROOMY_CONTROL,
+            ..self
         }
     }
 }

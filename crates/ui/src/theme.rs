@@ -802,7 +802,10 @@ impl Theme {
             theme.see_through(1. - look.transparency.clamp(0., MAX_TRANSPARENCY));
         }
         theme.font_size = base;
-        theme.metrics = Metrics::new(base);
+        theme.metrics = match look.liquid {
+            true => Metrics::new(base).roomy(),
+            false => Metrics::new(base),
+        };
         theme.transparent = look.transparent;
         theme.blur = look.blur;
         theme.blur_window = look.blur_window;
