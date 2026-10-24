@@ -445,6 +445,8 @@ search-results = Results
 search-songs = Songs
 search-artists = Artists
 search-albums-playlists = Albums & playlists
+search-albums = Albums
+search-playlists = Playlists
 search-tag = { $kind } ·
 search-saved =
     { $count ->

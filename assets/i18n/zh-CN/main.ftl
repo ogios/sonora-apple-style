@@ -441,6 +441,8 @@ search-results = 结果
 search-songs = 歌曲
 search-artists = 歌手
 search-albums-playlists = 专辑和播放列表
+search-albums = 专辑
+search-playlists = 歌单
 search-tag = { $kind } ·
 search-saved =
     { $count ->

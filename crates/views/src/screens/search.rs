@@ -19,8 +19,8 @@ use state::{
 };
 use ui::ActiveTheme as _;
 use ui::{
-    Activate, Card, Deck, Deselect, Pinnable, Popup, Room, Scrollbar, Scroller, SelectLeft,
-    SelectNext, SelectPrevious, SelectRight, Separator, Text, Theme, VAST, clock, eyebrow,
+    Activate, Button, Card, Deck, Deselect, Pinnable, Popup, Room, Scrollbar, Scroller, SelectLeft,
+    SelectNext, SelectPrevious, SelectRight, Separator, TabBar, Text, Theme, VAST, clock, eyebrow,
     scrolled, snapped, tabular, vacant,
 };
 
@@ -35,6 +35,15 @@ const ROW_GAP: f32 = 0.25;
 const SONGS: &[Kind] = &[Kind::Song];
 const ARTISTS: &[Kind] = &[Kind::Artist];
 const RELEASES: &[Kind] = &[Kind::Album, Kind::Playlist];
+const ALBUMS: &[Kind] = &[Kind::Album];
+const PLAYLISTS: &[Kind] = &[Kind::Playlist];
+/// The tabs Liquid Glass sorts the results under, Cider's four, in order, with their names.
+const TABS: [(Kind, &str); 4] = [
+    (Kind::Song, "search-songs"),
+    (Kind::Artist, "search-artists"),
+    (Kind::Album, "search-albums"),
+    (Kind::Playlist, "search-playlists"),
+];
 use crate::shared::tracks::{PlaybackStatus, playback_status};
 
 type Play = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
@@ -83,6 +92,8 @@ pub(crate) struct SearchView {
     cursor: Option<(usize, usize)>,
     rows: [usize; 3],
     lead: Rc<Cell<Pixels>>,
+    /// The kind of result the Liquid Glass tabs show.
+    tab: Kind,
 }
 
 impl SearchView {
@@ -151,6 +162,7 @@ impl SearchView {
             cursor: None,
             rows: [0; 3],
             lead: Rc::new(Cell::new(Pixels::ZERO)),
+            tab: Kind::Song,
         }
     }
 
@@ -234,7 +246,7 @@ impl SearchView {
             return;
         };
         let stacked = stacked(window, cx);
-        let seats = self.seats(kinds(column, stacked), cx);
+        let seats = self.seats(self.kinds(column, stacked, cx), cx);
         let Some(&(at, _)) = seats.get(row) else {
             return;
         };
@@ -283,8 +295,25 @@ impl SearchView {
         self.place(column, row);
     }
 
+    /// The kinds of result a column lists: the chosen tab's under Liquid Glass, and otherwise
+    /// the column's own, or every kind when the columns are stacked.
+    fn kinds(&self, column: usize, stacked: bool, cx: &App) -> &'static [Kind] {
+        match ui::liquid(cx) {
+            true => tab_kinds(self.tab),
+            false => kinds(column, stacked),
+        }
+    }
+
+    /// How many columns the results stand in: one under Liquid Glass, whose tabs show one kind.
+    fn columns(&self, stacked: bool, cx: &App) -> usize {
+        match ui::liquid(cx) {
+            true => 1,
+            false => columns(stacked),
+        }
+    }
+
     fn first_filled(&self, start: usize, stacked: bool, cx: &App) -> Option<usize> {
-        (start..columns(stacked)).find(|&column| !self.seats(kinds(column, stacked), cx).is_empty())
+        (start..self.columns(stacked, cx)).find(|&column| !self.seats(self.kinds(column, stacked, cx), cx).is_empty())
     }
 
     fn next_filled(&self, column: usize, stacked: bool, cx: &App) -> Option<usize> {
@@ -294,7 +323,7 @@ impl SearchView {
     fn prev_filled(&self, column: usize, stacked: bool, cx: &App) -> Option<usize> {
         (0..column)
             .rev()
-            .find(|&at| !self.seats(kinds(at, stacked), cx).is_empty())
+            .find(|&at| !self.seats(self.kinds(at, stacked, cx), cx).is_empty())
     }
 
     fn reveal(&self, window: &Window, cx: &App) {
@@ -302,11 +331,18 @@ impl SearchView {
             return;
         };
         let stacked = stacked(window, cx);
-        let scroll = self.bar(column, stacked).read(cx).scroll().clone();
+        let liquid = ui::liquid(cx);
+        let scroll = match liquid {
+            true => self.tab_bar(),
+            false => self.bar(column, stacked),
+        }
+        .read(cx)
+        .scroll()
+        .clone();
         let theme = *cx.theme();
         let height = snapped(theme.metrics.list_row, window);
         let gap = theme.font_size * ROW_GAP;
-        let above = match stacked {
+        let above = match stacked && !liquid {
             true => self.lead.get(),
             false => Pixels::ZERO,
         };
@@ -334,6 +370,44 @@ impl SearchView {
             (false, 1) => &self.artists,
             _ => &self.albums,
         }
+    }
+
+    /// The scrollbar of the list the chosen Liquid Glass tab shows.
+    fn tab_bar(&self) -> &Entity<Scrollbar> {
+        match self.tab {
+            Kind::Song => &self.songs,
+            Kind::Artist => &self.artists,
+            Kind::Album => &self.albums,
+            Kind::Playlist => &self.mixed,
+        }
+    }
+
+    /// Cider's search results under Liquid Glass: a bar of four tabs, one per kind, over the
+    /// list of the chosen kind across the page's width.
+    fn tabbed(&self, gutter: Pixels, window: &Window, cx: &Context<Self>) -> AnyElement {
+        let bar = TabBar::new("search-tabs").items(TABS.map(|(kind, key)| {
+            Button::new(key)
+                .label(i18n::lookup(key, None))
+                .ghost()
+                .selected(self.tab == kind)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    if this.tab != kind {
+                        this.tab = kind;
+                        this.cursor = None;
+                        cx.notify();
+                    }
+                }))
+        }));
+
+        div()
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_h_0()
+            .gap_4()
+            .child(div().flex().px(gutter).child(bar))
+            .child(self.deck(tab_kinds(self.tab), gutter, None, window, cx))
+            .into_any_element()
     }
 
     fn subtitle(&self, hit: &Hit, place: usize, compact: bool, theme: &Theme) -> AnyElement {
@@ -707,7 +781,8 @@ impl SearchView {
         let (id, bar) = match only {
             [Kind::Song] => ("search-songs", &self.songs),
             [Kind::Artist] => ("search-artists", &self.artists),
-            [Kind::Album, Kind::Playlist] => ("search-albums", &self.albums),
+            [Kind::Album, Kind::Playlist] | [Kind::Album] => ("search-albums", &self.albums),
+            [Kind::Playlist] => ("search-playlists", &self.mixed),
             _ => ("search-all", &self.mixed),
         };
         let seats = self.seats(only, cx);
@@ -727,7 +802,10 @@ impl SearchView {
         }
 
         let compact = only.len() > 1;
-        let column = column_of(only);
+        let column = match ui::liquid(cx) {
+            true => 0,
+            false => column_of(only),
+        };
         let theme = *cx.theme();
         let row = snapped(theme.metrics.list_row, window);
         let scroll = bar.read(cx).scroll().clone();
@@ -796,6 +874,15 @@ fn kinds(column: usize, stacked: bool) -> &'static [Kind] {
         (false, 0) => SONGS,
         (false, 1) => ARTISTS,
         _ => RELEASES,
+    }
+}
+
+fn tab_kinds(kind: Kind) -> &'static [Kind] {
+    match kind {
+        Kind::Song => SONGS,
+        Kind::Artist => ARTISTS,
+        Kind::Album => ALBUMS,
+        Kind::Playlist => PLAYLISTS,
     }
 }
 
@@ -1002,6 +1089,7 @@ impl Render for SearchView {
             Some(failure) => failure,
             None => match (asked, stacked) {
                 (false, _) => self.browse(gutter, window, cx),
+                (true, _) if ui::liquid(cx) => self.tabbed(gutter, window, cx),
                 (true, true) => self.everything(gutter, window, cx),
                 (true, false) => div()
                     .flex()
