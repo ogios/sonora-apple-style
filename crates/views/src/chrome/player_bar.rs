@@ -575,7 +575,9 @@ impl Render for PlayerBar {
 
         let show_track = span.fits(Room::Snug);
         let capsule = Capsule::of(window, cx);
-        let sides = match SidebarRight::available(window) {
+        // Under Liquid Glass the right sidebar carries its own Queue and Lyrics switch, so the
+        // bar leaves them to it and keeps only the sidebar's toggle up in the title bar.
+        let sides = match SidebarRight::available(window) && !ui::liquid(cx) {
             true => Some(self.side_buttons(cx)),
             false => None,
         };
