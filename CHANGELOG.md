@@ -15,6 +15,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - A Liquid Glass look floats the sidebar, toolbar buttons and player bar as rounded glass panels
   with a lit rim over a soft colour field that follows the cover when the adaptive theme is on.
   Buttons and tabs turn into capsules. Turn it off in Settings → Appearance → Liquid Glass.
+- Liquid Glass moves. The selection capsule in the sidebar and in tab bars stretches toward the
+  entry you pick and slides over to it, buttons give a little under the pointer and spring back,
+  and pages float up into place as they open.
+- Covers fade in from soft to sharp as they load instead of popping in, the play button on an
+  album or playlist rises and fades in as you hover it while the cover lifts, and slider thumbs
+  grow under the pointer. Reduce motion turns all of it off.
 
 ## [0.44.1] - 2026-10-22
 
