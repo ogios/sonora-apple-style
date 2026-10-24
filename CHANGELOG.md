@@ -61,6 +61,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fullscreen player has larger text and buttons and a thicker seek bar, and the seek and volume
   bars thicken smoothly under the pointer. The right sidebar's Queue and Lyrics switch sits at
   its top left, across from its toggle, and the two crossfade as you switch.
+- Under Liquid Glass pages, the queue and other scrolling panels fade out toward an edge with
+  more beyond it, at the top and above the player bar, and the fade thins away as you reach the
+  end, so nothing pops. A page that fits shows no fade. When the window is narrow or taller than
+  it is wide, the player bar folds into three rows, the seek bar, the transport and volume, and
+  the playing track, springing to its new height as it does. Reduce motion makes the change
+  instant.
+- Text that runs out of room, such as a long title, artist, queue entry or heading, fades out at
+  its end instead of being cut off with an ellipsis, and only when it does not fit.
+- Under Liquid Glass text follows a Material 3 type scale set at your font size: larger page
+  titles, bold section headings, smaller medium-weight labels and column heads, and song titles
+  that stand out from the rest of their row. The player bar drops its queue and lyrics buttons,
+  as the right sidebar has its own switch, and a queue row's remove button floats over the row's
+  end only while you hover it, so titles keep that room.
 
 ### Fixed
 
@@ -84,6 +97,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   capsule bar and a concentric rounded rectangle inside a rounded one.
 - The dark play overlay on a list row's cover no longer leaves a pixel of the cover showing along
   its right and bottom edges.
+- Under Liquid Glass the cover in the player bar's track capsule now sits the same distance from
+  every edge of the capsule at each corner setting, and the queue's item count shows as a bare
+  number rather than being cut off when the sidebar is too narrow for the words.
 
 ## [0.44.1] - 2026-10-22
 
