@@ -37,9 +37,18 @@ const CURRENT_FILL: f32 = 0.08;
 /// A Liquid Glass queue row, Cider's: its artwork as a share of the row's height, how many
 /// times the theme's padding it keeps on either side, and the width of the number in front
 /// of it in small-text heights.
-const QUEUE_ART: f32 = 0.77;
+const QUEUE_ART: f32 = 0.66;
 const QUEUE_SIDE: f32 = 1.25;
 const QUEUE_NUMBER: f32 = 1.8;
+/// How much taller than the theme's list row a Liquid Glass queue row stands, so the card
+/// under the song playing now and the pointer's highlight leave room above and below its
+/// artwork.
+const QUEUE_AIR: Pixels = px(20.);
+/// The Liquid Glass queue's buttons: a row's remove glyph as a share of the body text, and the
+/// header's round tools and their glyphs, as shares of a control and of the body text.
+const REMOVE_GLYPH: f32 = 1.3;
+const TOOL_SIDE: f32 = 1.15;
+const TOOL_GLYPH: f32 = 1.45;
 const COUNT_FILL: f32 = 0.08;
 /// The Liquid Glass queue's header: how much taller than a header it stands, in paddings, and
 /// the fill and rim of its button capsule and item pill, as shares of the foreground.
@@ -419,6 +428,9 @@ pub(crate) struct Aside {
     lyrics: Entity<Lyrics>,
     settings: Entity<AppSettings>,
     tab: SideTab,
+    /// The tab just left and when, while the switch away from it still plays: the two
+    /// crossfade, sliding the way the switch moved.
+    turned: Option<(SideTab, std::time::Instant)>,
     verse_bar: Entity<Scrollbar>,
     followed: Option<usize>,
     nudges: u64,
@@ -525,6 +537,7 @@ impl Aside {
             lyrics,
             settings,
             tab,
+            turned: None,
             verse_bar,
             followed: None,
             nudges: 0,
@@ -600,6 +613,7 @@ impl Aside {
 
     pub(crate) fn show(&mut self, tab: SideTab, cx: &mut Context<Self>) {
         if self.tab != tab {
+            self.turned = ui::motion::animates(cx).then(|| (self.tab, std::time::Instant::now()));
             self.tab = tab;
             self.forget_verse();
             self.anchor_verse();
@@ -876,6 +890,7 @@ impl Aside {
         position: QueuePosition,
         queue_revision: u64,
         look: RowLook,
+        window: &Window,
         cx: &Context<Self>,
     ) -> gpui::Stateful<gpui::Div> {
         let RowLook {
@@ -897,6 +912,7 @@ impl Aside {
         };
         let pin = track.pin();
         let menu_track = track.clone();
+        let liquid = ui::liquid(cx);
 
         let card = Card::new(
             ("queue-track", index),
@@ -970,7 +986,13 @@ impl Aside {
             .action(
                 Button::new(("remove-queued-track", index))
                     .ghost()
-                    .small()
+                    .when(!liquid, Button::small)
+                    .when(liquid, |button| {
+                        button
+                            .size(theme.metrics.control)
+                            .px_0()
+                            .glyph(theme.text(Text::Body) * REMOVE_GLYPH)
+                    })
                     .mr_1()
                     .icon("icons/x.svg")
                     .tooltip("menu-remove-from-queue")
@@ -1011,7 +1033,13 @@ impl Aside {
             .action(
                 Button::new(("remove-similar-track", index))
                     .ghost()
-                    .small()
+                    .when(!liquid, Button::small)
+                    .when(liquid, |button| {
+                        button
+                            .size(theme.metrics.control)
+                            .px_0()
+                            .glyph(theme.text(Text::Body) * REMOVE_GLYPH)
+                    })
                     .mr_1()
                     .icon("icons/x.svg")
                     .tooltip("menu-remove-from-queue")
@@ -1034,12 +1062,16 @@ impl Aside {
         // Under Liquid Glass the song playing now stands on a soft card of its own, as in
         // Apple Music's queue, and every row is laid out like Cider's: the song's number in
         // the queue, larger artwork and a semibold title.
-        let liquid = ui::liquid(cx);
         let lifted = current && liquid;
+        let row = queue_row(window, cx);
         let card = match liquid {
             true => {
-                let art = px((theme.metrics.list_row * QUEUE_ART / px(1.)).round());
+                let art = px((row * QUEUE_ART / px(1.)).round());
+                // The row as a whole lights under the pointer, number and all, so the card
+                // inside it paints no hover of its own.
                 card.art(art)
+                    .flat()
+                    .h(row)
                     .size(Text::Body)
                     .weight(FontWeight::SEMIBOLD)
                     .px(theme.metrics.pad * QUEUE_SIDE)
@@ -1059,14 +1091,20 @@ impl Aside {
 
         div()
             .id(("queue-track-container", index))
-            .when(lifted, |this| {
-                this.rounded(ui::liquid_radius(cx))
-                    .bg(theme.foreground.opacity(CURRENT_FILL))
+            .when(liquid, |this| this.rounded(ui::liquid_radius(cx)))
+            .map(|this| match (lifted, liquid) {
+                (true, _) => this.bg(theme.foreground.opacity(CURRENT_FILL)),
+                (false, true) => this.hover(move |style| style.bg(theme.table_hover)),
+                (false, false) => this,
             })
             .relative()
             .min_w_0()
             .when(liquid, |this| {
-                this.flex().items_center().w_full().pl(theme.metrics.pad)
+                this.flex()
+                    .items_center()
+                    .w_full()
+                    .h(row)
+                    .pl(theme.metrics.pad)
             })
             .children(numbered)
             .child(card.when(liquid, |card| card.flex_1()))
@@ -1088,13 +1126,14 @@ impl Aside {
     /// while another device has playback, since its queue is shown read only.
     fn header(
         &self,
+        tab: SideTab,
         sections: Sections,
         remote: bool,
         window: &Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         let theme = *cx.theme();
-        if ui::liquid(cx) && self.titled && self.tab == SideTab::Queue {
+        if ui::liquid(cx) && self.titled && tab == SideTab::Queue {
             return self
                 .liquid_header(sections, remote, window, cx)
                 .into_any_element();
@@ -1110,7 +1149,7 @@ impl Aside {
             .px_2()
             .when(self.titled, |this| {
                 this.border_b_1().border_color(theme.border).child(eyebrow(
-                    match self.tab {
+                    match tab {
                         SideTab::Queue => t!("queue-title"),
                         SideTab::Lyrics => t!("lyrics-title"),
                     },
@@ -1120,7 +1159,7 @@ impl Aside {
             .when(!self.titled, |this| {
                 this.justify_end().pr(theme.metrics.control + px(8.))
             })
-            .when(self.tab == SideTab::Queue && !remote, |this| {
+            .when(tab == SideTab::Queue && !remote, |this| {
                 this.child(
                     div()
                         .flex()
@@ -1185,8 +1224,8 @@ impl Aside {
         cx: &mut Context<Self>,
     ) -> Div {
         let theme = *cx.theme();
-        let side = theme.metrics.control;
-        let glyph = theme.text(Text::Body) * 1.3;
+        let side = theme.metrics.control * TOOL_SIDE;
+        let glyph = theme.text(Text::Body) * TOOL_GLYPH;
         let tool = |button: Button| button.ghost().size(side).px_0().glyph(glyph);
         let radio = Sonora::global(cx).session.read(cx).capabilities().radio;
         let total = sections.ahead();
@@ -1262,6 +1301,75 @@ impl Aside {
                     .text_size(theme.text(Text::Small))
                     .font_weight(FontWeight::SEMIBOLD)
                     .child(t!("queue-items", count = total)),
+            )
+    }
+
+    /// Everything `tab` shows: its header, then its lyrics or its queue.
+    #[allow(clippy::too_many_arguments)]
+    fn panel(
+        &mut self,
+        tab: SideTab,
+        listing: Listing,
+        sections: Sections,
+        empty: bool,
+        remote: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::Stateful<Div> {
+        let verses = match tab {
+            SideTab::Lyrics => Some(self.verses(window, cx).into_any_element()),
+            SideTab::Queue => None,
+        };
+        // Keyed by tab, so the tab leaving and the one arriving never share element ids.
+        div()
+            .id(("aside-panel", tab as usize))
+            .flex()
+            .flex_col()
+            .size_full()
+            .min_h_0()
+            .min_w_0()
+            // Under Liquid Glass the switch above names the lyrics, so they take no title.
+            .when(
+                tab == SideTab::Queue || (self.titled && !ui::liquid(cx)),
+                |this| this.child(self.header(tab, sections, remote, window, cx)),
+            )
+            .child(
+                div()
+                    .id("queue-drop")
+                    .relative()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .min_h_0()
+                    .when(tab == SideTab::Queue && !remote, |this| {
+                        this.on_drop(
+                            cx.listener(|this, dragged: &DraggedPin, _, cx| this.land(dragged, cx)),
+                        )
+                    })
+                    .when_some(verses, |this, verses| {
+                        this.child(verses).child(self.witness())
+                    })
+                    .when(tab == SideTab::Queue && empty, |this| {
+                        this.child(vacant(t!("queue-empty"), cx).flex_1())
+                    })
+                    .when(tab == SideTab::Queue && !empty, |this| {
+                        this.child(
+                            div().flex_1().min_h_0().child(
+                                Scroller::listing("queue-rows", &self.scrollbar)
+                                    .bottom_inset(self.bottom(cx))
+                                    .when(effects(), |this| {
+                                        this.fade_edges(px(FADE * 0.5), Pixels::ZERO)
+                                    })
+                                    .child(
+                                        self.rows(listing, sections, window, cx)
+                                            .px_2()
+                                            .pt(px(FADE * 0.5))
+                                            .track_scroll(&self.scroll)
+                                            .size_full(),
+                                    ),
+                            ),
+                        )
+                    }),
             )
     }
 
@@ -2070,7 +2178,7 @@ impl Aside {
 
     /// How many rows `pin` keeps above the now-playing one, so it sits a quarter of the way down.
     fn rows_above(viewport: Pixels, window: &Window, cx: &App) -> usize {
-        let row = snapped(cx.theme().metrics.list_row, window);
+        let row = queue_row(window, cx);
         (viewport * PINNED_SHARE / row).round() as usize
     }
 
@@ -2086,7 +2194,7 @@ impl Aside {
         let Some(index) = sections.current_index() else {
             return Some(Pixels::ZERO);
         };
-        let row = snapped(cx.theme().metrics.list_row, window);
+        let row = queue_row(window, cx);
         let above = Self::rows_above(viewport, window, cx);
         let goal = row * index.saturating_sub(above) as f32;
         Some(goal.clamp(Pixels::ZERO, handle.max_offset().y))
@@ -2122,6 +2230,7 @@ impl Aside {
         &self,
         listing: Listing,
         sections: Sections,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> gpui::UniformList {
         let queue = self.queue.clone();
@@ -2139,7 +2248,7 @@ impl Aside {
         };
         // A uniform list only draws rows inside its padding, so the space under a see-through
         // player bar is made of blank rows, which keeps the songs scrolling under it drawn.
-        let under = (self.bottom(cx) / cx.theme().metrics.list_row).ceil() as usize;
+        let under = (self.bottom(cx) / queue_row(window, cx)).ceil() as usize;
 
         uniform_list(
             "queue-rows",
@@ -2184,7 +2293,8 @@ impl Aside {
                                 _ => false,
                             };
                             let from = from.clone().filter(|_| named);
-                            liquid_section(key, sections.count(key), from, cx).into_any_element()
+                            liquid_section(key, sections.count(key), from, window, cx)
+                                .into_any_element()
                         }
                         (Some(Slot::Header(key)), _) => {
                             let label = section_label(key, cx);
@@ -2227,7 +2337,8 @@ impl Aside {
                                 remote,
                                 number: sections.number(position),
                             };
-                            Self::row(found, index, position, revision, look, cx).into_any_element()
+                            Self::row(found, index, position, revision, look, window, cx)
+                                .into_any_element()
                         }
                         (Some(Slot::Track(_)), None) => div().into_any_element(),
                     })
@@ -2240,7 +2351,7 @@ impl Aside {
                         remote,
                         number: sections.number(position),
                     };
-                    let row = Self::row(found, index, position, revision, look, cx);
+                    let row = Self::row(found, index, position, revision, look, window, cx);
                     prefetch(row.into_any_element(), window, cx);
                 }
                 rows
@@ -2288,8 +2399,52 @@ impl Render for Aside {
             self.pin(sections, window, cx);
         }
 
+        // While a switch plays, the tab left fades and slides out under the one arriving.
+        let span = Motion::Base.span().as_secs_f32().max(f32::EPSILON);
+        let turned = self.turned.and_then(|(left, at)| {
+            let t = at.elapsed().as_secs_f32() / span;
+            (t < 1. && left != self.tab).then_some((left, ease_out_cubic(t)))
+        });
+        match turned {
+            Some(_) => window.request_animation_frame(),
+            None => self.turned = None,
+        }
+        // Lyrics stand right of the queue in the switch, so the queue enters from the left.
+        let way = match self.tab {
+            SideTab::Lyrics => 1.,
+            SideTab::Queue => -1.,
+        };
+        let arrival = turned.map_or(1., |(_, t)| t);
+        let current = self
+            .panel(
+                self.tab,
+                listing.clone(),
+                sections,
+                empty,
+                remote,
+                window,
+                cx,
+            )
+            .relative()
+            .when(arrival < 1., |this| {
+                this.opacity(arrival)
+                    .left(px(TAB_SLIDE) * way * (1. - arrival))
+            })
+            .children(self.follow(cx))
+            .children(self.recall(sections, window, cx));
+        let leaving = turned.map(|(left, t)| {
+            self.panel(left, listing.clone(), sections, empty, remote, window, cx)
+                .absolute()
+                .top_0()
+                .bottom_0()
+                .w_full()
+                .left(px(-TAB_SLIDE) * way * t)
+                .opacity(1. - t)
+        });
+
         div()
             .id("aside")
+            .relative()
             .flex()
             .flex_col()
             .size_full()
@@ -2300,55 +2455,20 @@ impl Render for Aside {
                     cx.notify();
                 }
             }))
-            .when(self.titled || self.tab == SideTab::Queue, |this| {
-                this.child(self.header(sections, remote, window, cx))
-            })
-            .child(
-                div()
-                    .id("queue-drop")
-                    .relative()
-                    .flex()
-                    .flex_col()
-                    .flex_1()
-                    .min_h_0()
-                    .when(self.tab == SideTab::Queue && !remote, |this| {
-                        this.on_drop(
-                            cx.listener(|this, dragged: &DraggedPin, _, cx| this.land(dragged, cx)),
-                        )
-                    })
-                    .when(self.tab == SideTab::Lyrics, |this| {
-                        this.child(self.verses(window, cx)).child(self.witness())
-                    })
-                    .when(self.tab == SideTab::Queue && empty, |this| {
-                        this.child(vacant(t!("queue-empty"), cx).flex_1())
-                    })
-                    .when(self.tab == SideTab::Queue && !empty, |this| {
-                        this.child(
-                            div().flex_1().min_h_0().child(
-                                Scroller::listing("queue-rows", &self.scrollbar)
-                                    .bottom_inset(self.bottom(cx))
-                                    .when(effects(), |this| {
-                                        this.fade_edges(px(FADE * 0.5), Pixels::ZERO)
-                                    })
-                                    .child(
-                                        self.rows(listing, sections, cx)
-                                            .px_2()
-                                            .pt(px(FADE * 0.5))
-                                            .track_scroll(&self.scroll)
-                                            .size_full(),
-                                    ),
-                            ),
-                        )
-                    })
-                    .children(self.follow(cx))
-                    .children(self.recall(sections, window, cx))
-                    // Switching between the queue and the lyrics slides the new one in.
-                    .motion(("aside-tab", self.tab as usize), Motion::Base, |body, t| {
-                        body.opacity(t).left(px(TAB_SLIDE) * (1. - t))
-                    }),
-            )
+            .children(leaving)
+            .child(current)
             .children(self.menu(cx))
     }
+}
+
+/// The height of one queue row, snapped to the device's pixels: under Liquid Glass taller than
+/// a list row by `QUEUE_AIR`. Every row of the queue's uniform list shares it.
+fn queue_row(window: &Window, cx: &App) -> Pixels {
+    let air = match ui::liquid(cx) {
+        true => QUEUE_AIR,
+        false => Pixels::ZERO,
+    };
+    snapped(cx.theme().metrics.list_row + air, window)
 }
 
 /// The line heights of a Liquid Glass queue section's title and of the source under it, as
@@ -2363,6 +2483,7 @@ fn liquid_section(
     key: &'static str,
     count: Option<usize>,
     from: Option<(SharedString, Destination)>,
+    window: &Window,
     cx: &App,
 ) -> Div {
     let theme = cx.theme();
@@ -2374,7 +2495,7 @@ fn liquid_section(
         .justify_between()
         .gap_2()
         .w_full()
-        .h(theme.metrics.list_row)
+        .h(queue_row(window, cx))
         .px_2()
         .pb_1()
         .child(
