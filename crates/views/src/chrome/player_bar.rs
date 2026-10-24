@@ -26,6 +26,12 @@ use crate::shared::menus::ItemMenu;
 use crate::shared::transport::{NOTCH, fraction, like, moved, percent, transport, volume_icon};
 
 const SEEK_MAX: f32 = 560.;
+/// Under Liquid Glass the classic bar takes Apple Music's arrangement: the seek bar runs across
+/// the top, and the playing track sits in a capsule in the middle no wider than this, filled
+/// and rimmed with these shares of the foreground.
+const CAPSULE_MAX: f32 = 440.;
+const CAPSULE_FILL: f32 = 0.06;
+const CAPSULE_RIM: f32 = 0.08;
 const VOLUME_WIDTH: f32 = 110.;
 const VOLUME_TIGHT: f32 = 72.;
 const CLOCK_SHORT: f32 = 3.4;
@@ -464,6 +470,10 @@ impl PlayerBar {
         let height = match (Self::stacked(window, layout), layout) {
             (true, _) => theme.metrics.player_bar + theme.metrics.pad * 3.,
             (false, PlayerBarLayout::Compact) => theme.metrics.row + theme.metrics.pad * 2.,
+            // Apple Music's arrangement stacks the seek bar over the row of controls.
+            (false, PlayerBarLayout::Classic) if ui::liquid(cx) => {
+                theme.metrics.player_bar + theme.metrics.pad * 1.5
+            }
             _ => theme.metrics.player_bar,
         };
         ui::snapped(height, window)
@@ -661,6 +671,58 @@ impl Render for PlayerBar {
                 .children(sides)
                 .child(self.sound(px(VOLUME_WIDTH), cx))
                 .child(self.fullscreen_button()),
+            (false, PlayerBarLayout::Classic) if liquid => base
+                .flex_col()
+                .justify_center()
+                .gap_1()
+                .child(div().w_full().child(seek))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_3()
+                        .w_full()
+                        .child(
+                            div()
+                                .flex()
+                                .flex_1()
+                                .min_w_0()
+                                .items_center()
+                                .child(transport(&self.playback, &self.queue, false, cx)),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .flex_1()
+                                .min_w_0()
+                                .max_w(px(CAPSULE_MAX))
+                                .items_center()
+                                .gap_3()
+                                .p_1()
+                                .pr_3()
+                                .rounded(ui::liquid_radius(cx))
+                                .bg(theme.foreground.opacity(CAPSULE_FILL))
+                                .border_1()
+                                .border_color(theme.foreground.opacity(CAPSULE_RIM))
+                                .child(self.artwork(window, cx))
+                                .when(show_track, |this| {
+                                    this.child(self.track_details(false, cx).flex_1().min_w_0())
+                                }),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .flex_1()
+                                .min_w_0()
+                                .items_center()
+                                .justify_end()
+                                .gap_2()
+                                .child(self.devices.clone())
+                                .children(sides)
+                                .child(self.sound(px(VOLUME_WIDTH), cx))
+                                .child(self.fullscreen_button()),
+                        ),
+                ),
             _ => base
                 .items_center()
                 .gap_4()
