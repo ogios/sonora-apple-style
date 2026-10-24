@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::prelude::*;
 use gpui::{
     AnyElement, App, Div, ElementId, Entity, FontWeight, MouseButton, MouseDownEvent, Pixels,
-    SharedString, Window, div, px, relative,
+    SharedString, Window, div, linear_color_stop, linear_gradient, px, relative,
 };
 use i18n::t;
 use music::{Album, Track};
@@ -18,6 +18,17 @@ use crate::shared::tracks::{self, TrackSource};
 /// How wide the skeleton bars of a pending hero reach, for the title, the meta line and the
 /// row of actions.
 const TITLE_SKELETON: Pixels = px(240.);
+/// Under Liquid Glass the hero's artwork stands this many times the cover size, and a wash of
+/// the cover's colour bleeds this far past the hero on every side, fading out below it, the way
+/// Apple Music tints the top of an album page. The page's own clip trims the bleed.
+const HERO_GROW: f32 = 1.35;
+const HERO_BLEED: Pixels = px(480.);
+const HERO_FADE: Pixels = px(160.);
+/// How strong the cover's colour is at the top of the wash.
+const HERO_WASH: f32 = 0.5;
+/// Where down the wash, from its top far above the hero to its foot below it, the colour
+/// starts to fade.
+const HERO_WASH_HOLD: f32 = 0.4;
 const META_SKELETON: Pixels = px(180.);
 const ACTION_SKELETON: Pixels = px(96.);
 
@@ -432,8 +443,37 @@ impl RenderOnce for PageHero {
                 );
         }
 
+        // The wash takes the cover's lead colour once the artwork cache has read it.
+        let liquid = ui::liquid(cx);
+        let wash = self
+            .cover
+            .as_deref()
+            .filter(|_| liquid)
+            .and_then(|cover| ui::cover_palette(cover, cx))
+            .and_then(|palette| palette.primary.or(palette.secondary));
+        let art = match liquid {
+            true => art * HERO_GROW,
+            false => art,
+        };
+
         div()
             .id(self.id)
+            .relative()
+            .when_some(wash, |hero, wash| {
+                hero.child(
+                    div()
+                        .absolute()
+                        .top(-HERO_BLEED)
+                        .left(-HERO_BLEED)
+                        .right(-HERO_BLEED)
+                        .bottom(-HERO_FADE)
+                        .bg(linear_gradient(
+                            180.,
+                            linear_color_stop(wash.opacity(HERO_WASH), HERO_WASH_HOLD),
+                            linear_color_stop(wash.opacity(0.), 1.),
+                        )),
+                )
+            })
             .when_some(self.pin, |hero, pin| hero.pin(pin))
             .flex()
             .flex_none()
