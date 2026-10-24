@@ -27,6 +27,14 @@ use crate::shared::{self, ambient};
 use crate::shells::Shell;
 use ui::{VeilEdge, veil};
 
+/// How far the fullscreen queue or lyrics panel slides in from as it opens.
+const PANEL_SLIDE: f32 = 48.;
+
+/// Under Liquid Glass the blurred cover behind fullscreen reaches this many times the window's
+/// longer side, is blurred this far, and is shaded this much so text stays legible over it.
+const BACKDROP_REACH: f32 = 1.2;
+const BACKDROP_BLUR: f32 = 80.;
+const BACKDROP_SHADE: f32 = 0.35;
 const COVER_TALL: f32 = 0.46;
 const COVER_WIDE: f32 = 0.34;
 const COVER_TALL_TIGHT: f32 = 0.6;
@@ -386,6 +394,7 @@ impl FullscreenView {
         layout_side: Pixels,
         raster_side: Pixels,
         presentation_scale: f32,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let radius = cx.theme().radius * 2.;
@@ -432,14 +441,19 @@ impl FullscreenView {
                     .left(inset)
                     .size(raster_side + pad * 2.)
                     .layer_scale(presentation_scale)
-                    .child(
-                        div().absolute().top(pad).left(pad).child(
+                    .child(div().absolute().top(pad).left(pad).child(ui::crossfade(
+                        "fullscreen-cover",
+                        small,
+                        window,
+                        cx,
+                        move |small| {
                             Artwork::new(small)
                                 .size(raster_side)
                                 .corner_radius(radius)
-                                .soft(waiting),
-                        ),
-                    )
+                                .soft(waiting)
+                                .into_any_element()
+                        },
+                    )))
                     .when_some(large, |this, url| {
                         this.child(
                             div()
@@ -767,6 +781,12 @@ impl FullscreenView {
             .w_full()
             .max_w(px(SEEK_MAX))
             .flex_none()
+            // Under Liquid Glass the controls float as one glass bar, as Apple Music's do.
+            .when(ui::liquid(cx), |this| {
+                ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
+                    .px(theme.metrics.pad * 1.5)
+                    .py(theme.metrics.pad)
+            })
             .on_click(|_, _, cx| cx.stop_propagation())
             .when(inline, |this| this.child(self.pill(cx)))
             .child(self.seek(cx))
@@ -1064,6 +1084,54 @@ impl FullscreenView {
     }
 }
 
+/// Under Liquid Glass the cover itself, blown up past the window and blurred deep, is the
+/// background behind fullscreen, title bar included, and dissolves into the next one as the
+/// track changes.
+pub(crate) fn backdrop(
+    cover: Option<String>,
+    window: &mut Window,
+    cx: &mut App,
+) -> gpui::AnyElement {
+    let viewport = window.viewport_size();
+    let edge = viewport.width.max(viewport.height) * BACKDROP_REACH;
+    div()
+        .absolute()
+        .inset_0()
+        .overflow_hidden()
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(
+            div()
+                .flex_none()
+                .blur(px(BACKDROP_BLUR))
+                .child(ui::crossfade(
+                    "fullscreen-backdrop",
+                    cover,
+                    window,
+                    cx,
+                    move |cover| Artwork::new(cover).size(edge).into_any_element(),
+                )),
+        )
+        .child(
+            div()
+                .absolute()
+                .inset_0()
+                .bg(gpui::black().opacity(BACKDROP_SHADE)),
+        )
+        .into_any_element()
+}
+
+impl FullscreenView {
+    /// The cover of the track fullscreen shows, for the backdrop behind it.
+    pub(crate) fn cover(&self, cx: &App) -> Option<String> {
+        self.playback
+            .read(cx)
+            .shown_track(cx)
+            .and_then(|track| track.cover)
+    }
+}
+
 fn open_album(album: &str, cx: &mut App) {
     navigate(Destination::Album(album.into()), cx);
 }
@@ -1185,6 +1253,8 @@ impl Render for FullscreenView {
             false => None,
         };
 
+        let liquid = ui::liquid(cx);
+
         div()
             .id("fullscreen")
             .key_context(super::shell_context(WORKSPACE_CONTEXT))
@@ -1283,7 +1353,7 @@ impl Render for FullscreenView {
                                     |this| this.flex_1().h_full(),
                                     |this| this.w_full(),
                                 )
-                                .child(self.artwork(side, raster_side, cover_scale, cx))
+                                .child(self.artwork(side, raster_side, cover_scale, window, cx))
                                 .child(self.meta(hide, lift, cx))
                                 .when(split, |this| {
                                     this.child(self.dock(
@@ -1306,9 +1376,26 @@ impl Render for FullscreenView {
                                 .min_w_0()
                                 .min_h_0()
                                 .h_full()
+                                // Under Liquid Glass the lyrics and the queue sit on a rounded
+                                // card of glass over the blurred cover.
+                                .when(liquid, |this| {
+                                    ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
+                                        .my(theme.metrics.inset)
+                                        .p(theme.metrics.pad)
+                                        .overflow_hidden()
+                                })
                                 .on_click(|_, _, cx| cx.stop_propagation())
                                 .child(self.aside.clone())
-                                .when(shown, |this| this.child(self.floating(hide, cx))),
+                                .when(shown, |this| this.child(self.floating(hide, cx)))
+                                // The panel slides in from the right edge as it opens.
+                                .motion(
+                                    (
+                                        "fullscreen-panel-in",
+                                        self.panel.map_or(0, |tab| tab as usize),
+                                    ),
+                                    Motion::Base,
+                                    |panel, t| panel.opacity(t).left(px(PANEL_SLIDE) * (1. - t)),
+                                ),
                         )
                     }),
             )
