@@ -12,6 +12,7 @@ use crate::artwork::cover_palette;
 use crate::artwork::{Artwork, Avatar, ROUNDED};
 use crate::button::Button;
 use crate::glass::{GLASS_BLUR, blurring, liquid};
+use crate::glow::{Glow, hover_fill};
 use crate::label::upper;
 use crate::metrics::{LEADING, Text, snapped};
 use crate::motion::{HoverFade, Motion, animates, css_ease, ease_out_back, ease_out_cubic};
@@ -342,7 +343,7 @@ impl RenderOnce for Card {
             .interactivity()
             .element_id
             .clone()
-            .filter(|_| animates(cx) && (play.is_some() || tile.is_some()))
+            .filter(|_| animates(cx) && (play.is_some() || tile.is_some() || hovered.is_some()))
             .map(|id| {
                 window.use_keyed_state((id, "card-hover"), cx, |_, _| {
                     HoverFade::new(Motion::Base.span())
@@ -354,6 +355,17 @@ impl RenderOnce for Card {
         };
         let view = window.current_view();
         let animated = fade.is_some();
+        // The hover fill fades by the same arrival, eased, where there is a fade to read.
+        let (glow, hovered) = match (animated, hovered) {
+            (true, Some(style)) if !chosen => {
+                let (fill, rest) = hover_fill(style);
+                let lit = fill.and_then(|fill| {
+                    Glow::of(fade.clone()?, css_ease(arrival), view).fill(None, fill)
+                });
+                (lit, Some(rest))
+            }
+            (_, hovered) => (None, hovered),
+        };
         let lift = match animated && liquid(cx) && tile.is_some() {
             true => 1. + LIFT * css_ease(arrival),
             false => 1.,
@@ -557,6 +569,7 @@ impl RenderOnce for Card {
                 this.flex_none().h(height).py(inset).w_full().min_w_0()
             })
             .when(chosen, |this| this.bg(theme.table_active))
+            .when_some(glow, |this, lit| this.bg(lit))
             .when_some(hovered.filter(|_| !chosen), |this, style| {
                 this.hover(move |_| style)
             })

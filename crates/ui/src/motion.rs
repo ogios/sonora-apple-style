@@ -37,6 +37,9 @@ impl Springs {
     /// The trailing edge of a sliding selection lens: slower and springier, so the lens stretches
     /// while it travels and wobbles once as the far edge catches up.
     pub const LENS_TRAIL: SpringConfig = SpringConfig::new(330., 30., 1.);
+    /// A disclosure folding open or shut: critically damped, so a height never overshoots
+    /// into a gap or a clip.
+    pub const FOLD: SpringConfig = SpringConfig::new(420., 41., 1.);
     /// A control sinking under the pointer: stiff and critically damped, so it answers at once.
     pub const PRESS: SpringConfig = SpringConfig::new(900., 60., 1.);
     /// A control springing back once released, overshooting its rest size a little.
@@ -559,6 +562,11 @@ impl Sprung {
 
     pub fn target(&self) -> f32 {
         self.target
+    }
+
+    /// Where the value stood at the last read, without stepping it.
+    pub fn position(&self) -> f32 {
+        self.state.position
     }
 
     /// Whether the value has come to rest on its target.

@@ -16,6 +16,7 @@ use gpui::{
 use crate::artwork::{PREFETCH_REACH, Prefetch};
 use crate::filters::FilterChange;
 use crate::glass::{blurring, popover_surface};
+use crate::glow::Glow;
 use crate::menu::Menu;
 use crate::metrics::{snapped, text_width};
 use crate::pin::{Pin, Pinnable};
@@ -1061,7 +1062,13 @@ impl<S: TableSource> TableState<S> {
             })
     }
 
-    fn rows(&self, head: Pixels, row_height: Pixels, cx: &mut Context<Self>) -> Vec<AnyElement> {
+    fn rows(
+        &self,
+        head: Pixels,
+        row_height: Pixels,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Vec<AnyElement> {
         let theme = *cx.theme();
         let count = self.delegate.order.len();
         let first = self.viewport.first(head, row_height);
@@ -1075,6 +1082,14 @@ impl<S: TableSource> TableState<S> {
                 let tail = display + 1 == count;
                 let selected = marked.contains(&row);
                 let playing = self.delegate.source.playing(row, cx);
+                // The hover fill fades in and out where motion is on.
+                let glow = match selected {
+                    true => None,
+                    false => Glow::new(("row", display).into(), window, cx),
+                };
+                let lit = glow
+                    .as_ref()
+                    .and_then(|glow| glow.fill(playing.then_some(theme.muted), theme.table_hover));
                 let cells: Vec<AnyElement> = (0..self.delegate.columns.len())
                     .map(|ix| {
                         let column = &self.delegate.columns[ix];
@@ -1109,8 +1124,11 @@ impl<S: TableSource> TableState<S> {
                     })
                     .when(playing, |this| this.bg(theme.muted))
                     .when(selected, |this| this.bg(theme.table_active))
-                    .when(!selected, |this| {
-                        this.hover(move |style| style.bg(theme.table_hover))
+                    .when_some(lit, |this, lit| this.bg(lit))
+                    .map(|this| match glow {
+                        Some(glow) => glow.attach(this),
+                        None if !selected => this.hover(move |style| style.bg(theme.table_hover)),
+                        None => this,
                     })
                     .when_some(self.delegate.source.pin(row, cx), Pinnable::pin)
                     .when_some(self.delegate.source.tip(row, cx), |this, text| {
@@ -1343,7 +1361,7 @@ impl<S: TableSource> Render for TableState<S> {
                             .right_0()
                             .h(height)
                             .children(match placeholders {
-                                0 => self.rows(head, row, cx),
+                                0 => self.rows(head, row, window, cx),
                                 count => self.skeletons(head, row, count, cx),
                             }),
                     ),

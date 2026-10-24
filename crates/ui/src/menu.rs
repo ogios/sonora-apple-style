@@ -13,6 +13,7 @@ use gpui::{
 use crate::Artwork;
 use crate::form::Submit;
 use crate::glass::{GLASS_BLUR, blurring, popover_fill};
+use crate::glow::{Glow, Hover};
 use crate::input::Input;
 use crate::metrics::snapped;
 use crate::motion::{Fading as _, Rising as _};
@@ -734,226 +735,259 @@ impl RenderOnce for Menu {
             scrollbar: scrollbar.clone(),
         });
         let row_searches = searches.clone();
-        let rows = items.into_iter().enumerate().map(move |(place, item)| {
-            let MenuItem {
-                id,
-                label,
-                detail,
-                selected,
-                checked,
-                disabled,
-                separator,
-                content,
-                face,
-                icon,
-                leading,
-                trailing,
-                artwork,
-                tooltip,
-                press,
-                submenu,
-            } = item;
+        // Each row's hover fill fades in and out where motion is on.
+        let glows: Vec<Option<Glow>> = items
+            .iter()
+            .map(
+                |item| match item.disabled || item.separator || item.content.is_some() {
+                    true => None,
+                    false => Glow::new(item.id.clone(), window, cx),
+                },
+            )
+            .collect();
+        let rows = items
+            .into_iter()
+            .zip(glows)
+            .enumerate()
+            .map(move |(place, (item, glow))| {
+                let MenuItem {
+                    id,
+                    label,
+                    detail,
+                    selected,
+                    checked,
+                    disabled,
+                    separator,
+                    content,
+                    face,
+                    icon,
+                    leading,
+                    trailing,
+                    artwork,
+                    tooltip,
+                    press,
+                    submenu,
+                } = item;
 
-            if let Some(content) = content {
-                return div()
+                if let Some(content) = content {
+                    return div()
+                        .id(id)
+                        .flex()
+                        .w_full()
+                        .min_w_0()
+                        .flex_col()
+                        .px_3()
+                        .py_1()
+                        .child(content)
+                        .into_any_element();
+                }
+
+                if separator {
+                    return Separator::horizontal().mx_2().my_1().into_any_element();
+                }
+                let action = action.clone();
+                let press_action = action.clone();
+                let press = press.map(|press| releasing(press, &row_searches));
+                let submenu_state = submenu.as_ref().map(|submenu| submenu.state.clone());
+                let has_artwork = artwork.is_some();
+                let leading = leading.filter(|_| !has_artwork && icon.is_none());
+                let detailed = detail.is_some();
+
+                div()
                     .id(id)
+                    .relative()
                     .flex()
                     .w_full()
                     .min_w_0()
-                    .flex_col()
+                    .items_center()
+                    .justify_between()
+                    // The gap is part of the row's own width, so a menu widens rather than letting
+                    // a trailing mark crowd the label.
+                    .gap_3()
                     .px_3()
-                    .py_1()
-                    .child(content)
-                    .into_any_element();
-            }
-
-            if separator {
-                return Separator::horizontal().mx_2().my_1().into_any_element();
-            }
-            let action = action.clone();
-            let press_action = action.clone();
-            let press = press.map(|press| releasing(press, &row_searches));
-            let submenu_state = submenu.as_ref().map(|submenu| submenu.state.clone());
-            let has_artwork = artwork.is_some();
-            let leading = leading.filter(|_| !has_artwork && icon.is_none());
-            let detailed = detail.is_some();
-
-            div()
-                .id(id)
-                .relative()
-                .flex()
-                .w_full()
-                .min_w_0()
-                .items_center()
-                .justify_between()
-                // The gap is part of the row's own width, so a menu widens rather than letting
-                // a trailing mark crowd the label.
-                .gap_3()
-                .px_3()
-                .when_else(detailed, |this| this.py_2(), |this| this.py_1())
-                .rounded(tucked)
-                .when_else(
-                    disabled,
-                    |this| this.text_color(theme.muted_foreground).cursor_default(),
-                    |this| this.cursor_pointer(),
-                )
-                .when(selected || cursor == Some(place), |this| {
-                    this.bg(theme.secondary_active)
-                })
-                .when(!disabled, |this| {
-                    this.hover(move |this| this.bg(theme.secondary_hover))
-                })
-                // the label column fills the row, so a detail wraps at the menu's width rather
-                // than at the label's
-                .child(
-                    div()
-                        .flex()
-                        .flex_1()
-                        .min_w_0()
-                        .items_center()
-                        .gap_2()
-                        .when_some(artwork, |this, artwork| {
-                            this.child(Artwork::new(artwork).size(px(20.)).flex_none())
-                        })
-                        .when_some(leading, |this, leading| {
-                            this.child(div().flex_none().child(leading))
-                        })
-                        .when_some(icon.filter(|_| !has_artwork), |this, icon| {
-                            this.child(
-                                svg()
-                                    .path(icons::path(icon))
-                                    .size(px(14.))
-                                    .flex_none()
-                                    .text_color(if disabled {
-                                        theme.muted_foreground
-                                    } else {
-                                        theme.popover_foreground
-                                    }),
-                            )
-                        })
-                        .child(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .flex_1()
-                                .min_w_0()
-                                .gap_1()
-                                .child(
-                                    div()
-                                        .truncate()
-                                        .when_some(face, |this, family| {
-                                            this.font(gpui::font(family))
-                                        })
-                                        .child(label),
-                                )
-                                .when_some(detail, |this, detail| this.child(detail)),
-                        ),
-                )
-                .when_some(trailing, |this, trailing| {
-                    this.child(div().flex_none().child(trailing))
-                })
-                .when(selected || checked, |this| {
-                    this.child(div().flex_none().child("✓"))
-                })
-                .when(submenu.is_some(), |this| {
-                    this.child(div().flex_none().child("›"))
-                })
-                .when_some(submenu_state, |this, state| {
-                    this.on_hover(move |hovered, window, cx| {
-                        state.near(Near::Item, *hovered, window.window_handle(), cx)
+                    .when_else(detailed, |this| this.py_2(), |this| this.py_1())
+                    .rounded(tucked)
+                    .when_else(
+                        disabled,
+                        |this| this.text_color(theme.muted_foreground).cursor_default(),
+                        |this| this.cursor_pointer(),
+                    )
+                    .when(selected || cursor == Some(place), |this| {
+                        this.bg(theme.secondary_active)
                     })
-                })
-                .when_some(tooltip, |this, key| this.tip(key, Perch::Follow))
-                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                .when_some(press, |this, press| {
-                    let released = press.clone();
-                    let release_action = press_action.clone();
-                    this.on_click(move |event, window, cx| {
-                        press(event, window, cx);
-                        if let Some(action) = press_action.as_ref() {
-                            action(event, window, cx);
+                    .when_some(
+                        glow.as_ref().and_then(|glow| {
+                            let under = (selected || cursor == Some(place))
+                                .then_some(theme.secondary_active);
+                            glow.fill(under, theme.secondary_hover)
+                        }),
+                        |this, lit| this.bg(lit),
+                    )
+                    .when(!disabled && glow.is_none(), |this| {
+                        this.hover(move |this| this.bg(theme.secondary_hover))
+                    })
+                    // the label column fills the row, so a detail wraps at the menu's width rather
+                    // than at the label's
+                    .child(
+                        div()
+                            .flex()
+                            .flex_1()
+                            .min_w_0()
+                            .items_center()
+                            .gap_2()
+                            .when_some(artwork, |this, artwork| {
+                                this.child(Artwork::new(artwork).size(px(20.)).flex_none())
+                            })
+                            .when_some(leading, |this, leading| {
+                                this.child(div().flex_none().child(leading))
+                            })
+                            .when_some(icon.filter(|_| !has_artwork), |this, icon| {
+                                this.child(
+                                    svg()
+                                        .path(icons::path(icon))
+                                        .size(px(14.))
+                                        .flex_none()
+                                        .text_color(if disabled {
+                                            theme.muted_foreground
+                                        } else {
+                                            theme.popover_foreground
+                                        }),
+                                )
+                            })
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .gap_1()
+                                    .child(
+                                        div()
+                                            .truncate()
+                                            .when_some(face, |this, family| {
+                                                this.font(gpui::font(family))
+                                            })
+                                            .child(label),
+                                    )
+                                    .when_some(detail, |this, detail| this.child(detail)),
+                            ),
+                    )
+                    .when_some(trailing, |this, trailing| {
+                        this.child(div().flex_none().child(trailing))
+                    })
+                    .when(selected || checked, |this| {
+                        this.child(div().flex_none().child("✓"))
+                    })
+                    .when(submenu.is_some(), |this| {
+                        this.child(div().flex_none().child("›"))
+                    })
+                    .map(|this| {
+                        let near: Option<Hover> = submenu_state.map(|state| -> Hover {
+                            Box::new(move |hovered: &bool, window: &mut Window, cx: &mut App| {
+                                state.near(Near::Item, *hovered, window.window_handle(), cx)
+                            })
+                        });
+                        match (glow, near) {
+                            (Some(glow), near) => this.on_hover(glow.listener(near)),
+                            (None, Some(near)) => this.on_hover(near),
+                            (None, None) => this,
                         }
                     })
-                    .when_some(pressed.filter(|_| !disabled), |this, from| {
-                        this.on_mouse_up(MouseButton::Right, move |event, window, cx| {
-                            if (event.position - from).magnitude() <= HOLD_REACH {
-                                return;
-                            }
-                            let click = ClickEvent::Mouse(MouseClickEvent {
-                                down: MouseDownEvent {
-                                    button: MouseButton::Right,
-                                    position: from,
-                                    modifiers: event.modifiers,
-                                    click_count: 1,
-                                    first_mouse: false,
-                                },
-                                up: event.clone(),
-                            });
-                            released(&click, window, cx);
-                            if let Some(action) = release_action.as_ref() {
-                                action(&click, window, cx);
+                    .when_some(tooltip, |this, key| this.tip(key, Perch::Follow))
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .when_some(press, |this, press| {
+                        let released = press.clone();
+                        let release_action = press_action.clone();
+                        this.on_click(move |event, window, cx| {
+                            press(event, window, cx);
+                            if let Some(action) = press_action.as_ref() {
+                                action(event, window, cx);
                             }
                         })
-                    })
-                })
-                .when_some(submenu, |this, mut submenu| {
-                    if submenu.menu.action.is_none() {
-                        submenu.menu.action = action.clone();
-                    }
-                    if submenu.menu.pressed.is_none() {
-                        submenu.menu.pressed = pressed;
-                    }
-                    let gap_state = submenu.state.clone();
-                    let reach_state = submenu.state.clone();
-                    match submenu.state.is_open() {
-                        false => this,
-                        true => this.child({
-                            let flip_left = submenu.state.flipped(viewport_width);
-                            let panel = div()
-                                .absolute()
-                                .top(SUBMENU_TOP)
-                                .w(px(0.))
-                                .when(flip_left, |this| this.right_full())
-                                .when(!flip_left, |this| this.left_full())
-                                .on_children_prepainted(move |bounds, window, cx| {
-                                    if let Some(bounds) =
-                                        bounds.into_iter().reduce(|one, other| one.union(&other))
-                                    {
-                                        reach_state.measure_reach(bounds, window, cx);
+                        .when_some(
+                            pressed.filter(|_| !disabled),
+                            |this, from| {
+                                this.on_mouse_up(MouseButton::Right, move |event, window, cx| {
+                                    if (event.position - from).magnitude() <= HOLD_REACH {
+                                        return;
+                                    }
+                                    let click = ClickEvent::Mouse(MouseClickEvent {
+                                        down: MouseDownEvent {
+                                            button: MouseButton::Right,
+                                            position: from,
+                                            modifiers: event.modifiers,
+                                            click_count: 1,
+                                            first_mouse: false,
+                                        },
+                                        up: event.clone(),
+                                    });
+                                    released(&click, window, cx);
+                                    if let Some(action) = release_action.as_ref() {
+                                        action(&click, window, cx);
                                     }
                                 })
-                                .child(
-                                    anchored()
-                                        .anchor(match flip_left {
-                                            true => Anchor::TopRight,
-                                            false => Anchor::TopLeft,
-                                        })
-                                        .snap_to_window_with_margin(WINDOW_MARGIN)
-                                        .child(
-                                            div()
-                                                .id("submenu-safe-area")
-                                                .occlude()
-                                                .pt_3()
-                                                .pb_3()
-                                                .when(flip_left, |this| this.pl_3().pr_1())
-                                                .when(!flip_left, |this| this.pl_1().pr_3())
-                                                .on_hover(move |hovered, window, cx| {
-                                                    gap_state.near(
-                                                        Near::Gap,
-                                                        *hovered,
-                                                        window.window_handle(),
-                                                        cx,
-                                                    )
-                                                })
-                                                .child(submenu.menu.inline().relative()),
-                                        ),
-                                );
-                            deferred(panel).with_priority(priority + 1)
-                        }),
-                    }
-                })
-                .into_any_element()
-        });
+                            },
+                        )
+                    })
+                    .when_some(submenu, |this, mut submenu| {
+                        if submenu.menu.action.is_none() {
+                            submenu.menu.action = action.clone();
+                        }
+                        if submenu.menu.pressed.is_none() {
+                            submenu.menu.pressed = pressed;
+                        }
+                        let gap_state = submenu.state.clone();
+                        let reach_state = submenu.state.clone();
+                        match submenu.state.is_open() {
+                            false => this,
+                            true => this.child({
+                                let flip_left = submenu.state.flipped(viewport_width);
+                                let panel = div()
+                                    .absolute()
+                                    .top(SUBMENU_TOP)
+                                    .w(px(0.))
+                                    .when(flip_left, |this| this.right_full())
+                                    .when(!flip_left, |this| this.left_full())
+                                    .on_children_prepainted(move |bounds, window, cx| {
+                                        if let Some(bounds) = bounds
+                                            .into_iter()
+                                            .reduce(|one, other| one.union(&other))
+                                        {
+                                            reach_state.measure_reach(bounds, window, cx);
+                                        }
+                                    })
+                                    .child(
+                                        anchored()
+                                            .anchor(match flip_left {
+                                                true => Anchor::TopRight,
+                                                false => Anchor::TopLeft,
+                                            })
+                                            .snap_to_window_with_margin(WINDOW_MARGIN)
+                                            .child(
+                                                div()
+                                                    .id("submenu-safe-area")
+                                                    .occlude()
+                                                    .pt_3()
+                                                    .pb_3()
+                                                    .when(flip_left, |this| this.pl_3().pr_1())
+                                                    .when(!flip_left, |this| this.pl_1().pr_3())
+                                                    .on_hover(move |hovered, window, cx| {
+                                                        gap_state.near(
+                                                            Near::Gap,
+                                                            *hovered,
+                                                            window.window_handle(),
+                                                            cx,
+                                                        )
+                                                    })
+                                                    .child(submenu.menu.inline().relative()),
+                                            ),
+                                    );
+                                deferred(panel).with_priority(priority + 1)
+                            }),
+                        }
+                    })
+                    .into_any_element()
+            });
 
         let content = match scrollbar.as_ref() {
             Some(scrollbar) => {

@@ -8,6 +8,7 @@ use gpui::{
 };
 
 use crate::glass::{blurring, frost, liquid, liquid_control, liquid_pill};
+use crate::glow::{Glow, Hover, hover_fill};
 use crate::metrics::Text;
 use crate::motion::{Springs, Sprung, animates};
 use crate::theme::ActiveTheme as _;
@@ -53,12 +54,16 @@ pub struct Button {
     hoverless: bool,
     frosted: bool,
     turn: f32,
+    /// How far the trailing glyph is turned, as a fraction of a full turn.
+    trailing_turn: f32,
     hovered: Option<StyleRefinement>,
     fill: Option<(Hsla, Hsla)>,
     pressed: Option<StyleRefinement>,
     tint: Option<Hsla>,
     tooltip: Option<(SharedString, Perch)>,
     on_click: Option<Click>,
+    /// The caller's own hover listener, kept apart so the hover fade can listen as well.
+    on_hover: Option<Hover>,
 }
 
 impl Button {
@@ -80,12 +85,14 @@ impl Button {
             hoverless: false,
             frosted: false,
             turn: 0.,
+            trailing_turn: 0.,
             hovered: None,
             fill: None,
             pressed: None,
             tint: None,
             tooltip: None,
             on_click: None,
+            on_hover: None,
         }
     }
 
@@ -203,6 +210,13 @@ impl Button {
         self
     }
 
+    /// Rotates the trailing glyph by `turn` of a full turn, for a disclosure chevron that turns
+    /// as its content unfolds.
+    pub fn trailing_turned(mut self, turn: f32) -> Self {
+        self.trailing_turn = turn;
+        self
+    }
+
     /// Rotates the icon by `turn` of a full turn, for an owner that animates it with `Spin`.
     pub fn turned(mut self, turn: f32) -> Self {
         self.turn = turn;
@@ -246,6 +260,11 @@ impl InteractiveElement for Button {
 }
 
 impl StatefulInteractiveElement for Button {
+    fn on_hover(mut self, listener: impl Fn(&bool, &mut Window, &mut App) + 'static) -> Self {
+        self.on_hover = Some(Box::new(listener));
+        self
+    }
+
     fn active(mut self, f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self {
         self.pressed = Some(f(self.pressed.take().unwrap_or_default()));
         self
@@ -278,12 +297,14 @@ impl RenderOnce for Button {
             hoverless,
             frosted,
             turn,
+            trailing_turn,
             hovered,
             fill,
             pressed,
             tint,
             tooltip,
             on_click,
+            on_hover,
         } = self;
 
         // Under Liquid Glass a clickable button gives a little while held and springs back.
@@ -307,7 +328,7 @@ impl RenderOnce for Button {
             Some(press) => press.update(cx, |press, cx| press.value(window, cx)),
             None => 1.,
         };
-        let theme = cx.theme();
+        let theme = *cx.theme();
         // A plain ghost floats over flat paint, so it hovers with the themed
         // secondary fill that stays visible on both dark and light surfaces. A
         // frosted ghost floats over real content under blur, so it hovers with
@@ -392,9 +413,30 @@ impl RenderOnce for Button {
             true => (palette.hover, palette.active),
             false => (None, None),
         };
-        let hovered = match hoverless {
+        // The hover fill fades in and out where motion is on. A frosted button keeps the
+        // plain style, since its hover also turns on a blur that cannot fade.
+        let glow = match hoverless || frosting || selected || !interactive {
             true => None,
-            false => state_style(hover, hovered, frosting),
+            false => base
+                .interactivity()
+                .element_id
+                .clone()
+                .and_then(|id| Glow::new(id, window, cx)),
+        };
+        let (hovered, glowing) = match (hoverless, &glow) {
+            (true, _) => (None, None),
+            (false, Some(glow)) => {
+                let (fill, rest) = match hovered {
+                    Some(style) => hover_fill(style),
+                    None => (None, StyleRefinement::default()),
+                };
+                let fill = fill.or(hover);
+                (
+                    state_style(None, Some(rest), false),
+                    fill.and_then(|fill| glow.fill(palette.background, fill)),
+                )
+            }
+            (false, None) => (state_style(hover, hovered, frosting), None),
         };
         let pressed = state_style(active, pressed, frosting);
         let overrides = std::mem::take(base.style());
@@ -415,6 +457,12 @@ impl RenderOnce for Button {
             .text_color(foreground)
             .when(small, |this| this.text_size(theme.text(Text::Label)))
             .when_some(palette.background, |this, background| this.bg(background))
+            .when_some(glowing, |this, background| this.bg(background))
+            .map(|this| match (glow, on_hover) {
+                (Some(glow), also) => this.on_hover(glow.listener(also)),
+                (None, Some(listener)) => this.on_hover(listener),
+                (None, None) => this,
+            })
             .when_some(palette.border, |this, border| {
                 this.border_1().border_color(border)
             })
@@ -466,7 +514,8 @@ impl RenderOnce for Button {
                         .path(icons::path(path))
                         .size(px(16.))
                         .flex_none()
-                        .text_color(foreground),
+                        .text_color(foreground)
+                        .with_transformation(Transformation::rotate(radians(trailing_turn * TAU))),
                 )
             })
             .when(indicator, |this| {

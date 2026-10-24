@@ -117,6 +117,20 @@ impl Lens {
         }
     }
 
+    /// Lands the lens on its targets at once, for an entry carried along by its list, as when
+    /// a fold above it opens, rather than one the selection moved to.
+    pub fn ride(&mut self) {
+        for edge in [
+            &mut self.left,
+            &mut self.top,
+            &mut self.right,
+            &mut self.bottom,
+        ] {
+            let target = edge.target();
+            edge.snap(target);
+        }
+    }
+
     pub fn hide(&mut self) {
         self.shown = false;
     }
