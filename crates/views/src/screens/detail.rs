@@ -773,6 +773,10 @@ impl Render for DetailView {
         }
 
         let scroll = self.scrollbar.read(cx).scroll().clone();
+        // Under Liquid Glass the page runs up under the title bar, so the wash of the cover's
+        // colour behind the header reaches the top edge of the sheet. The table still measures
+        // from below the bar, so its head pins there rather than under the page's tools.
+        let under = crate::chrome::Chrome::under_bar(window, cx);
         let viewport = page::viewport(&scroll, inset, window);
         self.table
             .update(cx, |table, _| table.set_viewport(viewport));
@@ -803,14 +807,16 @@ impl Render for DetailView {
             .relative()
             .size_full()
             .child(
-                Scroller::new("detail-page", &self.scrollbar)
-                    .bottom_inset(crate::chrome::Chrome::bottom(cx))
-                    .pt(inset)
-                    .pb(inset)
-                    .child(div().px(inset).child(self.header(cx)))
-                    .child(table(&self.table))
-                    .children(self.notices(cx))
-                    .child(div().px(inset).pt_10().children(rails)),
+                div().absolute().top(-under).left_0().right_0().bottom_0().child(
+                    Scroller::new("detail-page", &self.scrollbar)
+                        .bottom_inset(crate::chrome::Chrome::bottom(cx))
+                        .pt(inset + under)
+                        .pb(inset)
+                        .child(div().px(inset).child(self.header(cx)))
+                        .child(table(&self.table))
+                        .children(self.notices(cx))
+                        .child(div().px(inset).pt_10().children(rails)),
+                ),
             )
             .when_some(context_menu, |this, menu| this.child(menu))
     }
