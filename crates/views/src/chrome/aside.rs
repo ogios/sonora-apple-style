@@ -30,6 +30,8 @@ use crate::shared::effects;
 use crate::shared::menus::ItemMenu;
 use crate::shared::pins::Pinned as _;
 
+/// How far the queue or the lyrics slide in from as the panel switches between them.
+const TAB_SLIDE: f32 = 24.;
 const QUEUE: &str = "queue";
 /// How many text heights across the picture of whoever queued a song is.
 const ADDER_FACE: f32 = 1.4;
@@ -2151,7 +2153,11 @@ impl Render for Aside {
                         )
                     })
                     .children(self.follow(cx))
-                    .children(self.recall(sections, window, cx)),
+                    .children(self.recall(sections, window, cx))
+                    // Switching between the queue and the lyrics slides the new one in.
+                    .motion(("aside-tab", self.tab as usize), Motion::Base, |body, t| {
+                        body.opacity(t).left(px(TAB_SLIDE) * (1. - t))
+                    }),
             )
             .children(self.menu(cx))
     }

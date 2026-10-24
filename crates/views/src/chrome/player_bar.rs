@@ -279,7 +279,7 @@ impl PlayerBar {
             .on_click(|_, window, cx| window.dispatch_action(Box::new(ToggleFullscreen), cx))
     }
 
-    fn now_playing(&self, room: bool, window: &Window, cx: &mut Context<Self>) -> gpui::Div {
+    fn now_playing(&self, room: bool, window: &mut Window, cx: &mut Context<Self>) -> gpui::Div {
         div()
             .flex()
             .items_center()
@@ -291,7 +291,7 @@ impl PlayerBar {
     }
 
     /// The playing cover keeps its album link and context menu in every layout.
-    fn artwork(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn artwork(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
         let layout = self.settings.read(cx).player_bar_layout();
         let artwork = ui::snapped(
@@ -319,7 +319,13 @@ impl PlayerBar {
                     }),
                 )
             })
-            .child(Artwork::new(cover).size(artwork))
+            .child(ui::crossfade(
+                "now-playing-cover",
+                cover,
+                window,
+                cx,
+                move |cover| Artwork::new(cover).size(artwork).into_any_element(),
+            ))
             .flex_none()
     }
 
