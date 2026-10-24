@@ -553,8 +553,10 @@ impl RenderOnce for Card {
                 .child(fade_line(meta)),
         });
 
+        let floats = action.is_some() && tile.is_none() && liquid(cx);
         let mut card = base
             .group(CARD_GROUP)
+            .when(floats, |this| this.relative())
             .when_some(fade, |this, fade| {
                 this.on_hover(move |hovered, _, cx| {
                     fade.update(cx, |fade, _| fade.set(*hovered));
@@ -638,9 +640,19 @@ impl RenderOnce for Card {
             )
             .children(trailing.map(|trailing| div().flex_none().child(trailing)))
             .children(action.map(|action| {
+                // Under Liquid Glass the action floats over the row's trailing edge only while
+                // the row is hovered, so the title keeps that room the rest of the time.
                 div()
                     .id("card-action")
                     .flex_none()
+                    .when(floats, |this| {
+                        this.absolute()
+                            .top_0()
+                            .bottom_0()
+                            .right(inset)
+                            .flex()
+                            .items_center()
+                    })
                     .invisible()
                     .group_hover(CARD_GROUP, |style| style.visible())
                     .child(action)
