@@ -3,14 +3,15 @@ use std::f32::consts::TAU;
 use std::rc::Rc;
 
 use ui::{
-    ActiveTheme as _, Card, Deck, DraggedPin, Edge, MenuItem, Panel, Picker, Pin, Pinnable as _,
-    Popup, SNUG, Scroller, Shield, Side, Spot, Tabs, Text, Vacancy, drop_gap, drop_marker,
+    ActiveTheme as _, Button, Card, Deck, DraggedPin, Edge, MenuItem, Panel, Picker, Pin,
+    Pinnable as _, Popup, SNUG, Scroller, Shield, Side, Spot, Tabs, Text, Vacancy, drop_gap,
+    drop_marker,
 };
 
 use gpui::prelude::*;
 use gpui::{
     AnyElement, App, Context, DragMoveEvent, ElementId, Entity, MouseButton, MouseDownEvent,
-    Pixels, Point, Render, ScrollHandle, Transformation, radians, svg,
+    Pixels, Point, Render, ScrollHandle, SharedString, Transformation, radians, svg,
 };
 use gpui::{Window, div, px};
 use router::{
@@ -72,6 +73,12 @@ const VACANCY_HEIGHT: Pixels = px(88.);
 const PIN_MARK: f32 = 0.7;
 /// The space between two pinned entries, the same as the `gap_1` between the rows above them.
 const ROW_GAP: Pixels = px(4.);
+/// The search field's fill, rim and hover fill, as shares of the foreground.
+const SEARCH_FILL: f32 = 0.06;
+const SEARCH_RIM: f32 = 0.08;
+const SEARCH_HOVER: f32 = 0.1;
+/// How much of a small control's height the account chip's disc takes.
+const AVATAR: f32 = 0.8;
 /// How far a disclosure chevron turns from pointing at its label to pointing down, as a
 /// fraction of a full turn.
 const QUARTER: f32 = 0.25;
@@ -307,6 +314,10 @@ impl SidebarLeft {
             }
             let group = Group::of(destination);
             if group == Some(Group::Library) && !stocked {
+                continue;
+            }
+            // Under Liquid Glass search is the field at the top of the sidebar instead.
+            if *destination == Destination::Search && ui::liquid(cx) {
                 continue;
             }
             rows.push(self.nav(index, cx));
@@ -617,7 +628,10 @@ impl SidebarLeft {
             true => theme.foreground,
             false => theme.muted_foreground,
         };
-        let row = nav_row(index, key, tint, accent).icon(icon);
+        // Under Liquid Glass the rows are compact, as dense as Apple Music's sidebar.
+        let row = nav_row(index, key, tint, accent)
+            .icon(icon)
+            .when(ui::liquid(cx), Button::small);
 
         match group {
             Some(group) => row
@@ -656,6 +670,7 @@ impl SidebarLeft {
             };
 
             let row = nav_row(id, key, tint, accent)
+                .when(liquid, Button::small)
                 .flex_1()
                 .on_click(move |_, _, cx| navigate(destination.clone(), cx));
             match (chosen, liquid) {
@@ -690,6 +705,49 @@ impl SidebarLeft {
             .flex_1()
             .child(row.flex_1())
             .child(ui::mark(&self.lens_entry))
+    }
+
+    /// The account chip at the foot of the sidebar under Liquid Glass: the provider's initial in
+    /// a disc and its name, opening settings.
+    fn account(&self, cx: &App) -> AnyElement {
+        let theme = *cx.theme();
+        let name = self.session.read(cx).provider_name().unwrap_or_default();
+        let initial: SharedString = name
+            .chars()
+            .next()
+            .map(String::from)
+            .unwrap_or_default()
+            .into();
+        let disc = theme.metrics.control_small;
+
+        div()
+            .flex_none()
+            .p(theme.metrics.pad / 2.)
+            .child(
+                ui::Button::new("sidebar-account")
+                    .ghost()
+                    .small()
+                    .w_full()
+                    .justify_start()
+                    .leading(
+                        div()
+                            .flex()
+                            .flex_none()
+                            .items_center()
+                            .justify_center()
+                            .size(disc * AVATAR)
+                            .rounded_full()
+                            .bg(theme.primary)
+                            .text_color(theme.primary_foreground)
+                            .text_size(theme.text(Text::Tiny))
+                            .font_weight(gpui::FontWeight::BOLD)
+                            .child(initial)
+                            .into_any_element(),
+                    )
+                    .label(SharedString::from(name))
+                    .on_click(|_, _, cx| open_settings(cx)),
+            )
+            .into_any_element()
     }
 
     fn persist(&self, cx: &mut Context<Self>) {
@@ -816,6 +874,7 @@ impl Render for SidebarLeft {
                                     // button that floats over the bottom.
                                     .pb(ui::perch_room(cx))
                                     .child(ui::mark(&self.lens_frame))
+                                    .children(liquid.then(|| search_field(window, cx)))
                                     .children(lens)
                                     .children(rows),
                             ),
@@ -830,6 +889,7 @@ impl Render for SidebarLeft {
                         }),
                     ),
             )
+            .children(liquid.then(|| self.account(cx)))
             .children(self.menu(cx)),
         );
 
@@ -926,6 +986,53 @@ fn expanded(current: &Destination) -> (bool, bool) {
         matches!(current, Destination::Library(_)),
         matches!(current, Destination::Local(_)),
     )
+}
+
+/// The search field at the top of the sidebar under Liquid Glass: a capsule with the search
+/// glyph and its placeholder, opening the search page.
+fn search_field(window: &mut Window, cx: &mut App) -> AnyElement {
+    let theme = *cx.theme();
+    let glow = ui::Glow::new("sidebar-search".into(), window, cx);
+    let fill = theme.foreground.opacity(SEARCH_FILL);
+    let lit = glow
+        .as_ref()
+        .and_then(|glow| glow.fill(Some(fill), theme.foreground.opacity(SEARCH_HOVER)));
+
+    div()
+        .id("sidebar-search")
+        .flex()
+        .flex_none()
+        .items_center()
+        .gap_2()
+        .min_h(theme.metrics.control_small)
+        .mb(theme.metrics.pad / 2.)
+        .px(ui::SMALL_INSET)
+        .rounded_full()
+        .bg(lit.unwrap_or(fill))
+        .border_1()
+        .border_color(theme.foreground.opacity(SEARCH_RIM))
+        .text_size(theme.text(Text::Label))
+        .text_color(theme.muted_foreground)
+        .cursor_pointer()
+        .map(|this| match glow {
+            Some(glow) => glow.attach(this),
+            None => this.hover(move |style| style.bg(theme.foreground.opacity(SEARCH_HOVER))),
+        })
+        .child(
+            svg()
+                .path(icons::path("icons/search.svg"))
+                .flex_none()
+                .size(theme.text(Text::Label))
+                .text_color(theme.muted_foreground),
+        )
+        .child(
+            div()
+                .min_w_0()
+                .truncate()
+                .child(i18n::lookup("nav-search", None)),
+        )
+        .on_click(|_, _, cx| navigate(Destination::Search, cx))
+        .into_any_element()
 }
 
 #[cfg(test)]
