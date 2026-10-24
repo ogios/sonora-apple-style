@@ -1048,7 +1048,9 @@ impl Aside {
     ) -> gpui::AnyElement {
         let theme = *cx.theme();
         if ui::liquid(cx) && self.titled && self.tab == SideTab::Queue {
-            return self.liquid_header(sections, remote, window, cx).into_any_element();
+            return self
+                .liquid_header(sections, remote, window, cx)
+                .into_any_element();
         }
 
         div()
@@ -2350,7 +2352,11 @@ fn liquid_section(
                         .min_w_0()
                         .overflow_hidden()
                         .line_height(theme.text(Text::Small) * SOURCE_LEADING)
-                        .child(faint(cx).font_weight(FontWeight::NORMAL).child(t!("queue-from")))
+                        .child(
+                            faint(cx)
+                                .font_weight(FontWeight::NORMAL)
+                                .child(t!("queue-from")),
+                        )
                         .child(source_link(name, place, cx))
                 })),
         )

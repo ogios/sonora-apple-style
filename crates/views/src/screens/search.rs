@@ -313,7 +313,8 @@ impl SearchView {
     }
 
     fn first_filled(&self, start: usize, stacked: bool, cx: &App) -> Option<usize> {
-        (start..self.columns(stacked, cx)).find(|&column| !self.seats(self.kinds(column, stacked, cx), cx).is_empty())
+        (start..self.columns(stacked, cx))
+            .find(|&column| !self.seats(self.kinds(column, stacked, cx), cx).is_empty())
     }
 
     fn next_filled(&self, column: usize, stacked: bool, cx: &App) -> Option<usize> {

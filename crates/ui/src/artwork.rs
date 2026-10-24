@@ -696,7 +696,7 @@ impl ArtworkCache {
         let cached = self.items.get(&(resource.clone(), 0))?;
         let size = cached.value.as_ref().ok()?.size(0);
         (size.width.0 > 0 && size.height.0 > 0)
-            .then(|| (size.width.0 as f32, size.height.0 as f32))
+            .then_some((size.width.0 as f32, size.height.0 as f32))
     }
 
     /// Whether a cover at `edge` can be drawn without waiting on a load, counting a failed load,

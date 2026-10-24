@@ -1030,8 +1030,7 @@ impl Render for SidebarLeft {
                                     .flex_col()
                                     .when(!liquid, |this| this.gap_1().p_3())
                                     .when(liquid, |this| {
-                                        this.px(theme.metrics.pad * 1.5)
-                                            .pt(theme.metrics.pad)
+                                        this.px(theme.metrics.pad * 1.5).pt(theme.metrics.pad)
                                     })
                                     .w_full()
                                     // Leave the last row somewhere to go, clear of the

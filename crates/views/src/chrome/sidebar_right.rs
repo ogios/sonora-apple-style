@@ -154,17 +154,11 @@ impl Render for SidebarRight {
                 false => this.border_color(theme.border),
             })
             .child(
-                div()
-                    .relative()
-                    .flex()
-                    .flex_col()
-                    .flex_1()
-                    .min_h_0()
-                    .child(
-                        self.aside
-                            .clone()
-                            .cached(StyleRefinement::default().size_full()),
-                    ),
+                div().relative().flex().flex_col().flex_1().min_h_0().child(
+                    self.aside
+                        .clone()
+                        .cached(StyleRefinement::default().size_full()),
+                ),
             )
             .into_any_element()
     }

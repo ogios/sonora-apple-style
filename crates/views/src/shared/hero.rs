@@ -9,8 +9,8 @@ use i18n::t;
 use music::{Album, Track};
 use state::{Origin, Playback};
 use ui::{
-    ActiveTheme as _, Artwork, Banner, Button, ExplicitBadge, LEADING, Pin, Pinnable as _, Skeleton,
-    TableState, Text, upper,
+    ActiveTheme as _, Artwork, Banner, Button, ExplicitBadge, LEADING, Pin, Pinnable as _,
+    Skeleton, TableState, Text, upper,
 };
 
 use crate::shared::tracks::{self, TrackSource};

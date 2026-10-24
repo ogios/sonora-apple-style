@@ -204,10 +204,7 @@ impl RenderOnce for Picks {
         // after it, and round glass arrows across from it.
         let liquid = ui::liquid(cx);
         let arrow = |button: Button| match liquid {
-            true => button
-                .secondary()
-                .size(theme.metrics.control)
-                .px_0(),
+            true => button.secondary().size(theme.metrics.control).px_0(),
             false => button.small().outline(),
         };
 
@@ -228,7 +225,11 @@ impl RenderOnce for Picks {
                     .justify_between()
                     .gap_4()
                     .when(!liquid, |this| {
-                        this.px_4().pt_4().pb_3().border_b_1().border_color(theme.border)
+                        this.px_4()
+                            .pt_4()
+                            .pb_3()
+                            .border_b_1()
+                            .border_color(theme.border)
                     })
                     .when(liquid, |this| this.pb_2())
                     .child(
@@ -292,55 +293,66 @@ impl RenderOnce for Picks {
                 this.child(vacant(i18n::lookup(self.vacancy, None), cx))
             })
             .when(!barren, |this| {
-                this.child(div().flex().gap_2().when_else(liquid, |this| this.gap_6(), |this| this.p_2()).when_else(
-                    empty,
-                    |this| {
-                        this.children((0..shape.columns).map(|column| {
-                            column_shell(column, theme.border, liquid)
-                                .children((0..ROWS).map(|slot| skeleton(id, column * ROWS + slot)))
-                        }))
-                    },
-                    |this| {
-                        this.children((0..shape.columns).map(|column| {
-                            column_shell(column, theme.border, liquid).children((0..ROWS).map(|slot| {
-                                let place = start + column * ROWS + slot;
-
-                                match &rows {
-                                    Rows::Tracks(tracks) if place < tracks.len() => TrackCard::new(
-                                        id,
-                                        place,
-                                        tracks.clone(),
-                                        self.playback.clone(),
+                this.child(
+                    div()
+                        .flex()
+                        .gap_2()
+                        .when_else(liquid, |this| this.gap_6(), |this| this.p_2())
+                        .when_else(
+                            empty,
+                            |this| {
+                                this.children((0..shape.columns).map(|column| {
+                                    column_shell(column, theme.border, liquid).children(
+                                        (0..ROWS).map(|slot| skeleton(id, column * ROWS + slot)),
                                     )
-                                    .detailed(self.detailed)
-                                    .context(on_context_menu.clone())
-                                    .start(on_start.clone())
-                                    .render(cx)
-                                    .into_any_element(),
+                                }))
+                            },
+                            |this| {
+                                this.children((0..shape.columns).map(|column| {
+                                    column_shell(column, theme.border, liquid).children(
+                                        (0..ROWS).map(|slot| {
+                                            let place = start + column * ROWS + slot;
 
-                                    Rows::Mixed(items) if place < items.len() => {
-                                        let context = on_context_menu.clone();
+                                            match &rows {
+                                                Rows::Tracks(tracks) if place < tracks.len() => {
+                                                    TrackCard::new(
+                                                        id,
+                                                        place,
+                                                        tracks.clone(),
+                                                        self.playback.clone(),
+                                                    )
+                                                    .detailed(self.detailed)
+                                                    .context(on_context_menu.clone())
+                                                    .start(on_start.clone())
+                                                    .render(cx)
+                                                    .into_any_element()
+                                                }
 
-                                        cards::listed(
-                                            (id, place),
-                                            &items[place],
-                                            &self.playback,
-                                            cx,
-                                        )
-                                        .when_some(context, |card, handler| {
-                                            card.menu(move |event, window, cx| {
-                                                handler(place, event, window, cx)
-                                            })
-                                        })
-                                        .into_any_element()
-                                    }
+                                                Rows::Mixed(items) if place < items.len() => {
+                                                    let context = on_context_menu.clone();
 
-                                    _ => div().flex_none().h(row).into_any_element(),
-                                }
-                            }))
-                        }))
-                    },
-                ))
+                                                    cards::listed(
+                                                        (id, place),
+                                                        &items[place],
+                                                        &self.playback,
+                                                        cx,
+                                                    )
+                                                    .when_some(context, |card, handler| {
+                                                        card.menu(move |event, window, cx| {
+                                                            handler(place, event, window, cx)
+                                                        })
+                                                    })
+                                                    .into_any_element()
+                                                }
+
+                                                _ => div().flex_none().h(row).into_any_element(),
+                                            }
+                                        }),
+                                    )
+                                }))
+                            },
+                        ),
+                )
             })
     }
 }

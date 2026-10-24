@@ -807,16 +807,22 @@ impl Render for DetailView {
             .relative()
             .size_full()
             .child(
-                div().absolute().top(-under).left_0().right_0().bottom_0().child(
-                    Scroller::new("detail-page", &self.scrollbar)
-                        .bottom_inset(crate::chrome::Chrome::bottom(cx))
-                        .pt(inset + under)
-                        .pb(inset)
-                        .child(div().px(inset).child(self.header(cx)))
-                        .child(table(&self.table))
-                        .children(self.notices(cx))
-                        .child(div().px(inset).pt_10().children(rails)),
-                ),
+                div()
+                    .absolute()
+                    .top(-under)
+                    .left_0()
+                    .right_0()
+                    .bottom_0()
+                    .child(
+                        Scroller::new("detail-page", &self.scrollbar)
+                            .bottom_inset(crate::chrome::Chrome::bottom(cx))
+                            .pt(inset + under)
+                            .pb(inset)
+                            .child(div().px(inset).child(self.header(cx)))
+                            .child(table(&self.table))
+                            .children(self.notices(cx))
+                            .child(div().px(inset).pt_10().children(rails)),
+                    ),
             )
             .when_some(context_menu, |this, menu| this.child(menu))
     }
