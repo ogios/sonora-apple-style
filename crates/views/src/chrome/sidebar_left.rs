@@ -83,6 +83,15 @@ const AVATAR: f32 = 0.8;
 /// fraction of a full turn.
 const QUARTER: f32 = 0.25;
 
+/// Whether an entry belongs under the Library section header under Liquid Glass: the
+/// libraries and the history, not home or settings.
+fn in_section(destination: &Destination) -> bool {
+    matches!(
+        destination,
+        Destination::Library(_) | Destination::Local(_) | Destination::History
+    )
+}
+
 /// The two navigation entries that expand into tabs rather than navigate.
 #[derive(Clone, Copy, PartialEq)]
 enum Group {
@@ -131,6 +140,9 @@ pub(crate) struct SidebarLeft {
     sliding: bool,
     /// The folds that open and shut Your Library's, Local Music's and the pins' entries.
     library_fold: ui::Unfold,
+    /// Whether the Library section under Liquid Glass is expanded, and its fold.
+    section_open: bool,
+    section_fold: ui::Unfold,
     local_fold: ui::Unfold,
     pins_fold: ui::Unfold,
 }
@@ -175,6 +187,8 @@ impl SidebarLeft {
             lit: Cell::new(false),
             sliding: false,
             library_fold: ui::Unfold::new(library_open),
+            section_open: true,
+            section_fold: ui::Unfold::new(true),
             local_fold: ui::Unfold::new(local_open),
             pins_fold: ui::Unfold::new(pinned_open),
             settings,
@@ -308,6 +322,10 @@ impl SidebarLeft {
         let stocked = self.session.read(cx).authenticated()
             || self.library.read(cx).stocked(Shelf::Streaming);
         let mut rows = Vec::new();
+        // Under Liquid Glass the library entries gather under a Library header that folds them
+        // away, the way Apple Music groups its sidebar.
+        let sectioned = ui::liquid(cx);
+        let mut section: Option<Vec<AnyElement>> = None;
         for (index, (entry, _, destination)) in NAV.iter().enumerate() {
             if entry.is_some_and(|entry| !self.settings.read(cx).nav_shown(entry.id())) {
                 continue;
@@ -320,17 +338,90 @@ impl SidebarLeft {
             if *destination == Destination::Search && ui::liquid(cx) {
                 continue;
             }
-            rows.push(self.nav(index, cx));
+            let grouped = sectioned && in_section(destination);
+            if !grouped && let Some(entries) = section.take() {
+                self.close_section(entries, &mut rows, window, cx);
+            }
+            if grouped && section.is_none() {
+                rows.push(self.section_header(cx));
+                section = Some(Vec::new());
+            }
+            let mut entries = vec![self.nav(index, cx)];
             if let Some(group) = group.filter(|group| self.fold(*group).drawn()) {
                 let tabs = self.tabs(group, cx);
                 let fold = match group {
                     Group::Library => &mut self.library_fold,
                     Group::Local => &mut self.local_fold,
                 };
-                rows.push(fold.render(tabs, window, cx).into_any_element());
+                entries.push(fold.render(tabs, window, cx).into_any_element());
+            }
+            match section.as_mut().filter(|_| grouped) {
+                Some(section) => section.extend(entries),
+                None => rows.extend(entries),
             }
         }
+        if let Some(entries) = section.take() {
+            self.close_section(entries, &mut rows, window, cx);
+        }
         rows
+    }
+
+    /// Puts the Library section's entries under its header, folded away while it is shut.
+    fn close_section(
+        &mut self,
+        entries: Vec<AnyElement>,
+        rows: &mut Vec<AnyElement>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.section_fold.drawn() {
+            return;
+        }
+        let body = div().flex().flex_col().gap_1().children(entries);
+        rows.push(
+            self.section_fold
+                .render(body, window, cx)
+                .into_any_element(),
+        );
+    }
+
+    /// The Library section's header under Liquid Glass: a chevron and the section's name, which
+    /// fold the library entries away and back.
+    fn section_header(&self, cx: &mut Context<Self>) -> AnyElement {
+        let theme = *cx.theme();
+
+        div()
+            .id("sidebar-library-section")
+            .flex()
+            .flex_none()
+            .items_center()
+            .gap_1()
+            .w_full()
+            .min_w_0()
+            .min_h(theme.metrics.control_small)
+            .pl_2()
+            .mt(theme.metrics.pad)
+            .cursor_pointer()
+            .child(
+                svg()
+                    .path(icons::path("icons/chevron-right.svg"))
+                    .with_transformation(Transformation::rotate(radians(
+                        QUARTER * TAU * self.section_fold.openness(),
+                    )))
+                    .flex_none()
+                    .size(theme.text(Text::Small))
+                    .text_color(theme.muted_foreground),
+            )
+            .child(
+                ui::eyebrow(i18n::lookup("nav-section-library", None), cx)
+                    .min_w_0()
+                    .truncate(),
+            )
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.section_open = !this.section_open;
+                cx.notify();
+            }))
+            .into_any_element()
     }
 
     /// The pinned section: its header, and its entries once it is expanded. The entries are a
@@ -774,6 +865,7 @@ impl Render for SidebarLeft {
         }
 
         self.library_fold.set(self.library_open);
+        self.section_fold.set(self.section_open);
         self.local_fold.set(self.local_open);
         self.pins_fold.set(self.pinned_open);
         self.lit.set(false);
@@ -785,7 +877,10 @@ impl Render for SidebarLeft {
                 self.lens.follow(&self.lens_entry, &self.lens_frame);
                 // A fold opening or shutting carries the lit entry along with it; the lens
                 // rides with it rather than chasing it on its springs.
-                if self.library_fold.folding() || self.local_fold.folding() {
+                if self.library_fold.folding()
+                    || self.local_fold.folding()
+                    || self.section_fold.folding()
+                {
                     self.lens.ride();
                 }
                 self.lens.render(window, cx)

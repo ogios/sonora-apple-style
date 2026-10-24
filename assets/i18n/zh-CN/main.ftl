@@ -34,6 +34,7 @@ nav-forward = 前进
 nav-sidebar = 切换侧边栏
 nav-sidebar-right = 显示或隐藏歌词和播放队列
 nav-pinned = 已固定
+nav-section-library = 资料库
 nav-unpin = 取消固定
 nav-pin-hint = 拖放到此处以固定
 library-liked-songs = 收藏
