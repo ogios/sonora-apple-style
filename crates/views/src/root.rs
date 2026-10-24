@@ -733,11 +733,24 @@ impl Root {
     /// The font the window is set in, built again only once a different font is chosen.
     fn font(&mut self, cx: &App) -> Font {
         let chosen = Sonora::global(cx).settings.read(cx).font();
+        // Liquid Glass sets the default font in Pretendard, the face Cider uses, instead of
+        // Inter. A font the user picked stays theirs either way.
+        let liquid = ui::liquid(cx);
+        let key = match liquid {
+            true => format!("{chosen}\u{1}liquid"),
+            false => chosen.to_owned(),
+        };
         match &self.font {
-            Some((name, font)) if name == chosen => font.clone(),
+            Some((name, font)) if *name == key => font.clone(),
             _ => {
-                let font = ui_font(chosen);
-                self.font = Some((chosen.to_owned(), font.clone()));
+                let font = match liquid && chosen == SYSTEM_FONT {
+                    true => Font {
+                        fallbacks: Some(scripts(true).clone()),
+                        ..font(LIQUID_FONT)
+                    },
+                    false => ui_font(chosen),
+                };
+                self.font = Some((key, font.clone()));
                 font
             }
         }
@@ -911,6 +924,8 @@ impl Root {
 }
 
 const UI_FONT: &str = "Inter";
+/// The bundled face Liquid Glass sets the interface in, with Inter behind it.
+const LIQUID_FONT: &str = "Pretendard Std";
 
 const SCRIPTS: [&str; 18] = [
     "Source Han Sans",

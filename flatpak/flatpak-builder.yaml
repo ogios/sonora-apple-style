@@ -91,5 +91,6 @@ modules:
       - install -Dm644 COPYING /app/share/licenses/io.github.nolight132.sonora/LICENSE
       - install -Dm644 THIRD-PARTY.md /app/share/licenses/io.github.nolight132.sonora/THIRD-PARTY.md
       - install -Dm644 assets/fonts/LICENSE.txt /app/share/licenses/io.github.nolight132.sonora/LICENSE.Inter
+      - install -Dm644 assets/fonts/Pretendard-LICENSE.txt /app/share/licenses/io.github.nolight132.sonora/LICENSE.Pretendard
       - install -Dm644 assets/icons/LICENSE /app/share/licenses/io.github.nolight132.sonora/icons/LICENSE
       - for licence in assets/icons/*/LICENSE; do install -Dm644 "$licence" "/app/share/licenses/io.github.nolight132.sonora/icons/LICENSE.$(basename "$(dirname "$licence")")"; done

@@ -261,8 +261,9 @@ Sonora is free software, released under the [GNU General Public License version
 Sonora is an unofficial client and is not affiliated with, endorsed by, or
 sponsored by Spotify AB.
 
-The binary also embeds the [Inter](https://github.com/rsms/inter) typeface (SIL
-Open Font License 1.1) and four interchangeable icon sets:
+The binary also embeds the [Inter](https://github.com/rsms/inter) and
+[Pretendard Std](https://github.com/orioncactus/pretendard) typefaces (SIL Open
+Font License 1.1) and four interchangeable icon sets:
 [Lucide](https://lucide.dev) (ISC), [Iconoir](https://iconoir.com) (MIT),
 [Remix Icon](https://remixicon.com) 4.8.0 (Apache 2.0) and the
 [Solar](https://www.figma.com/community/file/1166831539721848736) Linear set
