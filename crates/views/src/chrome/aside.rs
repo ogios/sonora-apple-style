@@ -1069,7 +1069,10 @@ impl Aside {
                 let art = px((row * QUEUE_ART / px(1.)).round());
                 // The row as a whole lights under the pointer, number and all, so the card
                 // inside it paints no hover of its own.
+                // The cover nests in the row's rounded shape, as all art in a rounded row does.
+                let nested = ui::nest(ui::liquid_radius(cx), (row - art) / 2., art, false);
                 card.art(art)
+                    .art_radius(nested.radius)
                     .flat()
                     .h(row)
                     .size(Text::Body)
