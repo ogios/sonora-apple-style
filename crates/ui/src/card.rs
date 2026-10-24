@@ -15,6 +15,7 @@ use crate::fade_line;
 use crate::glass::{GLASS_BLUR, blurring, liquid};
 use crate::glow::{Glow, hover_fill};
 use crate::label::upper;
+use crate::lens::nest;
 use crate::metrics::{LEADING, Text, snapped};
 use crate::motion::{HoverFade, Motion, animates, css_ease, ease_out_back, ease_out_cubic};
 use crate::skeleton::Skeleton;
@@ -339,6 +340,21 @@ impl RenderOnce for Card {
             (None, false) => None,
         };
         let overrides = std::mem::take(base.style());
+        // Under Liquid Glass a row's cover nests in the row's rounded shape, whatever radius the
+        // caller gave it, so the cover's corners follow the row's curve rather than poking into
+        // it; see `nest`.
+        let nested = (liquid(cx) && tile.is_none()).then(|| {
+            let outer = overrides
+                .corner_radii
+                .top_left
+                .map_or(theme.radius, |radius| radius.to_pixels(window.rem_size()));
+            nest(outer, inset, art, circle)
+        });
+        let art_radius = match nested {
+            Some(nested) if !circle => art_radius.or(Some(nested.radius)),
+            _ => art_radius,
+        };
+        let lead = nested.map_or(inset, |nested| nested.lead);
         // How far the pointer's arrival has come, from 0 at rest to 1 hovered, while motion is
         // on: the play control fades and pops in by it and a tile's cover lifts. Without an id
         // or with motion off the control simply shows on hover, as a group style.
@@ -567,7 +583,7 @@ impl RenderOnce for Card {
             .when_else(
                 tile.is_some(),
                 |this| this.flex_col().gap_2().w(art),
-                |this| this.items_center().gap_3().px(inset),
+                |this| this.items_center().gap_3().px(lead),
             )
             .rounded(theme.radius)
             .when(listed, |this| {
