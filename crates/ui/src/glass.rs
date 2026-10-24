@@ -55,6 +55,14 @@ const DROP_OFFSET: Pixels = px(10.);
 const DROP_BLUR: Pixels = px(30.);
 /// The hairline a lit edge is drawn with, inside the panel's bounds.
 const EDGE: Pixels = px(1.);
+/// How much of the page colour the floating content sheet keeps over the colour field, on a
+/// dark theme and a light one: dense enough that pages read as one surface, as in Apple Music,
+/// thin enough that the field still tints its edges.
+const SHEET_DARK: f32 = 0.62;
+const SHEET_LIGHT: f32 = 0.72;
+/// The hairline rim around the content sheet, fainter than a glass panel's.
+const SHEET_RIM_DARK: f32 = 0.08;
+const SHEET_RIM_LIGHT: f32 = 0.5;
 /// The fill of the glass pill that marks a selected entry, as a share of the foreground.
 const PILL_FILL: f32 = 0.12;
 const PILL_FOOT: f32 = 0.06;
@@ -176,6 +184,29 @@ pub fn liquid_glass<E: Styled>(element: E, cx: &App) -> E {
             .blur_radius(DROP_BLUR),
         cx,
     )
+}
+
+/// The large rounded sheet the pages sit on under Liquid Glass: the page colour laid thick
+/// over the colour field, with a faint rim and the panels' drop shadow, and no blur of its
+/// own, since a sheet the size of the page would blur the field for nothing.
+pub fn liquid_sheet<E: Styled>(element: E, cx: &App) -> E {
+    let theme = cx.theme();
+    let dark = theme.background.l < 0.5;
+    let (fill, rim, drop) = match dark {
+        true => (SHEET_DARK, SHEET_RIM_DARK, DROP_DARK),
+        false => (SHEET_LIGHT, SHEET_RIM_LIGHT, DROP_LIGHT),
+    };
+
+    element
+        .rounded(liquid_radius(cx))
+        .corner_smoothing(LIQUID_SMOOTHING)
+        .bg(theme.background.opacity(fill))
+        .border_1()
+        .border_color(gpui::white().opacity(rim))
+        .shadow(vec![
+            BoxShadow::new(Pixels::ZERO, DROP_OFFSET, gpui::black().opacity(drop))
+                .blur_radius(DROP_BLUR),
+        ])
 }
 
 /// The Liquid Glass material at the size of a control: the same fill, blur, rim and shading

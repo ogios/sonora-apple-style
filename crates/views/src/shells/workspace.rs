@@ -360,6 +360,13 @@ impl Render for Workspace {
                             .min_w_0()
                             .min_h_0()
                             .ml(overlay_width)
+                            // Under Liquid Glass the pages sit on one large rounded sheet,
+                            // inset from the sidebars and the window's edges, the way Apple
+                            // Music floats its content.
+                            .when(liquid, |this| {
+                                ui::liquid_sheet(this.ml(overlay_width + gap).mr(gap).mb(gap), cx)
+                                    .overflow_hidden()
+                            })
                             .when(overlay, |this| this.overflow_hidden())
                             .when(covered, |this| this.hidden())
                             .child(
@@ -431,7 +438,11 @@ impl Render for Workspace {
                     .relative()
                     .when(underlap, |bar| bar.absolute().left_0().right_0().bottom_0())
                     .when(liquid, |bar| {
-                        bar.when(!overlay, |bar| bar.left(left)).px(gap).pb(gap)
+                        // Docked inside the foot of the content sheet, clear of its edges.
+                        bar.when(!overlay, |bar| bar.left(left))
+                            .right(right)
+                            .px(gap * 2.)
+                            .pb(gap * 2.)
                     })
                     .child(
                         self.player_bar

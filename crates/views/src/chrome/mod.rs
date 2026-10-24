@@ -25,10 +25,13 @@ pub use toasts::ToastStack;
 pub(crate) use toolbar::{Searchable, Toolbar, Tooled};
 
 use gpui::prelude::*;
-use gpui::{App, Div, Entity, Global, Pixels, Window, div};
+use gpui::{App, Div, Entity, Global, Pixels, Window, div, px};
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use state::AppSettings;
 use ui::{ActiveTheme as _, MIN_CONTENT, Room, eyebrow};
+
+/// The width the content sheet's hairline rim takes, one pixel on either side.
+const SHEET_RIMS: Pixels = px(2.);
 
 /// The radius every element touching a corner of the window rounds that corner with, or `None`
 /// under server-side decorations or `Rounding::Square`. It never exceeds half the title bar's
@@ -134,7 +137,14 @@ impl Chrome {
 
     pub fn content(window: &Window, cx: &App) -> Pixels {
         let chrome = Self::get(cx);
-        (window.viewport_size().width - chrome.sidebar_left - chrome.sidebar_right).max(MIN_CONTENT)
+        // Under Liquid Glass the pages sit on a sheet inset by a gap on either side, inside a
+        // hairline rim.
+        let sheet = match ui::liquid(cx) {
+            true => ui::liquid_gap(cx) * 2. + SHEET_RIMS,
+            false => Pixels::ZERO,
+        };
+        (window.viewport_size().width - chrome.sidebar_left - chrome.sidebar_right - sheet)
+            .max(MIN_CONTENT)
     }
 
     pub fn room(window: &Window, cx: &App) -> Room {
