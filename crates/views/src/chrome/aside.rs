@@ -34,6 +34,12 @@ use crate::shared::pins::Pinned as _;
 const TAB_SLIDE: f32 = 24.;
 /// Under Liquid Glass, the fill of the card under the song playing now and of a section's count.
 const CURRENT_FILL: f32 = 0.08;
+/// A Liquid Glass queue row, Cider's: its artwork as a share of the row's height, how many
+/// times the theme's padding it keeps on either side, and the width of the number in front
+/// of it in small-text heights.
+const QUEUE_ART: f32 = 0.77;
+const QUEUE_SIDE: f32 = 1.25;
+const QUEUE_NUMBER: f32 = 1.8;
 const COUNT_FILL: f32 = 0.08;
 /// The Liquid Glass queue's header: how much taller than a header it stands, in paddings, and
 /// the fill and rim of its button capsule and item pill, as shares of the foreground.
@@ -198,6 +204,17 @@ struct Sections {
 }
 
 impl Sections {
+    /// A song's place in the whole queue, counting from the oldest song played at 1.
+    fn number(self, position: QueuePosition) -> Option<usize> {
+        let current = usize::from(self.current);
+        match position {
+            QueuePosition::Past(index) => Some(index + 1),
+            QueuePosition::Current => Some(self.past + 1),
+            QueuePosition::Upcoming(index) => Some(self.past + current + index + 1),
+            QueuePosition::Similar(index) => Some(self.past + current + self.upcoming + index + 1),
+        }
+    }
+
     fn past_end(self) -> usize {
         match self.past {
             0 => 0,
@@ -337,6 +354,9 @@ struct RowLook {
     queued: bool,
     /// Whether the row is on another device's queue, which this app shows but cannot change.
     remote: bool,
+    /// The song's place in the whole queue, shown beside it under Liquid Glass, as Cider
+    /// numbers its queue.
+    number: Option<usize>,
 }
 
 /// The credit under a sheet, resolved once for the answer it names and the language it was read
@@ -863,6 +883,7 @@ impl Aside {
             drop_line,
             queued,
             remote,
+            number,
         } = look;
         let theme = *cx.theme();
         let past_index = position.past().filter(|_| !remote);
@@ -1011,18 +1032,44 @@ impl Aside {
         });
 
         // Under Liquid Glass the song playing now stands on a soft card of its own, as in
-        // Apple Music's queue.
-        let lifted = current && ui::liquid(cx);
+        // Apple Music's queue, and every row is laid out like Cider's: the song's number in
+        // the queue, larger artwork and a semibold title.
+        let liquid = ui::liquid(cx);
+        let lifted = current && liquid;
+        let card = match liquid {
+            true => {
+                let art = px((theme.metrics.list_row * QUEUE_ART / px(1.)).round());
+                card.art(art)
+                    .size(Text::Body)
+                    .weight(FontWeight::SEMIBOLD)
+                    .px(theme.metrics.pad * QUEUE_SIDE)
+                    .py_0()
+            }
+            false => card,
+        };
+        let numbered = liquid.then(|| {
+            div()
+                .flex_none()
+                .w(theme.text(Text::Small) * QUEUE_NUMBER)
+                .text_right()
+                .text_size(theme.text(Text::Small))
+                .text_color(theme.muted_foreground)
+                .children(number.map(|number| number.to_string()))
+        });
 
         div()
             .id(("queue-track-container", index))
             .when(lifted, |this| {
-                this.rounded(theme.radius * 1.5)
+                this.rounded(ui::liquid_radius(cx))
                     .bg(theme.foreground.opacity(CURRENT_FILL))
             })
             .relative()
             .min_w_0()
-            .child(card)
+            .when(liquid, |this| {
+                this.flex().items_center().w_full().pl(theme.metrics.pad)
+            })
+            .children(numbered)
+            .child(card.when(liquid, |card| card.flex_1()))
             .when_some(drop_line, |this, edge| this.child(drop_marker(edge, cx)))
     }
 
@@ -2178,6 +2225,7 @@ impl Aside {
                                 drop_line,
                                 queued,
                                 remote,
+                                number: sections.number(position),
                             };
                             Self::row(found, index, position, revision, look, cx).into_any_element()
                         }
@@ -2190,6 +2238,7 @@ impl Aside {
                         drop_line: None,
                         queued: matches!(position, QueuePosition::Upcoming(at) if at < manual),
                         remote,
+                        number: sections.number(position),
                     };
                     let row = Self::row(found, index, position, revision, look, cx);
                     prefetch(row.into_any_element(), window, cx);
