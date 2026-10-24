@@ -224,7 +224,17 @@ impl Render for Workspace {
         self.sidebar
             .update(cx, |sidebar, _| sidebar.set_sliding(left_sliding));
         let overlay_width = self.sidebar.read(cx).overlay_width();
-        Chrome::publish(left, right, reserved, cx);
+        let resting = (
+            match left_open {
+                true => left_full,
+                false => Pixels::ZERO,
+            },
+            match right_open {
+                true => right_full,
+                false => Pixels::ZERO,
+            },
+        );
+        Chrome::publish((left, right), resting, reserved, cx);
         let covered = self.sidebar_right.read(cx).covers_content(window);
         let overlay = self.sidebar.read(cx).overlays();
         let bar_height = PlayerBar::height(window, cx);

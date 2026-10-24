@@ -73,6 +73,11 @@ pub(crate) struct Chrome {
     reserved_right: Pixels,
     /// The part of a page covered by the translucent player bar.
     player_bottom: Pixels,
+    /// The widths the sidebars are sliding toward. Pages lay out against these rather than
+    /// the widths of the frame, so a grid's column count or an artwork's size changes once
+    /// as a sidebar starts to slide instead of stepping back and forth while it moves.
+    resting_left: Pixels,
+    resting_right: Pixels,
 }
 
 struct Installed(Entity<Chrome>);
@@ -88,12 +93,20 @@ impl Chrome {
         cx.global::<Installed>().0.clone()
     }
 
-    pub(crate) fn publish(left: Pixels, right: Pixels, reserved_right: Pixels, cx: &mut App) {
+    /// Publishes the sidebars' widths this frame and the widths they are sliding toward.
+    pub(crate) fn publish(
+        (left, right): (Pixels, Pixels),
+        (resting_left, resting_right): (Pixels, Pixels),
+        reserved_right: Pixels,
+        cx: &mut App,
+    ) {
         let next = Self {
             sidebar_left: left,
             sidebar_right: right,
             reserved_right,
             player_bottom: Self::get(cx).player_bottom,
+            resting_left,
+            resting_right,
         };
         let chrome = Self::entity(cx);
         chrome.update(cx, |chrome, cx| {
@@ -135,6 +148,8 @@ impl Chrome {
         });
     }
 
+    /// The width pages lay out in: what the sidebars leave once they come to rest, so a page
+    /// settles into its final layout as soon as a sidebar starts to slide.
     pub fn content(window: &Window, cx: &App) -> Pixels {
         let chrome = Self::get(cx);
         // Under Liquid Glass the pages sit on a sheet inset by a gap on either side, inside a
@@ -143,7 +158,7 @@ impl Chrome {
             true => ui::liquid_gap(cx) * 2. + SHEET_RIMS,
             false => Pixels::ZERO,
         };
-        (window.viewport_size().width - chrome.sidebar_left - chrome.sidebar_right - sheet)
+        (window.viewport_size().width - chrome.resting_left - chrome.resting_right - sheet)
             .max(MIN_CONTENT)
     }
 
