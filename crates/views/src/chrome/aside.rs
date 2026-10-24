@@ -2300,6 +2300,11 @@ impl Render for Aside {
     }
 }
 
+/// The line heights of a Liquid Glass queue section's title and of the source under it, as
+/// shares of their text sizes, kept tight so both fit in one row at a large font size.
+const SECTION_LEADING: f32 = 1.15;
+const SOURCE_LEADING: f32 = 1.3;
+
 /// A queue section's header under Liquid Glass, Cider's: its name as a large bold title, the
 /// collection the songs come from under it when there is one, and across from it, for the
 /// sections that list songs, how many they hold on a pill.
@@ -2332,6 +2337,7 @@ fn liquid_section(
                         .min_w_0()
                         .truncate()
                         .text_size(theme.text(Text::Large))
+                        .line_height(theme.text(Text::Large) * SECTION_LEADING)
                         .font_weight(FontWeight::BOLD)
                         .text_color(theme.foreground)
                         .child(i18n::lookup(key, None)),
@@ -2343,6 +2349,7 @@ fn liquid_section(
                         .gap_1()
                         .min_w_0()
                         .overflow_hidden()
+                        .line_height(theme.text(Text::Small) * SOURCE_LEADING)
                         .child(faint(cx).font_weight(FontWeight::NORMAL).child(t!("queue-from")))
                         .child(source_link(name, place, cx))
                 })),
