@@ -329,7 +329,9 @@ impl RenderOnce for Card {
         let play_fill =
             theme.cover_fill(cover.as_deref().and_then(|cover| cover_palette(cover, cx)));
         let art_radius = art_radius.or_else(|| tile.map(|_| theme.radius));
-        let art = art.or(tile).unwrap_or(snapped(height - inset * 2., window));
+        // Snapped once here so the cover, which snaps its own edge, and the hover scrim over it
+        // cover exactly the same device pixels.
+        let art = snapped(art.or(tile).unwrap_or(height - inset * 2.), window);
         let hovered = match (hovered, fill) {
             (Some(style), _) => Some(style),
             (None, true) => Some(StyleRefinement::default().bg(theme.table_hover)),
