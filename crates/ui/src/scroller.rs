@@ -6,7 +6,7 @@ use gpui::{
 
 use crate::button::Button;
 use crate::glass::{blurring, glass};
-use crate::scrollbar::{Scrollbar, activate_middle_scroll, cancel_middle_scroll};
+use crate::scrollbar::{Scrollbar, activate_middle_scroll, cancel_middle_scroll, scrolled};
 use crate::theme::ActiveTheme as _;
 
 /// How far a region has to be scrolled before the trip back is worth a button, in rows.
@@ -23,6 +23,7 @@ pub struct Scroller {
     present_surface: bool,
     owns_scroll: bool,
     bottom_inset: Pixels,
+    edges: Option<(Pixels, Pixels)>,
 }
 
 impl Scroller {
@@ -36,6 +37,7 @@ impl Scroller {
             present_surface: true,
             owns_scroll: true,
             bottom_inset: Pixels::ZERO,
+            edges: None,
         }
     }
 
@@ -62,6 +64,17 @@ impl Scroller {
     /// listing keeps only its scrollbar clear; its list must provide its own trailing space.
     pub fn bottom_inset(mut self, inset: Pixels) -> Self {
         self.bottom_inset = inset.max(Pixels::ZERO);
+        self
+    }
+}
+
+impl Scroller {
+    /// Fades the content out towards the top and bottom edges, over at most `top` and
+    /// `bottom`. Each fade only reaches as far as there is content left to scroll to on its
+    /// side, so it thins out to nothing as the region comes to rest at that end, and content
+    /// that fits shows no fade at all. A caller's own `fade_edges` wins over it.
+    pub fn edge_fade(mut self, top: Pixels, bottom: Pixels) -> Self {
+        self.edges = Some((top, bottom));
         self
     }
 }
@@ -94,6 +107,7 @@ impl RenderOnce for Scroller {
             present_surface,
             owns_scroll,
             bottom_inset,
+            edges,
         } = self;
 
         bar.update(cx, |bar, cx| bar.set_track_bottom(bottom_inset, cx));
@@ -102,6 +116,17 @@ impl RenderOnce for Scroller {
         bar.read(cx).sync();
         let presentation = bar.read(cx).presentation();
         let gliding = bar.clone();
+        // The fades follow the offset, so the view redraws as it scrolls: on each wheel
+        // turn, and each frame while the region glides.
+        let view = window.current_view();
+        let fades = edges.map(|(top, bottom)| {
+            let travelled = scrolled(&scroll);
+            let left = (scroll.max_offset().y - travelled).max(Pixels::ZERO);
+            (travelled.min(top), left.min(bottom))
+        });
+        if fades.is_some() && presentation != gpui::Point::default() {
+            window.request_animation_frame();
+        }
 
         let mut surface = middle_scroll(base, &bar)
             .id(id)
@@ -117,6 +142,12 @@ impl RenderOnce for Scroller {
                     true => gliding.update(cx, |bar, _| bar.stirred()),
                     false => gliding.update(cx, |bar, _| bar.nudge(window)),
                 }
+                if fades.is_some() {
+                    cx.notify(view);
+                }
+            })
+            .when_some(fades, |surface, (top, bottom)| {
+                surface.fade_edges(top, bottom)
             })
             .children(children);
 
