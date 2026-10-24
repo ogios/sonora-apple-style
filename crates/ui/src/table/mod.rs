@@ -15,7 +15,7 @@ use gpui::{
 
 use crate::artwork::{PREFETCH_REACH, Prefetch};
 use crate::filters::FilterChange;
-use crate::glass::{blurring, liquid, liquid_radius, popover_surface};
+use crate::glass::{blurring, liquid, popover_surface};
 use crate::glow::Glow;
 use crate::menu::Menu;
 use crate::metrics::{Text, snapped, text_width};
@@ -49,11 +49,23 @@ const SKELETON_BAR: f32 = 0.3;
 const SKELETON_REACH: [f32; 5] = [0.6, 0.85, 0.45, 0.7, 0.55];
 
 pub const ROW_GROUP: &str = "table-row";
-/// Under Liquid Glass, Cider's: every other row is a rounded strip this faintly lit with the
-/// foreground colour instead of rows ruled off by lines, and rows set their text this much
+/// Under Liquid Glass, Cider's: rows are neither ruled off nor lit while playing, the pointer
+/// lights one this faintly with the foreground colour, and rows set their text this much
 /// larger than the body size.
-const STRIPE: f32 = 0.035;
+const HOVER: f32 = 0.04;
 const ROW_TEXT: f32 = 1.07;
+/// How much taller than the theme's row a Liquid Glass row stands, so the list breathes as
+/// Cider's does.
+const ROW_AIR: Pixels = px(14.);
+
+/// The height of one row, snapped to the device's pixels.
+fn row_height(window: &Window, cx: &App) -> Pixels {
+    let air = match liquid(cx) {
+        true => ROW_AIR,
+        false => Pixels::ZERO,
+    };
+    snapped(cx.theme().metrics.row + air, window)
+}
 
 pub struct Cell<F> {
     pub field: F,
@@ -722,7 +734,7 @@ impl<S: TableSource> TableState<S> {
         };
 
         let metrics = cx.theme().metrics;
-        let row = snapped(metrics.row, window);
+        let row = row_height(window, cx);
         let head = snapped(metrics.header, window);
         let top = head + row * display as f32;
         let above = self.viewport.top + head;
@@ -1096,7 +1108,10 @@ impl<S: TableSource> TableState<S> {
         let bottom = self.corners.bottom_left.max(self.corners.bottom_right);
         let marked = &self.delegate.marked;
         let bare = liquid(cx);
-        let radius = liquid_radius(cx);
+        let hover = match bare {
+            true => theme.foreground.opacity(HOVER),
+            false => theme.table_hover,
+        };
 
         let mut rows: Vec<AnyElement> = (first..last)
             .map(|display| {
@@ -1111,7 +1126,7 @@ impl<S: TableSource> TableState<S> {
                 };
                 let lit = glow
                     .as_ref()
-                    .and_then(|glow| glow.fill(playing.then_some(theme.muted), theme.table_hover));
+                    .and_then(|glow| glow.fill((playing && !bare).then_some(theme.muted), hover));
                 let cells: Vec<AnyElement> = (0..self.delegate.columns.len())
                     .map(|ix| {
                         let column = &self.delegate.columns[ix];
@@ -1145,18 +1160,14 @@ impl<S: TableSource> TableState<S> {
                         this.border_b_1().border_color(theme.table_row_border)
                     })
                     .when(bare, |this| {
-                        this.rounded(radius)
-                            .text_size(theme.text(Text::Body) * ROW_TEXT)
-                            .when(display % 2 == 1, |this| {
-                                this.bg(theme.foreground.opacity(STRIPE))
-                            })
+                        this.text_size(theme.text(Text::Body) * ROW_TEXT)
                     })
-                    .when(playing, |this| this.bg(theme.muted))
+                    .when(playing && !bare, |this| this.bg(theme.muted))
                     .when(selected, |this| this.bg(theme.table_active))
                     .when_some(lit, |this, lit| this.bg(lit))
                     .map(|this| match glow {
                         Some(glow) => glow.attach(this),
-                        None if !selected => this.hover(move |style| style.bg(theme.table_hover)),
+                        None if !selected => this.hover(move |style| style.bg(hover)),
                         None => this,
                     })
                     .when_some(self.delegate.source.pin(row, cx), Pinnable::pin)
@@ -1316,7 +1327,7 @@ impl<S: TableSource> Render for TableState<S> {
         self.delegate.measure(window, cx);
 
         let metrics = cx.theme().metrics;
-        let row = snapped(metrics.row, window);
+        let row = row_height(window, cx);
         let head = snapped(metrics.header, window);
         let placeholders = self.placeholders(row, cx);
         let height = self.height(head, row, self.delegate.row_count().max(placeholders));

@@ -34,6 +34,9 @@ pub(crate) use sort::initial;
 
 use sort::hits;
 
+/// How strongly the accent colours the details of the song playing now under Liquid Glass.
+const CURRENT_DETAIL: f32 = 0.75;
+
 /// How strongly an unsaved track's heart shows on its row.
 const SETTLED: f32 = 0.5;
 
@@ -693,9 +696,14 @@ impl TableSource for TrackSource {
             return self.index_cell(&cell, track, cx);
         }
         let faded = muted.opacity(0.5);
-        let (title, detail) = match self.plays_now(track, cx) {
-            true => (None, muted),
-            false => (Some(faded), faded),
+        // Under Liquid Glass the song playing now is told by its text in the accent colour,
+        // Cider's way, rather than by a lit row.
+        let current = ui::liquid(cx) && self.now_playing(cell.row, cx).is_some();
+        let accent = ui::accent_text(cx);
+        let (title, detail) = match (current, self.plays_now(track, cx)) {
+            (true, _) => (Some(accent), accent.opacity(CURRENT_DETAIL)),
+            (false, true) => (None, muted),
+            (false, false) => (Some(faded), faded),
         };
 
         match cell.field {

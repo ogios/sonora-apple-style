@@ -90,6 +90,10 @@ const FIELD_BLOBS: [(f32, f32, f32); 4] = [
 /// so a dull cover and the neutral fallback still glow.
 const FIELD_SATURATION: f32 = 0.75;
 const FIELD_LIGHTNESS_DARK: f32 = 0.3;
+/// The lightness the accent text colour is held to, at least on a dark page and at most on a
+/// light one, so it reads against either.
+const ACCENT_TEXT_DARK: f32 = 0.7;
+const ACCENT_TEXT_LIGHT: f32 = 0.42;
 const FIELD_LIGHTNESS_LIGHT: f32 = 0.62;
 
 /// Whether a surface that only frosts for the look of it should frost at all. A backdrop blur
@@ -292,6 +296,18 @@ pub fn liquid_ground(cx: &App) -> Hsla {
         },
         false => background,
     }
+}
+
+/// The accent text is drawn in, such as the title of the song playing now: the cover tint, or
+/// the theme's selection hue without one, held light or dark enough to read on the page.
+pub fn accent_text(cx: &App) -> Hsla {
+    let theme = cx.theme();
+    let lead = theme.tint.unwrap_or(theme.selection);
+    let l = match theme.background.l < 0.5 {
+        true => lead.l.max(ACCENT_TEXT_DARK),
+        false => lead.l.min(ACCENT_TEXT_LIGHT),
+    };
+    Hsla { l, a: 1., ..lead }
 }
 
 /// The colour field Liquid Glass chrome floats over: wide, feathered blobs of the cover tint
