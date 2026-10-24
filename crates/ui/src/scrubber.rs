@@ -1,3 +1,4 @@
+use crate::glass::liquid;
 use crate::metrics::Text;
 use crate::motion::{HoverFade, Motion, animates, ease_out_cubic};
 use crate::theme::ActiveTheme as _;
@@ -17,6 +18,9 @@ const HIT: f32 = 3.;
 const BUBBLE: f32 = 7.;
 /// How much the thumb swells while the pointer is over the track, so it reads as grabbable.
 const THUMB_GROW: f32 = 0.45;
+/// Under Liquid Glass, how much thicker the track grows while the pointer is over it, the way
+/// Apple Music's bars swell to be grabbed.
+const LINE_GROW: f32 = 0.75;
 
 type Slide = Box<dyn Fn(&f32, &mut Window, &mut App) + 'static>;
 type Release = Box<dyn Fn(&MouseUpEvent, &mut Window, &mut App) + 'static>;
@@ -206,17 +210,23 @@ impl RenderOnce for Scrubber {
         } = self;
         let overrides = std::mem::take(base.style());
         // The thumb grows as the pointer comes over the track and shrinks back as it leaves.
-        let grow = (enabled && animates(cx)).then(|| {
+        let swells = liquid(cx);
+        let grow = (enabled && (animates(cx) || swells)).then(|| {
             window.use_keyed_state((ElementId::Name(id.clone()), "thumb"), cx, |_, _| {
                 HoverFade::new(Motion::Quick.span())
             })
         });
-        let swell = match &grow {
-            Some(grow) => {
-                1. + THUMB_GROW
-                    * ease_out_cubic(grow.update(cx, |grow, cx| grow.progress(window, cx)))
-            }
-            None => 1.,
+        let arrival = match &grow {
+            Some(grow) => ease_out_cubic(grow.update(cx, |grow, cx| grow.progress(window, cx))),
+            None => 0.,
+        };
+        let swell = match animates(cx) {
+            true => 1. + THUMB_GROW * arrival,
+            false => 1.,
+        };
+        let line = match swells {
+            true => line * (1. + LINE_GROW * arrival),
+            false => line,
         };
         let view = window.current_view();
 
