@@ -29,6 +29,23 @@ const HERO_WASH: f32 = 0.5;
 /// Where down the wash, from its top far above the hero to its foot below it, the colour
 /// starts to fade.
 const HERO_WASH_HOLD: f32 = 0.4;
+/// The fill, rim and vertical padding of a hero fact's pill under Liquid Glass.
+const CHIP_FILL: f32 = 0.08;
+const CHIP_RIM: f32 = 0.08;
+const CHIP_PAD_Y: f32 = 2.;
+/// Under Liquid Glass an artist hero stands this many times the grown artwork's height. Its
+/// picture reaches `ARTIST_RISE` above the hero, past the page's top, and `ARTIST_BLEED` past
+/// either side, stays solid down this much of the hero and dissolves over `ARTIST_FADE` below
+/// it in this many bands.
+const ARTIST_TALL: f32 = 1.6;
+const ARTIST_RISE: Pixels = px(160.);
+const ARTIST_BLEED: Pixels = px(160.);
+const ARTIST_SOLID: f32 = 0.45;
+const ARTIST_FADE: Pixels = px(140.);
+const ARTIST_BANDS: usize = 24;
+/// The scrim under an artist's name: where down the hero it starts, and how dark it ends.
+const ARTIST_SCRIM_FROM: f32 = 0.3;
+const ARTIST_SCRIM: f32 = 0.55;
 const META_SKELETON: Pixels = px(180.);
 const ACTION_SKELETON: Pixels = px(96.);
 
@@ -114,6 +131,26 @@ impl RenderOnce for HeroMetaStrip {
             .gap_1()
             .text_size(theme.text(Text::Small))
             .text_color(theme.muted_foreground);
+
+        // Under Liquid Glass each fact stands on its own small pill, the way Apple Music chips
+        // an album's genre, year and length, rather than running in a bulleted line.
+        if ui::liquid(cx) {
+            let chip = theme.foreground.opacity(CHIP_FILL);
+            let rim = theme.foreground.opacity(CHIP_RIM);
+            return strip.gap_2().children(self.items.into_iter().map(|item| {
+                div()
+                    .flex()
+                    .flex_none()
+                    .items_center()
+                    .px(theme.metrics.pad)
+                    .py(px(CHIP_PAD_Y))
+                    .rounded_full()
+                    .bg(chip)
+                    .border_1()
+                    .border_color(rim)
+                    .child(item)
+            }));
+        }
 
         for (index, item) in self.items.into_iter().enumerate() {
             strip = strip.child(
@@ -400,7 +437,7 @@ impl PageHero {
 }
 
 impl RenderOnce for PageHero {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let theme = *cx.theme();
 
         let art = theme.metrics.cover;
@@ -455,10 +492,18 @@ impl RenderOnce for PageHero {
             true => art * HERO_GROW,
             false => art,
         };
+        // Under Liquid Glass an artist's picture fills the top of the page edge to edge and
+        // dissolves into it, as Apple Music's artist pages do, instead of sitting in a circle.
+        let bleed = liquid && self.circle && self.cover.is_some();
+        let tall = art * ARTIST_TALL;
+        let backdrop = bleed.then(|| artist_backdrop(self.cover.clone(), tall, window, cx));
+        let wash = wash.filter(|_| !bleed);
 
         div()
             .id(self.id)
             .relative()
+            .when(bleed, |hero| hero.min_h(tall))
+            .children(backdrop)
             .when_some(wash, |hero, wash| {
                 hero.child(
                     div()
@@ -480,23 +525,25 @@ impl RenderOnce for PageHero {
             .items_end()
             .gap_5()
             .pb_6()
-            .child(
-                div()
-                    .flex_none()
-                    .when_some(starter, |this, drag_start: Rc<DragStart>| {
-                        this.on_mouse_down(MouseButton::Right, move |event, window, cx| {
-                            drag_start(event, window, cx)
+            .when(!bleed, |hero| {
+                hero.child(
+                    div()
+                        .flex_none()
+                        .when_some(starter, |this, drag_start: Rc<DragStart>| {
+                            this.on_mouse_down(MouseButton::Right, move |event, window, cx| {
+                                drag_start(event, window, cx)
+                            })
                         })
-                    })
-                    .child(
-                        Artwork::new(self.cover)
-                            .size(art)
-                            .corner_radius(theme.radius * 1.5)
-                            .when(self.circle, Artwork::circle)
-                            .when_some(self.fallback, Artwork::fallback)
-                            .when(self.accent, Artwork::accent),
-                    ),
-            )
+                        .child(
+                            Artwork::new(self.cover)
+                                .size(art)
+                                .corner_radius(theme.radius * 1.5)
+                                .when(self.circle, Artwork::circle)
+                                .when_some(self.fallback, Artwork::fallback)
+                                .when(self.accent, Artwork::accent),
+                        ),
+                )
+            })
             .child(
                 div()
                     .flex()
@@ -505,7 +552,7 @@ impl RenderOnce for PageHero {
                     .min_w_0()
                     // At least the artwork's height, and taller when a large font needs it,
                     // so the eyebrow never rises out of the hero.
-                    .min_h(art)
+                    .when(!bleed, |this| this.min_h(art))
                     .justify_end()
                     .gap_2()
                     .line_height(relative(LEADING))
@@ -538,6 +585,69 @@ impl RenderOnce for PageHero {
                     .children(self.actions.map(|actions| div().pt_1().child(actions))),
             )
     }
+}
+
+/// The full-bleed artist picture behind a Liquid Glass artist hero `tall` high: the picture,
+/// blown up to the window's width and reaching above the page's top, solid down the upper part
+/// of the hero and dissolving below it in bands of falling opacity, since a picture cannot be
+/// masked by a gradient. A scrim under the text keeps the name legible over a bright picture.
+fn artist_backdrop(cover: Option<String>, tall: Pixels, window: &Window, cx: &App) -> AnyElement {
+    let theme = cx.theme();
+    let edge = window.viewport_size().width + ARTIST_BLEED * 2.;
+    let height = ARTIST_RISE + tall + ARTIST_FADE;
+    let solid = ARTIST_RISE + tall * ARTIST_SOLID;
+    let picture = (height - edge) / 2.;
+    let band = (height - solid) / ARTIST_BANDS as f32;
+    let slice = |top: Pixels, high: Pixels, opacity: f32| {
+        div()
+            .absolute()
+            .top(top)
+            .left_0()
+            .right_0()
+            .h(high)
+            .overflow_hidden()
+            .flex()
+            .flex_col()
+            .items_center()
+            .opacity(opacity)
+            .child(
+                div()
+                    .flex_none()
+                    .mt(picture - top)
+                    .child(Artwork::new(cover.clone()).size(edge)),
+            )
+    };
+
+    div()
+        .absolute()
+        .top(-ARTIST_RISE)
+        .left(-ARTIST_BLEED)
+        .right(-ARTIST_BLEED)
+        .h(height)
+        .child(slice(Pixels::ZERO, ui::snapped(solid, window), 1.))
+        // Each band's edges land on whole device pixels, so neighbours neither overlap nor
+        // leave a hairline between them.
+        .children((0..ARTIST_BANDS).map(|index| {
+            let through = (index as f32 + 0.5) / ARTIST_BANDS as f32;
+            let fade = through * through * (3. - 2. * through);
+            let top = ui::snapped(solid + band * index as f32, window);
+            let foot = ui::snapped(solid + band * (index + 1) as f32, window);
+            slice(top, foot - top, 1. - fade)
+        }))
+        .child(
+            div()
+                .absolute()
+                .left_0()
+                .right_0()
+                .top(ARTIST_RISE)
+                .h(tall)
+                .bg(linear_gradient(
+                    180.,
+                    linear_color_stop(theme.background.opacity(0.), ARTIST_SCRIM_FROM),
+                    linear_color_stop(theme.background.opacity(ARTIST_SCRIM), 1.),
+                )),
+        )
+        .into_any_element()
 }
 
 fn eyebrow_label(label: SharedString, cx: &App) -> Div {
