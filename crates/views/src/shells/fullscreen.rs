@@ -138,6 +138,8 @@ pub struct FullscreenView {
     /// How tall the dock's controls stand at full size, measured as they are laid out, which
     /// the dock collapses from as it hides and grows back to as it shows.
     dock_high: Rc<Cell<Pixels>>,
+    /// The cornered switcher's measured width, which the controls keep clear of.
+    switcher_wide: Rc<Cell<Pixels>>,
 }
 
 impl FullscreenView {
@@ -195,6 +197,7 @@ impl FullscreenView {
             root_bounds: Rc::new(Cell::new(Bounds::default())),
             meta_bounds: Rc::new(Cell::new(Bounds::default())),
             dock_high: Rc::new(Cell::new(Pixels::ZERO)),
+            switcher_wide: Rc::new(Cell::new(Pixels::ZERO)),
         }
     }
 
@@ -847,10 +850,18 @@ impl FullscreenView {
             false => cap,
         };
         let dock_high = self.dock_high.clone();
+        // With the switcher in the bottom left corner the controls keep its width clear on
+        // both sides, so they stay centred and only narrow where the window is too tight to
+        // hold them and the switcher side by side.
+        let reserve = match cornered(room, cx) {
+            true => self.switcher_reserve(cx),
+            false => Pixels::ZERO,
+        };
         div()
             .flex()
             .flex_none()
             .w_full()
+            .px(reserve)
             .justify_center()
             .items_start()
             .on_children_prepainted(move |bounds, _, _| {
@@ -1084,20 +1095,40 @@ impl FullscreenView {
             )
     }
 
+    /// The room the controls leave on each side for the cornered switcher: its width and a
+    /// padding either side of it. Before the switcher has been measured, its three tabs and
+    /// the bar around them stand in.
+    fn switcher_reserve(&self, cx: &App) -> Pixels {
+        let theme = cx.theme();
+        let measured = self.switcher_wide.get();
+        let wide = match measured > Pixels::ZERO {
+            true => measured,
+            false => theme.metrics.control_small * LIQUID_BUTTON * 3. + px(PILL_GAP) * 4.,
+        };
+        wide + theme.metrics.pad * 2.
+    }
+
     /// The cover, lyrics and queue switcher where a wide Liquid Glass view keeps it: tucked
-    /// into the bottom right corner of where the panel stands, one padding in, but outside
-    /// the panel and the controls, so it stays put whichever of them shows and only its
-    /// selection lens moves between the tabs. It rides the controls' visibility, sinking and
-    /// fading with them.
+    /// into the bottom left corner, one padding in from the view's edge, mirroring the
+    /// fullscreen exit button in the bottom right. It stays outside the panel and the
+    /// controls, so it stays put whichever of them shows and only its selection lens moves
+    /// between the tabs. It rides the controls' visibility, sinking and fading with them.
     fn cornered_switcher(&self, hide: f32, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = *cx.theme();
-        // The view's own bottom and side padding, then the panel's margin and padding.
+        // The view's own bottom and side padding, then the panel's margin and padding, so
+        // its bottom lines up with the panel's inner edge.
         let bottom = px(SWITCHER_BOTTOM) + theme.metrics.inset + theme.metrics.pad;
-        let right = px(SWITCHER_SIDE) + theme.metrics.pad;
+        let left = px(SWITCHER_SIDE) + theme.metrics.pad;
+        let switcher_wide = self.switcher_wide.clone();
         div()
             .absolute()
             .bottom(bottom - px(SINK) * hide)
-            .right(right)
+            .left(left)
+            .on_children_prepainted(move |bounds, _, _| {
+                if let Some(bounds) = bounds.first() {
+                    switcher_wide.set(bounds.size.width);
+                }
+            })
             .flex()
             .opacity(1. - hide)
             .block_mouse_except_scroll()
@@ -1493,7 +1524,7 @@ impl Render for FullscreenView {
     }
 }
 
-/// Whether the switcher sits in the bottom right corner rather than in the controls or on
+/// Whether the switcher sits in the bottom left corner rather than in the controls or on
 /// the panel: under Liquid Glass, in a window wide enough to keep it clear of the controls.
 fn cornered(room: Room, cx: &App) -> bool {
     ui::liquid(cx) && room.fits(Room::Wide)
