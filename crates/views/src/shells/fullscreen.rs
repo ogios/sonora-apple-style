@@ -132,6 +132,9 @@ pub struct FullscreenView {
     visualizer: VisualizerDrive,
     root_bounds: Rc<Cell<Bounds<Pixels>>>,
     meta_bounds: Rc<Cell<Bounds<Pixels>>>,
+    /// How tall the dock's controls stand at full size, measured as they are laid out, which
+    /// the dock collapses from as it hides and grows back to as it shows.
+    dock_high: Rc<Cell<Pixels>>,
 }
 
 impl FullscreenView {
@@ -188,6 +191,7 @@ impl FullscreenView {
             visualizer: VisualizerDrive::default(),
             root_bounds: Rc::new(Cell::new(Bounds::default())),
             meta_bounds: Rc::new(Cell::new(Bounds::default())),
+            dock_high: Rc::new(Cell::new(Pixels::ZERO)),
         }
     }
 
@@ -831,15 +835,30 @@ impl FullscreenView {
     }
 
     fn dock(&self, cap: Pixels, hide: f32, room: Room, cx: &mut Context<Self>) -> impl IntoElement {
+        // The dock collapses from the controls' own height rather than from a guess at it: a
+        // cap shorter than the controls clipped them through the last part of the reveal and
+        // then let them jump to full size the moment it was lifted.
+        let measured = self.dock_high.get();
+        let full = match measured > Pixels::ZERO {
+            true => measured,
+            false => cap,
+        };
+        let dock_high = self.dock_high.clone();
         div()
             .flex()
             .flex_none()
             .w_full()
             .justify_center()
+            .items_start()
+            .on_children_prepainted(move |bounds, _, _| {
+                if let Some(bounds) = bounds.first() {
+                    dock_high.set(bounds.size.height);
+                }
+            })
+            // The controls are not clipped to the shrinking dock: they sink and fade below it
+            // whole, so no frame cuts their panel short.
             .when(hide > 0., |this| {
-                this.max_h(cap * (1. - hide))
-                    .overflow_hidden()
-                    .opacity(1. - hide)
+                this.max_h(full * (1. - hide)).opacity(1. - hide)
             })
             .map(|this| match DOCK_BLUR * hide {
                 blur if blur > DOCK_BLUR_LEAST && hide < 1. && shared::effects() => this.blur(blur),
@@ -850,6 +869,7 @@ impl FullscreenView {
                     div()
                         .w_full()
                         .flex()
+                        .flex_none()
                         .justify_center()
                         .top(px(SINK) * hide)
                         .child(self.controls(room, cx)),
