@@ -115,8 +115,9 @@ pub(crate) fn roomy_transport(
     roomy(playback, queue, false, 1., cx)
 }
 
-/// The roomy transport, `grow` times its player-bar size, its buttons blurring their hover
-/// fills when `frosted`.
+/// The roomy transport, `grow` times its player-bar size. Over the fullscreen ambient field,
+/// when `frosted`, its buttons are bare glyphs that only glow under the pointer, since the
+/// glass bar they sit on is already the material.
 fn roomy(
     playback: &Entity<Playback>,
     queue: &Entity<Queue>,
@@ -127,7 +128,8 @@ fn roomy(
     let theme = *cx.theme();
     let side = theme.metrics.control * ROOMY_GROW * grow;
     let glyph = theme.text(Text::Body) * ROOMY_GLYPH * grow;
-    let sized = |button: Button| button.size(side).px_0().glyph(glyph);
+    let bare = |button: Button| button.when(frosted, Button::bare);
+    let sized = |button: Button| bare(button).size(side).px_0().glyph(glyph);
 
     div()
         .flex()
@@ -136,7 +138,7 @@ fn roomy(
         .child(sized(shuffle(playback, frosted, cx)))
         .child(sized(previous(playback, frosted, cx)))
         .child(
-            toggle(playback, false, frosted, cx)
+            bare(toggle(playback, false, frosted, cx))
                 .size(side * ROOMY_PLAY)
                 .px_0()
                 .glyph(theme.text(Text::Body) * ROOMY_PLAY_GLYPH * grow),

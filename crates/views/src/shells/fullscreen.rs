@@ -971,6 +971,7 @@ impl FullscreenView {
                             .small()
                             .when(ui::liquid(cx), |button| {
                                 button
+                                    .bare()
                                     .size(theme.metrics.control_small * LIQUID_BUTTON)
                                     .px_0()
                                     .glyph(theme.text(Text::Body) * LIQUID_BUTTON)

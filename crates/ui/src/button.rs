@@ -69,6 +69,7 @@ pub struct Button {
     selected: bool,
     indicator: bool,
     backgroundless: bool,
+    bare: bool,
     hoverless: bool,
     frosted: bool,
     turn: f32,
@@ -102,6 +103,7 @@ impl Button {
             selected: false,
             indicator: false,
             backgroundless: false,
+            bare: false,
             hoverless: false,
             frosted: false,
             turn: 0.,
@@ -224,6 +226,13 @@ impl Button {
         self
     }
 
+    /// Under Liquid Glass, leaves a frosted button a bare glyph rather than a slab of glass:
+    /// nothing at rest, and only the white hover tint, fading in and out, under the pointer.
+    pub fn bare(mut self) -> Self {
+        self.bare = true;
+        self
+    }
+
     pub fn hoverless(mut self) -> Self {
         self.hoverless = true;
         self
@@ -322,6 +331,7 @@ impl RenderOnce for Button {
             selected,
             indicator,
             backgroundless,
+            bare,
             hoverless,
             frosted,
             turn,
@@ -339,7 +349,7 @@ impl RenderOnce for Button {
         // Under Liquid Glass a clickable button gives a little while held and springs back.
         // Glass that frosts what it covers is left still: the scale is a paint filter, and
         // the renderer drops a backdrop blur inside one, so the slab would flash clear.
-        let glassy = frosted || matches!(variant, Variant::Secondary);
+        let glassy = (frosted && !bare) || matches!(variant, Variant::Secondary);
         let pressable = liquid(cx)
             && !disabled
             && on_click.is_some()
@@ -454,11 +464,13 @@ impl RenderOnce for Button {
         // Under Liquid Glass every button is a capsule, a selected one wears the glass pill,
         // and a filled neutral or frosted one, which floats over content, is a slab of glass.
         let liquid = liquid(cx);
-        let slab = liquid && !disabled && (frosted || matches!(variant, Variant::Secondary));
+        let slab =
+            liquid && !disabled && !bare && (frosted || matches!(variant, Variant::Secondary));
         let interactive = !disabled;
         // The white hover tint follows `frosted` whatever the setting says, since it is
         // there for a button floating over artwork; only the blur itself is optional.
-        let frosting = frosted && interactive && blurring(cx);
+        // A bare glyph has no slab to frost behind, and its hover tint fades instead.
+        let frosting = frosted && interactive && !(bare && liquid) && blurring(cx);
         let foreground = match disabled {
             true => palette.foreground,
             false => tint.unwrap_or(palette.foreground),
