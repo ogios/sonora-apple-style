@@ -91,8 +91,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   melts into the page. A faint shade sits behind the name and buttons only.
 - Under Liquid Glass the fullscreen player's transport and volume buttons are plain glyphs that
   glow under the pointer, without a ring each, and the cover, lyrics and queue switcher sits in
-  the bottom right corner: it stays where it is as the panel opens, closes or changes, and one
-  glass lens slides between its tabs.
+  the bottom left corner, on one row with the exit button in the bottom right: it stays where it
+  is as the panel opens, closes or changes, and one glass lens slides between its tabs. Where the
+  controls would run into it they stand above that row instead.
+- Under Liquid Glass the account card at the foot of the sidebar shows your account's picture and
+  name over the service it belongs to, as the providers page does. As a guest, or on an account
+  with no name of its own, it names the service over the way to the settings.
 
 ### Fixed
 
@@ -101,6 +105,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the font fallback. PingFang SC is used where the system has it, and Sonora now bundles a
   Simplified Chinese subset of Noto Sans SC for everywhere else. Japanese faces still come
   first when the interface is in Japanese.
+- Under Liquid Glass the ambient background and its motion show in fullscreen again: the blurred
+  cover thins over the ambient field instead of hiding it, so turning either setting off is seen.
+- Under Liquid Glass the fullscreen visualizer also plays behind the lyrics and the queue, blurred
+  under their glass card, so its style and the Ignore volume setting can be seen while a panel is
+  open.
+- Fullscreen hides its controls and the cursor three seconds after the last input wherever the
+  pointer rests, over the lyrics and the cover included. They stay up only while the pointer is on
+  the controls, the switcher, the exit button or the volume panel, or a seek or volume drag or a
+  menu is open. A control that moved away under a still pointer used to hold them up for good.
+- Under Liquid Glass the Transparent player bar switch stands on and held, with a note that the
+  bar is always glass there, instead of seeming to do nothing.
 - The fullscreen player's controls rise into place in one smooth motion when you move the
   pointer, instead of stopping short with their panel cut off and then jumping the rest of the
   way, and sink away the same way.
