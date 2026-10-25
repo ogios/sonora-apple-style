@@ -55,6 +55,9 @@ const DOCK: f32 = 1.15;
 const DOCK_FULL: f32 = 1.7;
 const SINK: f32 = 24.;
 const LEAVE_DROP: f32 = 2.;
+/// The fullscreen view's bottom and side padding, which the cornered switcher measures from.
+const SWITCHER_BOTTOM: f32 = 24.;
+const SWITCHER_SIDE: f32 = 32.;
 const PILL_GAP: f32 = 2.;
 const SEEK_MAX: f32 = 420.;
 /// The Liquid Glass fullscreen player, larger than the flat one: the widest its controls
@@ -782,7 +785,7 @@ impl FullscreenView {
     /// corner to the leave button.
     fn controls(&self, room: Room, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = *cx.theme();
-        let inline = self.panel.is_none();
+        let inline = self.panel.is_none() && !cornered(room, cx);
         let clear = match room.fits(Room::Roomy) {
             true => Pixels::ZERO,
             false => theme.metrics.control_small,
@@ -897,6 +900,7 @@ impl FullscreenView {
             Button::new(id)
                 .ghost()
                 .when(frosted, Button::frosted)
+                .bare()
                 .small()
                 .when(liquid, |button| button.size(side).px_0().glyph(glyph))
                 .icon(icon)
@@ -1078,6 +1082,26 @@ impl FullscreenView {
                     .top(px(SINK) * hide)
                     .child(self.pill(cx)),
             )
+    }
+
+    /// The cover, lyrics and queue switcher where a wide Liquid Glass view keeps it: tucked
+    /// into the bottom right corner of where the panel stands, one padding in, but outside
+    /// the panel and the controls, so it stays put whichever of them shows and only its
+    /// selection lens moves between the tabs. It rides the controls' visibility, sinking and
+    /// fading with them.
+    fn cornered_switcher(&self, hide: f32, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = *cx.theme();
+        // The view's own bottom and side padding, then the panel's margin and padding.
+        let bottom = px(SWITCHER_BOTTOM) + theme.metrics.inset + theme.metrics.pad;
+        let right = px(SWITCHER_SIDE) + theme.metrics.pad;
+        div()
+            .absolute()
+            .bottom(bottom - px(SINK) * hide)
+            .right(right)
+            .flex()
+            .opacity(1. - hide)
+            .block_mouse_except_scroll()
+            .child(self.pill(cx))
     }
 
     fn menu(&self, cx: &mut Context<Self>) -> Option<impl IntoElement> {
@@ -1307,6 +1331,7 @@ impl Render for FullscreenView {
         };
 
         let liquid = ui::liquid(cx);
+        let cornered = cornered(room, cx);
 
         div()
             .id("fullscreen")
@@ -1439,7 +1464,9 @@ impl Render for FullscreenView {
                                 })
                                 .on_click(|_, _, cx| cx.stop_propagation())
                                 .child(self.aside.clone())
-                                .when(shown, |this| this.child(self.floating(hide, cx)))
+                                .when(shown && !cornered, |this| {
+                                    this.child(self.floating(hide, cx))
+                                })
                                 // The panel slides in from the right edge as it opens.
                                 .motion(
                                     (
@@ -1458,9 +1485,18 @@ impl Render for FullscreenView {
             .when(!split, |this| {
                 this.child(self.dock(theme.metrics.player_bar * DOCK_FULL, hide, room, cx))
             })
+            .when(shown && cornered, |this| {
+                this.child(self.cornered_switcher(hide, cx))
+            })
             .when(idle < 1., |this| this.child(self.leave(idle, window, cx)))
             .children(self.menu(cx))
     }
+}
+
+/// Whether the switcher sits in the bottom right corner rather than in the controls or on
+/// the panel: under Liquid Glass, in a window wide enough to keep it clear of the controls.
+fn cornered(room: Room, cx: &App) -> bool {
+    ui::liquid(cx) && room.fits(Room::Wide)
 }
 
 fn presentation_scale(presented: Pixels, layout: Pixels) -> f32 {
