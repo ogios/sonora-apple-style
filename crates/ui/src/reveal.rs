@@ -8,7 +8,14 @@
 //! already there the first frame a place is drawn, from a cache or as a row scrolls back into
 //! view, shows at once, and so does everything while motion is reduced. The content sits in
 //! the same wrapper in every phase, so the reveal never moves the layout around it.
+//!
+//! A place is remembered by its id alone rather than by where it sits in the element tree,
+//! since a page often lays its skeletons out in a plain grid and its content in a virtual
+//! list, and the two have to find each other. Ids are app-wide, so each names its page. A
+//! place not drawn for a while is forgotten.
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use gpui::prelude::*;
@@ -28,6 +35,34 @@ const RISE: Pixels = px(6.);
 /// How much of the span the skeleton takes to fade out, so it has mostly gone by the time
 /// the content is half in and the two never read as one muddy layer.
 const SKELETON_FADE: f32 = 0.6;
+
+/// How long a place that is no longer drawn is remembered.
+const FORGET: Duration = Duration::from_secs(2);
+
+thread_local! {
+    /// Every place drawn lately, with the phase it is in and when it was last drawn.
+    static PLACES: RefCell<Places> = RefCell::new(Places::default());
+}
+
+#[derive(Default)]
+struct Places {
+    phases: HashMap<ElementId, (Phase, Instant)>,
+    swept: Option<Instant>,
+}
+
+impl Places {
+    /// The phase of `id`, `fresh` for a place not drawn lately, marked as drawn now.
+    fn phase(&mut self, id: &ElementId, fresh: Phase, now: Instant) -> &mut Phase {
+        if self.swept.is_none_or(|swept| now.duration_since(swept) > FORGET) {
+            self.phases
+                .retain(|_, (_, seen)| now.duration_since(*seen) <= FORGET);
+            self.swept = Some(now);
+        }
+        let entry = self.phases.entry(id.clone()).or_insert((fresh, now));
+        entry.1 = now;
+        &mut entry.0
+    }
+}
 
 /// Where a place stands in the hand-over.
 #[derive(Clone, Copy)]
@@ -55,8 +90,8 @@ pub struct Reveal {
 
 impl Reveal {
     /// `content` is `None` while it is on its way. `skeleton` draws the placeholder, only
-    /// while the skeleton shows or fades. `id` names the place, unique among its siblings,
-    /// and has to be the same for the skeleton and the content that replaces it.
+    /// while the skeleton shows or fades. `id` names the place across the whole app, and has
+    /// to be the same for the skeleton and the content that replaces it.
     pub fn new(
         id: impl Into<ElementId>,
         content: Option<AnyElement>,
@@ -94,12 +129,14 @@ impl RenderOnce for Reveal {
             skeleton,
         } = self;
         let base = base.relative();
+        let now = Instant::now();
         let Some(content) = content else {
             if animates(cx) {
                 // Remember that this place showed a skeleton, so the content that replaces it
                 // crosses in rather than cutting.
-                let state = window.use_keyed_state(id, cx, |_, _| Phase::Waiting);
-                state.update(cx, |phase, _| *phase = Phase::Waiting);
+                PLACES.with_borrow_mut(|places| {
+                    *places.phase(&id, Phase::Waiting, now) = Phase::Waiting;
+                });
             }
             return base.child(skeleton(window, cx));
         };
@@ -110,17 +147,17 @@ impl RenderOnce for Reveal {
             return base.child(holder().child(content));
         }
 
-        let state = window.use_keyed_state(id, cx, |_, _| Phase::Shown);
         let span = paced(SPAN);
-        let progress = state.update(cx, |phase, _| {
+        let progress = PLACES.with_borrow_mut(|places| {
+            let phase = places.phase(&id, Phase::Shown, now);
             if let Phase::Waiting = phase {
                 let delay = paced(STAGGER) * order.min(STAGGER_CAP) as u32;
-                *phase = Phase::Revealing(Instant::now() + delay);
+                *phase = Phase::Revealing(now + delay);
             }
             let Phase::Revealing(start) = *phase else {
                 return None;
             };
-            let elapsed = Instant::now().saturating_duration_since(start);
+            let elapsed = now.saturating_duration_since(start);
             let progress = elapsed.as_secs_f32() / span.as_secs_f32().max(f32::EPSILON);
             if progress >= 1. {
                 *phase = Phase::Shown;
