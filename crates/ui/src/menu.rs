@@ -727,6 +727,15 @@ impl RenderOnce for Menu {
         let bounds_guards = dismiss_guards.clone();
         let viewport_width = window.viewport_size().width;
         let tucked = crate::metrics::tucked(theme.radius, window);
+        // Under Liquid Glass the panel is much rounder than a row, so the rows at its top and
+        // bottom take the panel's own corner less the inset, keeping their outer corners
+        // concentric with it, while the rows between keep the small one.
+        let edge = match liquid(cx) {
+            true => crate::metrics::tucked(liquid_radius(cx), window).max(tucked),
+            false => tucked,
+        };
+        let last = items.len().saturating_sub(1);
+        let headed = header.is_some();
 
         let keys = search.map(|search| Keys {
             search,
@@ -809,6 +818,8 @@ impl RenderOnce for Menu {
                     .px_3()
                     .when_else(detailed, |this| this.py_2(), |this| this.py_1())
                     .rounded(tucked)
+                    .when(place == 0 && !headed, |this| this.rounded_t(edge))
+                    .when(place == last, |this| this.rounded_b(edge))
                     .when_else(
                         disabled,
                         |this| this.text_color(theme.muted_foreground).cursor_default(),
