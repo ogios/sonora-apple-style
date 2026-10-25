@@ -1346,8 +1346,14 @@ impl Render for FullscreenView {
         let staged = self.panel.is_none() || split;
 
         let style = self.settings.read(cx).visualizer_style();
+        // Under Liquid Glass a split view keeps the visualizer too: the lyrics and the queue
+        // stand on a card of glass that blurs the bars behind it, so they never cross the text.
+        // Without it the bars would run bare under the panel's lines, so there it waits for
+        // the panel to close as it always has. Liquid Glass used to leave it off whenever a
+        // panel showed, which is most of the time, so its settings seemed to do nothing.
+        let room_for_bars = self.panel.is_none() || (split && ui::liquid(cx));
         let visualizer_on =
-            self.panel.is_none() && style.shown() && self.playback.read(cx).steered(cx).is_none();
+            room_for_bars && style.shown() && self.playback.read(cx).steered(cx).is_none();
         match visualizer_on
             .then(|| self.playback.read(cx).spectrum(cx))
             .flatten()
