@@ -1,10 +1,10 @@
 use std::rc::Rc;
 
 use gpui::prelude::*;
-use gpui::{App, ClickEvent, Entity, MouseDownEvent, Pixels, SharedString, Window, div};
+use gpui::{App, ClickEvent, ElementId, Entity, MouseDownEvent, Pixels, SharedString, Window, div};
 use music::{GenreItem, Track};
 use state::Playback;
-use ui::{ActiveTheme as _, Button, Card, eyebrow, heading, snapped, vacant};
+use ui::{ActiveTheme as _, Button, Card, Reveal, eyebrow, heading, snapped, vacant};
 
 use crate::shared::cards;
 use crate::shared::track_card::{ContextHandler, StartHandler, TrackCard};
@@ -303,7 +303,11 @@ impl RenderOnce for Picks {
                             |this| {
                                 this.children((0..shape.columns).map(|column| {
                                     column_shell(column, theme.border, liquid).children(
-                                        (0..ROWS).map(|slot| skeleton(id, column * ROWS + slot)),
+                                        (0..ROWS).map(|slot| {
+                                            let place = column * ROWS + slot;
+                                            ui::reveal::waiting(&reveal_id(id, place), cx);
+                                            skeleton(id, place)
+                                        }),
                                     )
                                 }))
                             },
@@ -311,9 +315,10 @@ impl RenderOnce for Picks {
                                 this.children((0..shape.columns).map(|column| {
                                     column_shell(column, theme.border, liquid).children(
                                         (0..ROWS).map(|slot| {
-                                            let place = start + column * ROWS + slot;
+                                            let spot = column * ROWS + slot;
+                                            let place = start + spot;
 
-                                            match &rows {
+                                            let shown = match &rows {
                                                 Rows::Tracks(tracks) if place < tracks.len() => {
                                                     TrackCard::new(
                                                         id,
@@ -346,7 +351,14 @@ impl RenderOnce for Picks {
                                                 }
 
                                                 _ => div().flex_none().h(row).into_any_element(),
-                                            }
+                                            };
+                                            Reveal::new(
+                                                reveal_id(id, spot),
+                                                Some(shown),
+                                                move |_, _| skeleton(id, spot).into_any_element(),
+                                            )
+                                            .order(column + slot)
+                                            .w_full()
                                         }),
                                     )
                                 }))
@@ -371,6 +383,12 @@ fn column_shell(column: usize, border: gpui::Hsla, liquid: bool) -> gpui::Div {
 
 fn skeleton(id: &'static str, place: usize) -> impl IntoElement {
     Card::skeleton((id, place))
+}
+
+/// Where the card at `place` among the shown ones is remembered as it crosses in from its
+/// skeleton.
+fn reveal_id(id: &'static str, place: usize) -> ElementId {
+    ElementId::NamedInteger(SharedString::from(format!("{id}-reveal")), place as u64)
 }
 
 #[cfg(test)]
