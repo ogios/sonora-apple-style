@@ -798,7 +798,7 @@ impl FullscreenView {
     /// The pill, the seek bar and the transport row. Below `Room::Roomy` the row spans the
     /// whole window, so the volume button steps one control in from the right edge to leave the
     /// corner to the leave button.
-    fn controls(&self, room: Room, cx: &mut Context<Self>) -> impl IntoElement {
+    fn controls(&self, room: Room, hide: f32, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = *cx.theme();
         let inline = self.panel.is_none() && !cornered(room, cx);
         let clear = match room.fits(Room::Roomy) {
@@ -833,6 +833,14 @@ impl FullscreenView {
                 ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
                     .px(theme.metrics.pad * 1.5)
                     .py(theme.metrics.pad)
+            })
+            // The controls blur as they leave on their own layer rather than on the dock's. A
+            // layer keeps room past its bounds only for the element's own shadow, so one taken
+            // on the shrinking dock clipped the panel's drop shadow top and bottom, and the
+            // panel's lower edge with it, until the blur let go and the shadow popped back.
+            .map(|this| match DOCK_BLUR * hide {
+                blur if blur > DOCK_BLUR_LEAST && hide < 1. && shared::effects() => this.blur(blur),
+                _ => this,
             })
             .on_click(|_, _, cx| cx.stop_propagation())
             .when(inline, |this| this.child(self.pill(cx)))
@@ -888,10 +896,6 @@ impl FullscreenView {
             .when(hide > 0., |this| {
                 this.max_h(full * (1. - hide)).opacity(1. - hide)
             })
-            .map(|this| match DOCK_BLUR * hide {
-                blur if blur > DOCK_BLUR_LEAST && hide < 1. && shared::effects() => this.blur(blur),
-                _ => this,
-            })
             .when(hide < 1., |this| {
                 this.child(
                     div()
@@ -900,7 +904,7 @@ impl FullscreenView {
                         .flex_none()
                         .justify_center()
                         .top(px(SINK) * hide)
-                        .child(self.controls(room, cx)),
+                        .child(self.controls(room, hide, cx)),
                 )
             })
     }
