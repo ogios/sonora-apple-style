@@ -41,12 +41,12 @@ mod radio;
 mod rail;
 mod response_graph;
 mod response_sketch;
+pub mod reveal;
 mod scrollbar;
 mod scroller;
 mod scrubber;
 mod separator;
 mod shield;
-mod reveal;
 mod skeleton;
 mod spinner;
 mod switch;
@@ -131,6 +131,7 @@ pub use response_graph::{
     GraphEdit, ResponseAxes, ResponseGraph, ResponseGraphState, ResponseNode, ResponsePoint,
 };
 pub use response_sketch::ResponseSketch;
+pub use reveal::Reveal;
 pub use scrollbar::{
     Scrollbar, cancel_middle_scroll, quantize, release_middle_scroll, scrolled,
     update_middle_scroll,
@@ -139,7 +140,6 @@ pub use scroller::{Scroller, middle_scroll, perch_room, perched, return_to, retu
 pub use scrubber::{Scrubber, ScrubberState};
 pub use separator::Separator;
 pub use shield::Shield;
-pub use reveal::Reveal;
 pub use skeleton::{Initials, Skeleton};
 pub use spinner::{Spin, Spinner};
 pub use switch::Switch;
