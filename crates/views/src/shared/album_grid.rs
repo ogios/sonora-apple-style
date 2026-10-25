@@ -84,7 +84,11 @@ impl Revealing {
 
     /// Wraps `cards`, the grid's from its first place on, so each crosses in over its skeleton
     /// if one stood there, a row lower a little after the one above and so on across it.
-    fn wrap(self, cards: Vec<AnyElement>, layout: CardLayout) -> impl Iterator<Item = AnyElement> {
+    pub(crate) fn wrap(
+        self,
+        cards: Vec<AnyElement>,
+        layout: CardLayout,
+    ) -> impl Iterator<Item = AnyElement> {
         let columns = layout.columns.max(1);
         cards.into_iter().enumerate().map(move |(index, card)| {
             let place = self.first + index;

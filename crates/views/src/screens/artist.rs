@@ -22,7 +22,7 @@ use ui::{
 use crate::chrome::tools;
 use crate::chrome::{Toolbar, Tooled};
 use crate::shared::about::{AboutArtist, about_modal};
-use crate::shared::album_grid::CardGrid;
+use crate::shared::album_grid::{CardGrid, Revealing};
 use crate::shared::cards::{self, ReleaseFilter};
 use crate::shared::confirm::Confirm;
 use crate::shared::hero::{HeroMetaStrip, HeroPlayButton, PageHero};
@@ -33,6 +33,8 @@ use crate::shared::shelves::{Rail, RailSpec};
 use crate::shared::tracks::{PlaybackStatus, TrackSource, Tracks, drop_picked, playback_status};
 use crate::shared::trouble;
 
+/// The name the Releases grid's cards are remembered by as they cross in from skeletons.
+const RELEASE_REVEAL: &str = "artist-release";
 const SECTION: &str = "artist";
 const RELEASE_ROWS: usize = 2;
 const LISTED: usize = 5;
@@ -633,12 +635,13 @@ impl ArtistView {
                 .flex_col()
                 .gap(gap)
                 .children((0..RELEASE_ROWS).map(|row| {
-                    CardGrid::new(self.width).children((0..grid.columns).map(move |column| {
-                        let index = row * grid.columns + column;
-                        Card::skeleton(("artist-release-skeleton", index))
-                            .tile(grid.card)
-                            .into_any_element()
-                    }))
+                    CardGrid::new(self.width).children(
+                        Revealing::new(RELEASE_REVEAL, row * grid.columns).skeletons(
+                            grid.columns,
+                            grid.card,
+                            cx,
+                        ),
+                    )
                 }))
                 .into_any_element(),
             false => {
@@ -692,7 +695,10 @@ impl ArtistView {
                             )
                         });
 
-                        CardGrid::new(width).children(cards).into_any_element()
+                        CardGrid::new(width)
+                            .children(cards)
+                            .reveals(Revealing::new(RELEASE_REVEAL, start))
+                            .into_any_element()
                     })
                     .into_any_element()
             }

@@ -4,15 +4,17 @@ use gpui::{
 };
 use i18n::t;
 use state::{Playback, Profile};
-use ui::{ActiveTheme as _, Card, Scrollbar, Scroller, heading, vacant};
+use ui::{ActiveTheme as _, Scrollbar, Scroller, heading, vacant};
 
 use crate::chrome::Chrome;
-use crate::shared::album_grid::CardGrid;
+use crate::shared::album_grid::{CardGrid, Revealing};
 use crate::shared::cards;
 use crate::shared::cells;
 use crate::shared::hero::{HeroMetaStrip, PageHero};
 use crate::shared::trouble;
 
+/// The name the playlists' cards are remembered by as they cross in from skeletons.
+const PLAYLIST_REVEAL: &str = "user-playlist";
 const FALLBACK: &str = "icons/user.svg";
 const PENDING: usize = 6;
 const STEADY: Pixels = px(0.5);
@@ -87,13 +89,7 @@ impl UserView {
         let layout = CardGrid::layout(self.width);
 
         let cards = match loading {
-            true => (0..PENDING)
-                .map(|place| {
-                    Card::skeleton(("user-pending", place))
-                        .tile(layout.card)
-                        .into_any_element()
-                })
-                .collect(),
+            true => Revealing::new(PLAYLIST_REVEAL, 0).skeletons(PENDING, layout.card, cx),
             false => listed
                 .iter()
                 .enumerate()
@@ -104,6 +100,12 @@ impl UserView {
                         .into_any_element()
                 })
                 .collect::<Vec<_>>(),
+        };
+        let cards: Vec<AnyElement> = match loading {
+            true => cards,
+            false => Revealing::new(PLAYLIST_REVEAL, 0)
+                .wrap(cards, layout)
+                .collect(),
         };
         let empty = cards.is_empty();
 
