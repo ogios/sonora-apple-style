@@ -2051,6 +2051,23 @@ impl Aside {
             })
             .children(body);
 
+        // The words settle in over the space they waited in once they land, the way a
+        // skeleton hands over to its content everywhere else.
+        let reveal = gpui::ElementId::NamedInteger(
+            SharedString::from(format!("lyrics-reveal-{}", cx.entity_id())),
+            0,
+        );
+        if lines.is_none() && state == LyricsState::Loading {
+            ui::reveal::waiting(&reveal, cx);
+        }
+        let sheet = match lines.is_some() {
+            true => match ui::reveal::crossing(&reveal, 0, window, cx) {
+                Some(progress) => ui::reveal::arriving(sheet, progress),
+                None => sheet,
+            },
+            false => sheet,
+        };
+
         // A sheet only ever replaces another once, when every source has
         // answered, and that is the one change worth showing.
         match self.resolving && ui::motion::animates(cx) {
