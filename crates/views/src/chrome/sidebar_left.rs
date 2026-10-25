@@ -159,6 +159,8 @@ pub(crate) struct SidebarLeft {
     /// The glass lens that slides between navigation entries under Liquid Glass, the bounds of
     /// the lit entry and of the rows it is drawn among, and whether a render lit one.
     lens: ui::Lens,
+    /// The destination whose measured bounds last aimed the lens.
+    lens_at: Option<Destination>,
     lens_entry: ui::Mark,
     lens_frame: ui::Mark,
     lit: Cell<bool>,
@@ -212,6 +214,7 @@ impl SidebarLeft {
 
         Self {
             lens: ui::Lens::default(),
+            lens_at: None,
             lens_entry: ui::Mark::new(),
             lens_frame: ui::Mark::new(),
             lit: Cell::new(false),
@@ -249,6 +252,7 @@ impl SidebarLeft {
         if self.at == *current {
             return;
         }
+        self.lens_entry.clear();
         self.at = current.clone();
         let (library, local) = expanded(current);
         self.library_open |= library;
@@ -537,6 +541,16 @@ impl SidebarLeft {
             return rows;
         }
 
+        let current = self.trail.read(cx).current();
+        if ui::liquid(cx)
+            && pinned
+                .iter()
+                .chain(rest.iter())
+                .any(|pin| Destination::from(pin) == current)
+        {
+            self.lit.set(true);
+            self.lit_shown.set(self.pins_fold.openness());
+        }
         let held = pinned.len();
         let count = held + rest.len();
         let row = ui::snapped(cx.theme().metrics.list_row, window);
@@ -737,7 +751,7 @@ impl SidebarLeft {
             })
             .meta(caption(pin.kind.key(), marked, cx))
             .when(active, |card| match ui::liquid(cx) {
-                true => ui::liquid_pill(card, cx).rounded(ui::liquid_radius(cx)),
+                true => card,
                 false => card.bg(accent),
             })
             // Under Liquid Glass a pin hovers in the selected pin's own rounded shape, fainter.
@@ -783,6 +797,9 @@ impl SidebarLeft {
             .w_full()
             .min_w_0()
             .child(card)
+            .when(active && ui::liquid(cx), |this| {
+                this.child(ui::mark(&self.lens_entry))
+            })
             .when_some(edge, |this, edge| this.child(drop_marker(edge, cx)))
             .into_any_element()
     }
@@ -951,16 +968,22 @@ impl Render for SidebarLeft {
         self.lit.set(false);
         self.lit_shown.set(1.);
         let mut rows = self.navigation(window, cx);
-        // The lens follows whichever entry the navigation rows lit. Pins draw their own pill,
-        // since the deck builds them later than this.
+        rows.extend(self.pins(window, cx));
+        // Both sections aim the same lens; the virtualized pin records its bounds at layout.
         let lens = match ui::liquid(cx) && self.lit.get() {
             true => {
+                let ride = self.lens_at.as_ref() == Some(&current) && self.lens.resting();
                 self.lens.follow(&self.lens_entry, &self.lens_frame);
+                if self.lens_entry.get().is_some() && self.lens_frame.get().is_some() {
+                    self.lens_at = Some(current.clone());
+                }
                 // A fold opening or shutting carries the lit entry along with it; the lens
                 // rides with it rather than chasing it on its springs.
-                if self.library_fold.folding()
-                    || self.local_fold.folding()
-                    || self.section_fold.folding()
+                if ride
+                    && (self.library_fold.folding()
+                        || self.local_fold.folding()
+                        || self.section_fold.folding()
+                        || self.pins_fold.folding())
                 {
                     self.lens.ride();
                 }
@@ -968,15 +991,19 @@ impl Render for SidebarLeft {
                 self.lens
                     .render(window, cx)
                     .filter(|_| shown > 0.)
-                    .map(|lens| lens.opacity(shown))
+                    .map(|mut lens| {
+                        let opacity = lens.style().opacity.unwrap_or(1.);
+                        lens.opacity(opacity * shown)
+                    })
             }
             false => {
                 self.lens.hide();
-                self.lens_entry.clear();
-                None
+                match ui::liquid(cx) {
+                    true => self.lens.render(window, cx),
+                    false => None,
+                }
             }
         };
-        rows.extend(self.pins(window, cx));
 
         let overlaid = self.overlays();
         // Under Liquid Glass the panel keeps its width and grip but paints nothing itself.

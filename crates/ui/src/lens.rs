@@ -5,7 +5,7 @@ use gpui::prelude::*;
 use gpui::{App, Bounds, Div, Pixels, Window, canvas, div, px};
 
 use crate::glass::{liquid_pill, liquid_radius};
-use crate::motion::{Springs, Sprung};
+use crate::motion::{HoverFade, Motion, Springs, Sprung};
 
 /// How close to its target, in pixels, an edge of the lens counts as arrived.
 const EPSILON: f32 = 0.25;
@@ -54,13 +54,16 @@ pub fn mark(mark: &Mark) -> impl IntoElement {
 ///
 /// Keep one per list in the view, `follow` the selected entry's `Mark` and the list's own,
 /// and draw what `render` returns as the list's first child, under the entries. It redraws
-/// only while an edge is moving.
+/// only while its edges or visibility are changing.
 pub struct Lens {
     left: Sprung,
     top: Sprung,
     right: Sprung,
     bottom: Sprung,
     shown: bool,
+    /// Visibility fades independently of geometry, retaining the last position while hidden.
+    visible: bool,
+    visibility: HoverFade,
     corner: Corner,
 }
 
@@ -86,6 +89,8 @@ impl Default for Lens {
             right: edge(),
             bottom: edge(),
             shown: false,
+            visible: false,
+            visibility: HoverFade::new(Motion::Base.span()),
             corner: Corner::default(),
         }
     }
@@ -107,6 +112,8 @@ impl Lens {
     /// Sends the lens to `target`, given relative to the element it is drawn in. The first
     /// placement lands at once; every later one stretches and slides.
     pub fn aim(&mut self, target: Bounds<Pixels>) {
+        self.visible = true;
+        self.visibility.set(true);
         let [left, top, right, bottom] =
             [target.left(), target.top(), target.right(), target.bottom()]
                 .map(|edge| edge / px(1.));
@@ -146,20 +153,31 @@ impl Lens {
         }
     }
 
+    /// Whether the selection has reached its target, before a layout change carries it along.
+    pub fn resting(&self) -> bool {
+        self.left.resting() && self.top.resting() && self.right.resting() && self.bottom.resting()
+    }
+
     /// Sets the corners the lens is drawn with.
     pub fn corner(&mut self, corner: Corner) {
         self.corner = corner;
     }
 
+    /// Fades the lens away while keeping its geometry for a continuous return.
     pub fn hide(&mut self) {
-        self.shown = false;
+        self.visible = false;
+        self.visibility.set(false);
     }
 
     /// The lens as it stands this frame, placed absolutely in its parent, or nothing while
     /// hidden. Its corners stay as round as a capsule of the entry's height allows, up to the
     /// panel radius, so a stretched lens reads as one drop of glass.
-    pub fn render(&mut self, window: &Window, cx: &App) -> Option<Div> {
+    pub fn render(&mut self, window: &mut Window, cx: &App) -> Option<Div> {
         if !self.shown {
+            return None;
+        }
+        let opacity = self.visibility.level(window, cx);
+        if opacity <= 0. && !self.visible {
             return None;
         }
         let left = self.left.value(window, cx);
@@ -183,7 +201,8 @@ impl Lens {
                     .h(height),
                 cx,
             )
-            .rounded(radius),
+            .rounded(radius)
+            .opacity(opacity),
         )
     }
 }

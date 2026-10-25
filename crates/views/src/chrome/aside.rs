@@ -25,6 +25,8 @@ use ui::{
     fade_line, faint, mix, prefetch, snapped, text_width, vacant,
 };
 
+use ui::motion::HoverFade;
+
 use crate::chrome::{Chrome, section_label};
 use crate::shared::effects;
 use crate::shared::menus::ItemMenu;
@@ -315,7 +317,7 @@ impl Sections {
 
 /// A place in the sheet the pointer can be over: a verse, or the melody break
 /// above it. They share a line index, so they need telling apart.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Warm {
     Verse(usize),
     Break(usize),
@@ -326,8 +328,6 @@ enum Warm {
 struct Touch {
     warmth: f32,
     depth: f32,
-    waking: bool,
-    settling: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -452,11 +452,9 @@ pub(crate) struct Aside {
     titled: bool,
     aiming: bool,
     rested: Option<Pixels>,
-    since: std::time::Instant,
     over: Option<Warm>,
-    hovered: Option<Warm>,
-    fading: Option<Warm>,
-    linger: Option<Task<()>>,
+    /// Each touched row owns its reversible fade, so moving to another row preserves both.
+    warmth: HashMap<Warm, HoverFade>,
     previous_active_line: Option<usize>,
     departing_line: Option<usize>,
     departed: std::time::Instant,
@@ -557,11 +555,8 @@ impl Aside {
             titled: true,
             aiming: false,
             rested: None,
-            since: std::time::Instant::now(),
             over: None,
-            hovered: None,
-            fading: None,
-            linger: None,
+            warmth: HashMap::new(),
             previous_active_line: None,
             departing_line: None,
             departed: std::time::Instant::now(),
@@ -639,29 +634,28 @@ impl Aside {
         ease_in_out(progress)
     }
 
-    fn touch(&self, spot: Warm, sharpen: f32, sink: f32) -> Touch {
-        let waking = self.hovered == Some(spot);
-        let settling = self.fading == Some(spot);
+    /// Samples a row's own hover fade and releases it once the pointer's warmth has gone.
+    fn touch(&mut self, spot: Warm, sink: f32, window: &mut Window, cx: &App) -> Touch {
+        let warmth = self
+            .warmth
+            .get_mut(&spot)
+            .map_or(0., |fade| fade.level(window, cx));
+        if warmth <= 0. && self.over != Some(spot) {
+            self.warmth.remove(&spot);
+        }
         Touch {
-            warmth: match (waking, settling) {
-                (true, _) => sharpen,
-                (_, true) => 1. - sharpen,
-                _ => 0.,
-            },
+            warmth,
             depth: match (self.held == Some(spot), self.rising == Some(spot)) {
                 (true, _) => sink,
                 (_, true) => 1. - sink,
                 _ => 0.,
             },
-            waking,
-            settling,
         }
     }
 
-    /// Whether the pointer has anything to do with a spot, over it, warming it, holding it or letting
-    /// it go. Such a row keeps its listeners, so it hears the pointer leave.
+    /// Touched rows keep their listeners while their hover or press transitions settle.
     fn handled(&self, spot: Warm) -> bool {
-        [self.over, self.hovered, self.fading, self.held, self.rising].contains(&Some(spot))
+        [self.over, self.held, self.rising].contains(&Some(spot)) || self.warmth.contains_key(&spot)
     }
 
     fn press_verse(&mut self, spot: Warm, down: bool, cx: &mut Context<Self>) {
@@ -727,16 +721,9 @@ impl Aside {
         }));
     }
 
-    fn sharpen_progress(&self, window: &mut Window) -> f32 {
-        let span = Motion::Quick.span().as_secs_f32().max(f32::EPSILON);
-        let progress = (self.since.elapsed().as_secs_f32() / span).clamp(0., 1.);
-        if progress < 1. {
-            window.request_animation_frame();
-        }
-        ease_in_out(progress)
-    }
-
     fn forget_verse(&mut self) {
+        self.warmth.clear();
+        self.over = None;
         self.flying = false;
         self.pinning = None;
         self.previous_active_line = None;
@@ -814,46 +801,22 @@ impl Aside {
         Some(px(state.position))
     }
 
+    /// Retargets hover fades immediately, preserving progress during quick pointer reversals.
     fn set_hovered(&mut self, spot: Warm, over: bool, cx: &mut Context<Self>) {
-        if !over {
-            if self.over == Some(spot) {
-                self.over = None;
+        if over {
+            if let Some(previous) = self.over.replace(spot).filter(|previous| *previous != spot)
+                && let Some(fade) = self.warmth.get_mut(&previous)
+            {
+                fade.set(false);
             }
-            if self.hovered == Some(spot) {
-                self.hovered = None;
-                self.fading = Some(spot);
-                self.since = std::time::Instant::now();
-                self.linger = Some(cx.spawn(async move |this, cx| {
-                    cx.background_executor().timer(Motion::Quick.span()).await;
-                    this.update(cx, |this, cx| {
-                        if this.fading != Some(spot) {
-                            return;
-                        }
-                        this.fading = None;
-                        cx.notify();
-                    })
-                    .ok();
-                }));
-                cx.notify();
-            }
-            return;
+        } else if self.over == Some(spot) {
+            self.over = None;
         }
-
-        self.over = Some(spot);
-        if self.hovered == Some(spot) {
-            return;
-        }
-        self.fading = None;
-        self.linger = Some(cx.spawn(async move |this, cx| {
-            this.update(cx, |this, cx| {
-                if this.over != Some(spot) {
-                    return;
-                }
-                this.hovered = Some(spot);
-                cx.notify();
-            })
-            .ok();
-        }));
+        self.warmth
+            .entry(spot)
+            .or_insert_with(|| HoverFade::new(Motion::Base.span()))
+            .set(over);
+        cx.notify();
     }
 
     fn enqueue(&mut self, pin: &Pin, gap: Option<usize>, cx: &mut Context<Self>) {
@@ -890,8 +853,8 @@ impl Aside {
         position: QueuePosition,
         queue_revision: u64,
         look: RowLook,
-        window: &Window,
-        cx: &Context<Self>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
     ) -> gpui::Stateful<gpui::Div> {
         let RowLook {
             playing,
@@ -1092,14 +1055,22 @@ impl Aside {
                 .children(number.map(|number| number.to_string()))
         });
 
+        let glow = liquid
+            .then(|| ui::Glow::new(("queue-track-container", index).into(), window, cx))
+            .flatten();
+        let resting = lifted.then(|| theme.foreground.opacity(CURRENT_FILL));
+        let fill = glow
+            .as_ref()
+            .and_then(|glow| glow.fill(resting, theme.table_hover))
+            .or(resting);
         div()
             .id(("queue-track-container", index))
             .when(liquid, |this| this.rounded(ui::liquid_radius(cx)))
-            .map(|this| match (lifted, liquid) {
-                (true, _) => this.bg(theme.foreground.opacity(CURRENT_FILL)),
-                (false, true) => this.hover(move |style| style.bg(theme.table_hover)),
-                (false, false) => this,
+            .when_some(fill, |this, fill| this.bg(fill))
+            .when(liquid && glow.is_none(), |this| {
+                this.hover(move |style| style.bg(theme.table_hover))
             })
+            .when_some(glow, |this, glow| glow.attach(this))
             .relative()
             .min_w_0()
             .when(liquid, |this| {
@@ -1625,7 +1596,6 @@ impl Aside {
                 let instrumental_line = active_instrumental(lines, position);
                 let hazing = effects() && self.settings.read(cx).blur_lyrics() && self.pinned;
                 let blur = verse * BLUR;
-                let sharpen = self.sharpen_progress(window);
                 // with motion turned down a press is simply on or off
                 let sink = match animations {
                     true => self.sink_progress(window),
@@ -1649,16 +1619,12 @@ impl Aside {
                     };
                     let instrumental_has_passed = position >= line.start;
 
-                    let verse_touch = self.touch(Warm::Verse(index), sharpen, sink);
-                    let notes_touch = self.touch(Warm::Break(index), sharpen, sink);
+                    let verse_touch = self.touch(Warm::Verse(index), sink, window, cx);
+                    let notes_touch = self.touch(Warm::Break(index), sink, window, cx);
                     let warmth = verse_touch.warmth;
                     let depth = verse_touch.depth;
                     // whatever the pointer rests on comes back into focus
-                    let clearing = |touch: Touch, depth: f32| match (touch.waking, touch.settling) {
-                        (true, _) => depth * (1. - sharpen),
-                        (false, true) => depth * sharpen,
-                        (false, false) => depth,
-                    };
+                    let clearing = |touch: Touch, depth: f32| depth * (1. - touch.warmth);
                     let haze = |depth: f32| clearing(verse_touch, depth);
                     if has_instrumental {
                         let notes_row = rendered.len();

@@ -362,7 +362,10 @@ impl RenderOnce for Card {
             .interactivity()
             .element_id
             .clone()
-            .filter(|_| animates(cx) && (play.is_some() || tile.is_some() || hovered.is_some()))
+            .filter(|_| {
+                animates(cx)
+                    && (play.is_some() || tile.is_some() || hovered.is_some() || action.is_some())
+            })
             .map(|id| {
                 window.use_keyed_state((id, "card-hover"), cx, |_, _| {
                     HoverFade::new(Motion::Base.span())
@@ -669,8 +672,14 @@ impl RenderOnce for Card {
                             .flex()
                             .items_center()
                     })
-                    .invisible()
-                    .group_hover(CARD_GROUP, |style| style.visible())
+                    .when(animated, |this| {
+                        this.opacity(css_ease(arrival))
+                            .when(arrival <= 0., |this| this.invisible())
+                    })
+                    .when(!animated, |this| {
+                        this.invisible()
+                            .group_hover(CARD_GROUP, |style| style.visible())
+                    })
                     .child(action)
             }));
 

@@ -106,6 +106,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Sidebar navigation and pinned playlists share one moving selection that fades when leaving
+  the sidebar. Queue and lyrics hover highlights, along with row actions, ease in and out.
+
 - The fullscreen visualizer stops requesting frames after playback pauses or fullscreen closes.
   Profile pages build only visible playlist rows, and profile and song pages avoid refreshes
   caused solely by playback progress.
