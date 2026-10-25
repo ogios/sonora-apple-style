@@ -28,7 +28,7 @@ use ui::{
     Toggle, Vacancy, Viewport, heading, quantize, runtime, scrolled, snapped, table,
 };
 
-use crate::shared::album_grid::{AlbumGrid, CardGrid};
+use crate::shared::album_grid::{AlbumGrid, CardGrid, Revealing};
 use crate::shared::hero::{HeroMetaStrip, HeroPlayButton, PageHero};
 use crate::shared::pins::Pinned as _;
 use crate::shared::tracks::{
@@ -52,7 +52,7 @@ impl From<LibraryTab> for Section {
 
 /// One page of a shelf. Songs lists the favorites on a `Shape::Saved` shelf and every song on a
 /// `Shape::Catalog` one; the other three follow the same rule for their kind.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Section {
     Songs,
     Albums,
@@ -864,6 +864,12 @@ impl LibraryView {
             && self.table(self.section).row_count(cx) == 0
     }
 
+    /// The name the shown section's cards are remembered by as they cross in from their
+    /// skeletons.
+    fn reveal_key(&self) -> SharedString {
+        SharedString::from(format!("library-card-{:?}-{:?}", self.shelf, self.section))
+    }
+
     /// Skeleton cards laid out like the deck that will replace them, enough rows to fill the
     /// window. Artists get round ones, like their cards.
     fn pending_cards(&self, window: &Window, cx: &App) -> AnyElement {
@@ -891,12 +897,9 @@ impl LibraryView {
                 .px(inset)
                 .gap(gap)
                 .children((0..rows).map(|row| {
-                    CardGrid::new(room).children((0..layout.columns).map(move |column| {
-                        Card::skeleton(("library-pending", row * layout.columns + column))
-                            .tile(layout.card)
-                            .when(circle, Card::circle)
-                            .into_any_element()
-                    }))
+                    let reveal =
+                        Revealing::new(self.reveal_key(), row * layout.columns).circle(circle);
+                    CardGrid::new(room).children(reveal.skeletons(layout.columns, layout.card, cx))
                 })),
         )
         .into_any_element()
@@ -1007,24 +1010,33 @@ impl LibraryView {
                                 .into_any_element()
                         }
                         DeckRow::Cards(cards) => {
+                            let reveal = Revealing::new(
+                                view.reveal_key(),
+                                cards.first().map_or(0, |&(display, _)| display),
+                            )
+                            .circle(section == Section::Artists);
                             let row = match section {
                                 Section::Songs => CardGrid::new(room)
                                     .children(cards.iter().filter_map(|&(display, row)| {
                                         view.track_card(display, row, card, cx)
                                     }))
+                                    .reveals(reveal)
                                     .into_any_element(),
-                                Section::Albums => {
-                                    view.album_grid(cards, room, cx).into_any_element()
-                                }
+                                Section::Albums => view
+                                    .album_grid(cards, room, cx)
+                                    .reveals(reveal)
+                                    .into_any_element(),
                                 Section::Playlists => CardGrid::new(room)
                                     .children(cards.iter().filter_map(|&(display, row)| {
                                         view.playlist_card(display, row, card, cx)
                                     }))
+                                    .reveals(reveal)
                                     .into_any_element(),
                                 Section::Artists => CardGrid::new(room)
                                     .children(cards.iter().filter_map(|&(display, row)| {
                                         view.artist_card(display, row, card, cx)
                                     }))
+                                    .reveals(reveal)
                                     .into_any_element(),
                             };
 
