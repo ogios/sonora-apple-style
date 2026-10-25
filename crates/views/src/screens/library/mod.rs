@@ -12,8 +12,8 @@ use crate::shared::playlist_editor::{Edit, PlaylistEditor};
 
 use gpui::prelude::*;
 use gpui::{
-    AnyElement, App, Context, Entity, FontWeight, MouseButton, Pixels, Point, Render, ScrollHandle,
-    SharedString, WeakEntity, Window, div, point, px, relative,
+    AnyElement, App, Context, ElementId, Entity, FontWeight, MouseButton, Pixels, Point, Render,
+    ScrollHandle, SharedString, WeakEntity, Window, div, point, px, relative,
 };
 use i18n::t;
 use music::{Shape, Track};
@@ -62,6 +62,9 @@ pub enum Section {
 
 const PINNED: [&str; 3] = ["cover", "title", "name"];
 const RECENT: Sort = Sort::Descending;
+/// The most skeleton cards below the last filled row looked up as they fade, more than a
+/// window holds.
+const LEAVING_MAX: usize = 256;
 
 #[derive(Clone)]
 enum LibraryMenu {
@@ -905,6 +908,57 @@ impl LibraryView {
         .into_any_element()
     }
 
+    /// The skeleton cards in rows below the last the section filled, fading out where they
+    /// stood once fewer cards came than the skeletons guessed. The last filled row fades its
+    /// own leftovers.
+    fn leaving_cards(&self, window: &mut Window, cx: &App) -> Option<AnyElement> {
+        let inset = cx.theme().metrics.inset;
+        let room = cells::content_width(window, page::reserved(inset), cx);
+        let layout = CardGrid::layout(room);
+        let columns = layout.columns.max(1);
+        let gap = deck_gap(window);
+        let tile = Card::tile_height(layout.card, window, cx);
+        let filled = self.table(self.section).row_count(cx).div_ceil(columns);
+        let start = filled * columns;
+        let key = self.reveal_key();
+        let leavers = ui::reveal::leavers(
+            (start..start + LEAVING_MAX)
+                .map(|place| ElementId::NamedInteger(key.clone(), place as u64)),
+            window,
+            cx,
+        );
+        if leavers.is_empty() {
+            return None;
+        }
+        let circle = self.section == Section::Artists;
+
+        Some(
+            div()
+                .absolute()
+                .top(inset + (tile + gap) * filled as f32)
+                .left_0()
+                .right_0()
+                .px(inset)
+                .flex()
+                .flex_col()
+                .gap(gap)
+                .children(leavers.chunks(columns).map(|row| {
+                    CardGrid::new(room).children(row.iter().map(|(id, shows)| {
+                        div()
+                            .flex_none()
+                            .opacity(*shows)
+                            .child(
+                                Card::skeleton(id.clone())
+                                    .tile(layout.card)
+                                    .when(circle, Card::circle),
+                            )
+                            .into_any_element()
+                    }))
+                }))
+                .into_any_element(),
+        )
+    }
+
     fn cards(&mut self, window: &Window, cx: &App) -> AnyElement {
         let theme = *cx.theme();
         let inset = theme.metrics.inset;
@@ -1222,7 +1276,12 @@ impl Render for LibraryView {
             (_, Mode::Grid) if note.is_none() && self.waiting(cx) => self.pending_cards(window, cx),
             (_, Mode::Grid) => match note {
                 Some(note) => note.size_full().into_any_element(),
-                None => self.cards(window, cx),
+                None => div()
+                    .relative()
+                    .size_full()
+                    .child(self.cards(window, cx))
+                    .children(self.leaving_cards(window, cx))
+                    .into_any_element(),
             },
         };
 
