@@ -3,9 +3,9 @@ use std::rc::Rc;
 
 use gpui::prelude::*;
 use gpui::{
-    AnyElement, App, ClickEvent, Context, Entity, FocusHandle, Focusable, FontWeight, MouseButton,
-    MouseDownEvent, Pixels, Point, Render, ScrollHandle, SharedString, WeakEntity, Window, div, px,
-    svg,
+    AnyElement, App, ClickEvent, Context, ElementId, Entity, FocusHandle, Focusable, FontWeight,
+    MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollHandle, SharedString, WeakEntity,
+    Window, div, px, relative, svg,
 };
 use i18n::t;
 use input::SEARCH_CONTEXT;
@@ -20,9 +20,9 @@ use state::{
 };
 use ui::ActiveTheme as _;
 use ui::{
-    Activate, Button, Card, Deck, Deselect, Pinnable, Popup, Room, Scrollbar, Scroller, SelectLeft,
-    SelectNext, SelectPrevious, SelectRight, Separator, TabBar, Text, Theme, VAST, clock, eyebrow,
-    scrolled, snapped, tabular, vacant,
+    Activate, Button, Card, Deck, Deselect, Pinnable, Popup, Reveal, Room, Scrollbar, Scroller,
+    SelectLeft, SelectNext, SelectPrevious, SelectRight, Separator, Skeleton, TabBar, Text, Theme,
+    VAST, clock, eyebrow, scrolled, snapped, tabular, vacant,
 };
 
 use crate::shared::cards;
@@ -922,6 +922,28 @@ impl SearchView {
             _ => ("search-all", &self.mixed),
         };
         let seats = self.seats(only, cx);
+        let row = snapped(hit_height(cx), window);
+        // While the first answer is on its way the results stand as skeleton rows, which the
+        // hits cross in over as they land.
+        if seats.is_empty() && self.search.read(cx).is_loading() {
+            let theme = *cx.theme();
+            let shown = (window.viewport_size().height / row).ceil().clamp(1., 12.) as usize;
+            let skeletons = (0..shown).map(|index| {
+                ui::reveal::waiting(&hit_reveal(id, index), cx);
+                hit_skeleton(row, index, cx)
+            });
+            return div()
+                .flex_1()
+                .min_h_0()
+                .px(gutter)
+                .pb(theme.metrics.inset)
+                .flex()
+                .flex_col()
+                .gap_1()
+                .children(lead)
+                .child(div().flex().flex_col().gap(hit_gap(cx)).children(skeletons))
+                .into_any_element();
+        }
         if seats.is_empty() {
             let empty = vacant(t!("search-no-matches"), cx).flex_none();
             return match lead {
@@ -943,7 +965,6 @@ impl SearchView {
             false => column_of(only),
         };
         let theme = *cx.theme();
-        let row = snapped(hit_height(cx), window);
         let scroll = bar.read(cx).scroll().clone();
         let me = cx.entity().downgrade();
         let measured = self.lead.clone();
@@ -969,14 +990,20 @@ impl SearchView {
                     return div().into_any_element();
                 };
 
-                this.row(
+                let shown = this.row(
                     hit,
                     place,
                     compact,
                     this.cursor == Some((column, index)),
                     &view.downgrade(),
                     cx,
-                )
+                );
+                Reveal::new(hit_reveal(id, index), Some(shown), move |_, cx| {
+                    hit_skeleton(row, index, cx)
+                })
+                .order(index)
+                .w_full()
+                .into_any_element()
             });
 
         div()
@@ -991,6 +1018,43 @@ impl SearchView {
             )
             .into_any_element()
     }
+}
+
+/// Where the hit at `index` in the list `id` is remembered as it crosses in from its skeleton.
+fn hit_reveal(id: &str, index: usize) -> ElementId {
+    ElementId::NamedInteger(SharedString::from(format!("{id}-reveal")), index as u64)
+}
+
+/// The row that stands in for a hit while the search is on its way: a cover and two lines.
+fn hit_skeleton(row: Pixels, index: usize, cx: &App) -> AnyElement {
+    let theme = cx.theme();
+    let art = theme.metrics.thumb;
+    let reach = [0.62, 0.48, 0.7, 0.55];
+    div()
+        .flex()
+        .items_center()
+        .gap_3()
+        .h(row)
+        .w_full()
+        .child(Skeleton::new().flex_none().size(art))
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .flex_1()
+                .gap_2()
+                .child(
+                    Skeleton::new()
+                        .w(relative(reach[index % reach.len()]))
+                        .h(theme.metrics.pad),
+                )
+                .child(
+                    Skeleton::new()
+                        .w(relative(reach[(index + 2) % reach.len()] * 0.6))
+                        .h(theme.metrics.pad * 0.8),
+                ),
+        )
+        .into_any_element()
 }
 
 fn stacked(window: &Window, cx: &App) -> bool {
