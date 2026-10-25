@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::prelude::*;
 use gpui::{
     AnyElement, App, Div, ElementId, Entity, FontWeight, MouseButton, MouseDownEvent, Pixels,
-    SharedString, Window, div, linear_color_stop, linear_gradient, px, relative,
+    SharedString, Stateful, Window, div, linear_color_stop, linear_gradient, px, relative,
 };
 use i18n::t;
 use music::{Album, Track};
@@ -482,47 +482,82 @@ impl PageHero {
 
 impl RenderOnce for PageHero {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let theme = *cx.theme();
+        // The hero is remembered by its id as it crosses in from its skeleton, and always
+        // stands in the same holder, so the crossing never moves the page under it.
+        let reveal =
+            ElementId::NamedInteger(SharedString::from(format!("hero-reveal-{}", self.id)), 0);
+        let holder = div().relative().flex_none();
+        if self.pending {
+            ui::reveal::waiting(&reveal, cx);
+            let eyebrow = self.eyebrow.map(|eyebrow| eyebrow_label(eyebrow, cx));
+            return holder.child(hero_skeleton(self.circle, eyebrow, cx).id(self.id));
+        }
+        let crossing = ui::reveal::crossing(&reveal, 0, window, cx);
+        let circle = self.circle;
+        holder
+            .child(
+                self.shown(window, cx)
+                    .when_some(crossing, ui::reveal::arriving),
+            )
+            .when_some(crossing, |this, progress| {
+                this.child(
+                    div()
+                        .absolute()
+                        .left_0()
+                        .right_0()
+                        .bottom_0()
+                        .opacity(ui::reveal::lingering(progress))
+                        .child(hero_skeleton(circle, None::<AnyElement>, cx)),
+                )
+            })
+    }
+}
 
+/// The cover, title, meta line and actions as skeletons, under `eyebrow` if there is one.
+fn hero_skeleton(circle: bool, eyebrow: Option<impl IntoElement>, cx: &App) -> Div {
+    let theme = cx.theme();
+    let art = theme.metrics.cover;
+    div()
+        .flex()
+        .flex_none()
+        .items_end()
+        .gap_5()
+        .pb_6()
+        .child(
+            Skeleton::new()
+                .flex_none()
+                .size(art)
+                .rounded(theme.radius * 1.5)
+                .when(circle, |skeleton| skeleton.rounded_full()),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .flex_1()
+                .min_w_0()
+                .h(art)
+                .justify_end()
+                .gap_3()
+                .line_height(relative(LEADING))
+                .children(eyebrow)
+                .child(
+                    Skeleton::new()
+                        .w(TITLE_SKELETON)
+                        .h(theme.text(Text::Display)),
+                )
+                .child(Skeleton::new().w(META_SKELETON).h(theme.metrics.pad))
+                .child(Skeleton::new().w(ACTION_SKELETON).h(theme.metrics.control)),
+        )
+}
+
+impl PageHero {
+    /// The hero with its cover, title, meta line and actions in place.
+    fn shown(self, window: &mut Window, cx: &mut App) -> Stateful<Div> {
+        let theme = *cx.theme();
         let art = theme.metrics.cover;
         let drag_start = self.drag_start.map(Rc::from);
         let starter = drag_start.clone();
-
-        if self.pending {
-            return div()
-                .id(self.id)
-                .flex()
-                .flex_none()
-                .items_end()
-                .gap_5()
-                .pb_6()
-                .child(
-                    Skeleton::new()
-                        .flex_none()
-                        .size(art)
-                        .rounded(theme.radius * 1.5)
-                        .when(self.circle, |skeleton| skeleton.rounded_full()),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .flex_1()
-                        .min_w_0()
-                        .h(art)
-                        .justify_end()
-                        .gap_3()
-                        .line_height(relative(LEADING))
-                        .children(self.eyebrow.map(|eyebrow| eyebrow_label(eyebrow, cx)))
-                        .child(
-                            Skeleton::new()
-                                .w(TITLE_SKELETON)
-                                .h(theme.text(Text::Display)),
-                        )
-                        .child(Skeleton::new().w(META_SKELETON).h(theme.metrics.pad))
-                        .child(Skeleton::new().w(ACTION_SKELETON).h(theme.metrics.control)),
-                );
-        }
 
         // The wash takes the cover's lead colour once the artwork cache has read it.
         let liquid = ui::liquid(cx);
