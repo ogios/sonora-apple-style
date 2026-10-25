@@ -1,6 +1,7 @@
 use gpui::prelude::*;
 use gpui::{
-    App, BoxShadow, Div, Hsla, Pixels, Window, div, linear_color_stop, linear_gradient, px,
+    App, BoxShadow, Div, GlassMaterial, Hsla, Pixels, Window, div, linear_color_stop,
+    linear_gradient, px,
 };
 
 use crate::theme::ActiveTheme as _;
@@ -17,39 +18,53 @@ const POPOVER_FILL: f32 = 0.82;
 const BAR_FILL: f32 = 0.86;
 const BAR_BLUR: Pixels = px(18.);
 
-/// How much of the popover colour a Liquid Glass panel keeps over its blur, on a dark theme
-/// and a light one. Thinner than a bar, since the rim and the shading carry the edge and the
-/// colour under the panel is what makes it read as glass.
-const LIQUID_FILL_DARK: f32 = 0.42;
-const LIQUID_FILL_LIGHT: f32 = 0.5;
+/// A neutral light-scattering veil lifts glass above dark content without painting it black.
+/// Light themes use the popover colour; dark themes borrow the theme's light foreground.
+const LIQUID_FILL_DARK: f32 = 0.055;
+const LIQUID_FILL_LIGHT: f32 = 0.22;
 /// What a Liquid Glass panel keeps of the popover colour with the blur turned off, where
 /// nothing behind it is softened and the text needs the fill to stand on.
 const LIQUID_FLAT: f32 = 0.9;
-/// How hard a Liquid Glass panel blurs what passes under it.
-const LIQUID_BLUR: Pixels = px(28.);
+/// A light wash preserves the live detail that bends through the glass bevel.
+const LIQUID_BLUR: Pixels = px(7.);
+/// Bevel depth and displacement scale with the theme's spacing, so compact controls
+/// and enlarged UI retain the same material. Dispersion keeps the rim subtly prismatic.
+const LIQUID_REFRACTION: f32 = 5.;
+const LIQUID_BEVEL: f32 = 5.;
+/// Selection lenses bend foreground glyphs gently enough to preserve their shapes.
+const LENS_REFRACTION: f32 = 0.45;
+const LENS_BEVEL: f32 = 1.25;
+const LIQUID_HIGHLIGHT_DARK: f32 = 0.65;
+const LIQUID_HIGHLIGHT_LIGHT: f32 = 0.7;
+const LIQUID_DISPERSION: f32 = 0.018;
 /// How far the corners lean from a circle's arc toward a continuous, squircle-like curve.
 const LIQUID_SMOOTHING: f32 = 0.6;
 /// How many times the theme radius a floating panel is rounded by, so the Corners setting
 /// still scales it and Square keeps it square.
 const LIQUID_ROUNDING: f32 = 2.2;
-/// How much lighter the top of a panel's fill starts than its foot, the sheen a curved
-/// surface catches from above.
-const LIQUID_SHEEN: f32 = 0.06;
+/// Extra scattering near the upper shoulder of a rounded slab.
+const LIQUID_SHEEN: f32 = 0.035;
+/// Secondary labels on transmitted artwork need more contrast than muted labels on a page.
+const LIQUID_SECONDARY: f32 = 0.85;
+/// Temporary lenses need a visible rim even when there is no artwork beneath a button.
+const FEEDBACK_FILL: f32 = 0.1;
+const FEEDBACK_RIM: f32 = 0.42;
+const FEEDBACK_FOOT: f32 = 0.2;
 /// The white of the hairline rim around a panel, on a dark theme and a light one.
-const RIM_DARK: f32 = 0.18;
-const RIM_LIGHT: f32 = 0.7;
+const RIM_DARK: f32 = 0.08;
+const RIM_LIGHT: f32 = 0.32;
 /// The specular line just inside the top edge, and the shade just inside the foot, which
 /// together make a flat panel read as a slab with thickness.
-const SPECULAR_DARK: f32 = 0.3;
-const SPECULAR_LIGHT: f32 = 0.95;
-const UNDERSIDE_DARK: f32 = 0.35;
+const SPECULAR_DARK: f32 = 0.12;
+const SPECULAR_LIGHT: f32 = 0.45;
+const UNDERSIDE_DARK: f32 = 0.1;
 const UNDERSIDE_LIGHT: f32 = 0.08;
 /// The soft glow that fills a panel's inside edge, so the rim fades inward rather than
 /// stopping at the hairline.
 const GLOW: f32 = 0.05;
 const GLOW_BLUR: Pixels = px(10.);
 /// The drop shadow a floating panel casts on what is behind it.
-const DROP_DARK: f32 = 0.45;
+const DROP_DARK: f32 = 0.24;
 const DROP_LIGHT: f32 = 0.14;
 const DROP_OFFSET: Pixels = px(10.);
 const DROP_BLUR: Pixels = px(30.);
@@ -64,8 +79,8 @@ const SHEET_LIGHT: f32 = 1.;
 const SHEET_RIM_DARK: f32 = 0.08;
 const SHEET_RIM_LIGHT: f32 = 0.5;
 /// The fill of the glass pill that marks a selected entry, as a share of the foreground.
-const PILL_FILL: f32 = 0.12;
-const PILL_FOOT: f32 = 0.06;
+const PILL_FILL: f32 = 0.06;
+const PILL_FOOT: f32 = 0.025;
 /// The drop shadow under a pill, much closer than a panel's since it sits on the panel.
 const PILL_DROP: f32 = 0.18;
 const PILL_DROP_BLUR: Pixels = px(6.);
@@ -161,6 +176,14 @@ pub fn liquid(cx: &App) -> bool {
     cx.theme().liquid
 }
 
+/// Secondary text and icons on protected glass, with the usual muted colour outside glass.
+pub fn liquid_secondary(cx: &App) -> Hsla {
+    match liquid(cx) {
+        true => cx.theme().foreground.opacity(LIQUID_SECONDARY),
+        false => cx.theme().muted_foreground,
+    }
+}
+
 /// The corner radius of a floating Liquid Glass panel, a multiple of the theme radius.
 pub fn liquid_radius(cx: &App) -> Pixels {
     cx.theme().radius * LIQUID_ROUNDING
@@ -181,11 +204,11 @@ pub fn liquid_gap(cx: &App) -> Pixels {
 }
 
 /// Styles an element as a Liquid Glass panel: a thin tinted fill that lightens toward the top,
-/// a hard blur of what is behind it, a hairline rim, a specular line inside the top edge, a
-/// shade inside the foot, and a soft drop shadow. The fill is the popover colour, so it takes
-/// the adaptive theme's cover tint with everything else. The caller sets the radius, and the
-/// corners are smoothed toward a continuous curve. Refraction is not drawn: the renderer only
-/// blurs what is behind an element.
+/// a light blur of what is behind it, a hairline rim, a specular line inside the top edge, a
+/// shade inside the foot, and a soft drop shadow. A light scattering veil lifts the material
+/// above dark content while preserving the backdrop's colour. The caller sets the radius, and the
+/// corners are smoothed toward a continuous curve. The live background bends through the
+/// bevel with directional highlights and a faint chromatic separation at its edge.
 pub fn liquid_glass<E: Styled>(element: E, cx: &App) -> E {
     let drop = match cx.theme().background.l < 0.5 {
         true => DROP_DARK,
@@ -195,6 +218,7 @@ pub fn liquid_glass<E: Styled>(element: E, cx: &App) -> E {
         element,
         BoxShadow::new(Pixels::ZERO, DROP_OFFSET, gpui::black().opacity(drop))
             .blur_radius(DROP_BLUR),
+        LIQUID_BLUR,
         cx,
     )
 }
@@ -222,9 +246,8 @@ pub fn liquid_sheet<E: Styled>(element: E, cx: &App) -> E {
         ])
 }
 
-/// The Liquid Glass material at the size of a control: the same fill, blur, rim and shading
-/// as `liquid_glass`, with the close shadow of something resting on the surface rather than
-/// floating over it.
+/// Clear Liquid Glass at the size of a control: the panels' optical bevel, rim and shading,
+/// without background blur and with the close shadow of something resting on the surface.
 pub fn liquid_control<E: Styled>(element: E, cx: &App) -> E {
     material(
         element,
@@ -234,6 +257,7 @@ pub fn liquid_control<E: Styled>(element: E, cx: &App) -> E {
             gpui::black().opacity(PILL_DROP),
         )
         .blur_radius(PILL_DROP_BLUR),
+        Pixels::ZERO,
         cx,
     )
 }
@@ -250,7 +274,7 @@ pub fn liquid_pill<E: Styled>(element: E, cx: &App) -> E {
         false => (SPECULAR_LIGHT, RIM_LIGHT),
     };
 
-    element
+    liquid_lens(element, cx)
         .rounded_full()
         .corner_smoothing(LIQUID_SMOOTHING)
         .bg(linear_gradient(
@@ -268,6 +292,44 @@ pub fn liquid_pill<E: Styled>(element: E, cx: &App) -> E {
             )
             .blur_radius(PILL_DROP_BLUR),
             BoxShadow::new(Pixels::ZERO, EDGE, white.opacity(specular)).inset(),
+        ])
+}
+
+/// Refracts a clear Liquid Glass lens without blurring its background. The selected
+/// capsule and hover fills use this so text and artwork keep their detail as they bend.
+/// Disabling visual effects preserves the caller's plain style.
+pub fn liquid_lens<E: Styled>(element: E, cx: &App) -> E {
+    match liquid(cx) && blurring(cx) {
+        true => element.backdrop_glass(optics(cx, LENS_REFRACTION, LENS_BEVEL)),
+        false => element,
+    }
+}
+
+/// A temporary clear lens for a neutral button's hover or press. The inset reflection gives
+/// feedback even over a flat background, without changing layout or filtering its subtree.
+pub(crate) fn liquid_feedback<E: Styled>(element: E, level: f32, cx: &App) -> E {
+    let mut optical = optics(cx, LENS_REFRACTION * 2. * level, LENS_BEVEL);
+    optical.highlight *= level;
+    let element = match blurring(cx) {
+        true => element.backdrop_glass(optical),
+        false => element,
+    };
+    element
+        .corner_smoothing(LIQUID_SMOOTHING)
+        .bg(cx.theme().foreground.opacity(FEEDBACK_FILL * level))
+        .shadow(vec![
+            BoxShadow::new(
+                Pixels::ZERO,
+                EDGE,
+                gpui::white().opacity(FEEDBACK_RIM * level),
+            )
+            .inset(),
+            BoxShadow::new(
+                Pixels::ZERO,
+                -EDGE,
+                gpui::white().opacity(FEEDBACK_FOOT * level),
+            )
+            .inset(),
         ])
 }
 
@@ -363,27 +425,39 @@ pub fn liquid_field(window: &Window, cx: &App) -> Div {
 }
 
 /// The Liquid Glass material behind `liquid_glass` and `liquid_control`, casting `drop`.
-fn material<E: Styled>(element: E, drop: BoxShadow, cx: &App) -> E {
+fn material<E: Styled>(element: E, drop: BoxShadow, blur: Pixels, cx: &App) -> E {
     let theme = cx.theme();
     let dark = theme.background.l < 0.5;
     let pick = |on_dark: f32, on_light: f32| match dark {
         true => on_dark,
         false => on_light,
     };
+    let scattering = match dark {
+        true => theme.foreground,
+        false => theme.popover,
+    };
     let fill = match blurring(cx) {
-        true => theme
-            .popover
-            .opacity(pick(LIQUID_FILL_DARK, LIQUID_FILL_LIGHT)),
+        true => scattering.opacity(pick(LIQUID_FILL_DARK, LIQUID_FILL_LIGHT)),
         false => theme.popover.opacity(LIQUID_FLAT),
     };
-    let lit = Hsla {
-        l: (fill.l + LIQUID_SHEEN).min(1.),
-        ..fill
+    let lit = match blurring(cx) {
+        true => Hsla {
+            a: (fill.a + LIQUID_SHEEN).min(1.),
+            ..fill
+        },
+        false => fill,
     };
     let white = gpui::white();
     let black = gpui::black();
     let element = match blurring(cx) {
-        true => element.backdrop_blur(LIQUID_BLUR),
+        true => {
+            let mut optical = optics(cx, LIQUID_REFRACTION, LIQUID_BEVEL);
+            optical.contrast = match dark {
+                true => 1.,
+                false => -1.,
+            };
+            element.backdrop_blur(blur).backdrop_glass(optical)
+        }
         false => element,
     };
 
@@ -392,7 +466,7 @@ fn material<E: Styled>(element: E, drop: BoxShadow, cx: &App) -> E {
         .bg(linear_gradient(
             180.,
             linear_color_stop(lit, 0.),
-            linear_color_stop(fill, 0.55),
+            linear_color_stop(fill, 1.),
         ))
         .border_1()
         .border_color(white.opacity(pick(RIM_DARK, RIM_LIGHT)))
@@ -414,4 +488,20 @@ fn material<E: Styled>(element: E, drop: BoxShadow, cx: &App) -> E {
                 .blur_radius(GLOW_BLUR)
                 .inset(),
         ])
+}
+
+/// Shared optical proportions for panels, controls and clear selection lenses. The renderer
+/// clamps the bevel to the surface's height, so small controls stay curved edge to edge.
+fn optics(cx: &App, refraction: f32, bevel: f32) -> GlassMaterial {
+    let theme = cx.theme();
+    GlassMaterial {
+        refraction: theme.metrics.pad * refraction,
+        edge_width: theme.metrics.pad * bevel,
+        highlight: match theme.background.l < 0.5 {
+            true => LIQUID_HIGHLIGHT_DARK,
+            false => LIQUID_HIGHLIGHT_LIGHT,
+        },
+        dispersion: LIQUID_DISPERSION,
+        contrast: 0.,
+    }
 }

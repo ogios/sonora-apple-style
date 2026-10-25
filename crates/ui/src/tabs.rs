@@ -272,7 +272,7 @@ impl RenderOnce for TabBar {
         });
 
         // Under Liquid Glass the chosen tab wears no pill of its own: one glass lens slides
-        // under the row from tab to tab, stretching toward the new one as it goes.
+        // over the row from tab to tab, refracting the glyphs as it stretches toward the new one.
         let lens = (liquid && moving)
             .then(|| window.use_keyed_state((id.clone(), "lens"), cx, |_, _| TabLens::default()));
         let chosen = items.iter().any(Button::is_selected);
@@ -317,7 +317,6 @@ impl RenderOnce for TabBar {
                     })
             })
             .when_some(marks.clone(), |row, (_, frame)| row.child(mark(&frame)))
-            .children(drawn)
             .children(items.into_iter().map(|item| {
                 match (&marks, liquid, item.is_selected()) {
                     (Some((entry, _)), _, true) => div()
@@ -335,7 +334,8 @@ impl RenderOnce for TabBar {
                         .into_any_element(),
                     (_, false, _) => item.flex_shrink_0().rounded(radius).into_any_element(),
                 }
-            }));
+            }))
+            .children(drawn);
         // A glass bar has no flat fill to paint a fade with: a wash of its own thin fill hides
         // nothing. It fades the tabs themselves instead, and leaves the blur behind them whole.
         let row = match (glassy, rails.as_ref()) {

@@ -53,8 +53,8 @@ pub fn mark(mark: &Mark) -> impl IntoElement {
 /// where it is going, travels long, and settles with one soft wobble as the far edge lands.
 ///
 /// Keep one per list in the view, `follow` the selected entry's `Mark` and the list's own,
-/// and draw what `render` returns as the list's first child, under the entries. It redraws
-/// only while its edges or visibility are changing.
+/// and draw what `render` returns after the entries, so their glyphs pass through the lens.
+/// It redraws only while its edges or visibility are changing.
 pub struct Lens {
     left: Sprung,
     top: Sprung,

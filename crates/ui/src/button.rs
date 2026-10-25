@@ -9,7 +9,7 @@ use gpui::{
 };
 
 use crate::fade_line;
-use crate::glass::{blurring, frost, liquid, liquid_control, liquid_pill};
+use crate::glass::{blurring, frost, liquid, liquid_control, liquid_feedback, liquid_pill};
 use crate::glow::{Glow, Hover, hover_fill};
 use crate::metrics::Text;
 use crate::motion::{Motion, Springs, Sprung, animates, ease_out_cubic};
@@ -30,6 +30,8 @@ const PRESS_EPSILON: f32 = 0.0005;
 /// How small an icon shrinks to as it hands over to the next one, as play turns to pause.
 /// How far a slab of liquid glass brightens under the pointer.
 const SHEEN: f32 = 0.08;
+/// A held lens catches more light than a hovered one, without scaling away its backdrop.
+const PRESS_LIGHT: f32 = 1.5;
 
 const SWAP_SHRINK: f32 = 0.5;
 /// The edge of a button's icon.
@@ -227,7 +229,7 @@ impl Button {
     }
 
     /// Under Liquid Glass, leaves a frosted button a bare glyph rather than a slab of glass:
-    /// nothing at rest, and only the white hover tint, fading in and out, under the pointer.
+    /// nothing at rest, with a temporary glass lens under the pointer.
     pub fn bare(mut self) -> Self {
         self.bare = true;
         self
@@ -346,14 +348,14 @@ impl RenderOnce for Button {
             on_hover,
         } = self;
 
-        // Under Liquid Glass a clickable button gives a little while held and springs back.
-        // Glass that frosts what it covers is left still: the scale is a paint filter, and
-        // the renderer drops a backdrop blur inside one, so the slab would flash clear.
+        // Coloured buttons give a little while held and spring back. Neutral buttons use
+        // a glass lens instead: scaling opens a paint filter that drops their backdrop.
         let glassy = (frosted && !bare) || matches!(variant, Variant::Secondary);
         let pressable = liquid(cx)
             && !disabled
             && on_click.is_some()
             && !(glassy && blurring(cx))
+            && !matches!(variant, Variant::Ghost | Variant::Outline)
             && animates(cx);
         let press = match pressable {
             true => base.interactivity().element_id.clone().map(|id| {
@@ -467,6 +469,32 @@ impl RenderOnce for Button {
         let slab =
             liquid && !disabled && !bare && (frosted || matches!(variant, Variant::Secondary));
         let interactive = !disabled;
+        let feedback = liquid
+            && interactive
+            && !slab
+            && !selected
+            && !hoverless
+            && matches!(variant, Variant::Ghost | Variant::Outline);
+        let hovered = match feedback {
+            true => {
+                let mut style = liquid_feedback(StyleRefinement::default(), 1., cx);
+                if let Some(overrides) = hovered {
+                    style.refine(&overrides);
+                }
+                Some(style)
+            }
+            false => hovered,
+        };
+        let pressed = match feedback {
+            true => {
+                let mut style = liquid_feedback(StyleRefinement::default(), PRESS_LIGHT, cx);
+                if let Some(overrides) = pressed {
+                    style.refine(&overrides);
+                }
+                Some(style)
+            }
+            false => pressed,
+        };
         // The white hover tint follows `frosted` whatever the setting says, since it is
         // there for a button floating over artwork; only the blur itself is optional.
         // A bare glyph has no slab to frost behind, and its hover tint fades instead.
@@ -501,6 +529,7 @@ impl RenderOnce for Button {
         // A slab of liquid glass keeps its material under the pointer and brightens instead,
         // rather than trading the glass for a flat fill.
         let sheen = glow.as_ref().filter(|_| slab).map(Glow::level);
+        let mut optical_hover = None;
         let (hovered, glowing) = match (hoverless, &glow) {
             (true, _) => (None, None),
             (false, Some(_)) if slab => (
@@ -508,10 +537,15 @@ impl RenderOnce for Button {
                 None,
             ),
             (false, Some(glow)) => {
-                let (fill, rest) = match hovered {
+                let (fill, mut rest) = match hovered {
                     Some(style) => hover_fill(style),
                     None => (None, StyleRefinement::default()),
                 };
+                optical_hover = rest.backdrop_glass.take().map(|mut material| {
+                    material.refraction *= glow.level();
+                    material.highlight *= glow.level();
+                    material
+                });
                 let fill = fill.or(hover);
                 (
                     state_style(None, Some(rest), false),
@@ -520,7 +554,7 @@ impl RenderOnce for Button {
             }
             (false, None) => (state_style(hover, hovered, frosting), None),
         };
-        let pressed = state_style(active, pressed, frosting);
+        let pressed = state_style(active.filter(|_| !feedback), pressed, frosting);
         let overrides = std::mem::take(base.style());
         let view = window.current_view();
         // Under Liquid Glass a button showing only an icon is round, its icon centred, so the
@@ -558,6 +592,9 @@ impl RenderOnce for Button {
                 this.border_1().border_color(border)
             })
             .when(slab, |this| liquid_control(this, cx))
+            .when_some(optical_hover, |this, material| {
+                this.backdrop_glass(material)
+            })
             .when_some(sheen.filter(|level| *level > 0.), |this, level| {
                 this.relative().child(
                     div()
@@ -567,10 +604,13 @@ impl RenderOnce for Button {
                         .bg(gpui::white().opacity(SHEEN * level)),
                 )
             })
-            .when(selected && !backgroundless, |this| match liquid {
-                true => liquid_pill(this, cx),
-                false => this.bg(selected_background),
-            })
+            .when(
+                (selected || (liquid && indicator)) && !backgroundless,
+                |this| match liquid {
+                    true => liquid_pill(this, cx),
+                    false => this.bg(selected_background),
+                },
+            )
             .when(interactive, |this| this.cursor_pointer())
             .when_some(tooltip.filter(|_| interactive), |this, (key, perch)| {
                 this.tip(key, perch)

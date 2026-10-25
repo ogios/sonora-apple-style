@@ -69,7 +69,7 @@ pub(crate) fn like(track: Option<&music::Track>, playback: &Entity<Playback>, cx
         })
         .tint(match saved {
             true => theme.primary,
-            false => theme.muted_foreground,
+            false => ui::liquid_secondary(cx),
         })
         .disabled(id.is_none())
         .on_click(move |_, _, cx| {
@@ -187,7 +187,7 @@ fn shuffle(playback: &Entity<Playback>, frosted: bool, cx: &App) -> Button {
         .tooltip_above("player-shuffle")
         .tint(match on {
             true => theme.primary,
-            false => theme.muted_foreground,
+            false => ui::liquid_secondary(cx),
         })
         .on_click(move |_, _, cx| {
             playback.update(cx, |playback, cx| playback.toggle_shuffle(cx));
@@ -214,7 +214,7 @@ fn repeat(playback: &Entity<Playback>, frosted: bool, cx: &App) -> Button {
             Repeat::One => "player-repeat-one",
         })
         .tint(match repeat {
-            Repeat::Off => theme.muted_foreground,
+            Repeat::Off => ui::liquid_secondary(cx),
             _ => theme.primary,
         })
         .on_click(move |_, _, cx| {

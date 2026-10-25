@@ -1076,8 +1076,8 @@ impl Render for SidebarLeft {
                                     .pb(ui::perch_room(cx))
                                     .child(ui::mark(&self.lens_frame))
                                     .children(liquid.then(|| Drawn::new(search_field)))
-                                    .children(lens)
-                                    .children(rows),
+                                    .children(rows)
+                                    .children(lens),
                             ),
                     )
                     .children(
@@ -1256,8 +1256,8 @@ fn roomy(row: Button, cx: &App) -> Button {
         .text_size(theme.text(Text::Body))
         .typeset_inline(Type::LabelLarge, cx)
         .rounded(ui::lens_radius(height, cx))
-        .hover(move |style| style.bg(hover))
-        .active(move |style| style.bg(press))
+        .hover(|style| ui::liquid_lens(style.bg(hover), cx))
+        .active(|style| ui::liquid_lens(style.bg(press), cx))
 }
 
 #[cfg(test)]

@@ -242,3 +242,10 @@ opt-level = 3
 
 [profile.dev.package.rusty_aac]
 opt-level = 3
+
+# Local rendering extensions based on the same pinned GPUI revision.
+[patch."https://github.com/sonorahq/gpui"]
+gpui = { path = "third-party/gpui/crates/gpui" }
+gpui_wgpu = { path = "third-party/gpui/crates/gpui_wgpu" }
+gpui_apple = { path = "third-party/gpui/crates/gpui_apple" }
+gpui_windows = { path = "third-party/gpui/crates/gpui_windows" }

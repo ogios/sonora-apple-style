@@ -35,7 +35,7 @@ const PANEL_SLIDE: f32 = 48.;
 /// Under Liquid Glass the blurred cover behind fullscreen reaches this many times the window's
 /// longer side, is blurred this far, and is shaded this much so text stays legible over it.
 const BACKDROP_REACH: f32 = 1.2;
-const BACKDROP_BLUR: f32 = 80.;
+const BACKDROP_BLUR: f32 = 24.;
 const BACKDROP_SHADE: f32 = 0.35;
 /// How much of the blurred cover shows over the ambient field when that is on. The field's
 /// colours and drift read through the rest, so the ambient settings change what Liquid Glass

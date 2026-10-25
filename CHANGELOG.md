@@ -7,8 +7,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Liquid Glass uses a light scattering veil instead of a black tint, with wider curved-edge
+  refraction and directional reflections. The player bar has rounded capsule ends, softer
+  shadows and subtler borders, and shows the artwork scrolling beneath it.
+
 ### Added
 
+- Liquid Glass panels bend a clear view of the content at their curved edges, with directional
+  highlights and a lighter tint. Navigation and tab selections act as clear lenses over text
+  and icons, and fullscreen controls and side panels refract more of the cover behind them.
 - NetEase Cloud Music is a new provider. Sign in through music.163.com in a browser window, or
   paste your `MUSIC_U` cookie, to play your liked songs, playlists, saved albums and followed
   artists, and to search the catalogue. Songs your account cannot hear in full stay greyed out.
@@ -106,6 +115,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Player controls and secondary labels remain readable over bright artwork beneath Liquid Glass.
+  Neutral buttons show a glass lens on hover and press, and enabled playback toggles keep a glass pill.
+- Glass bevels bend the background through their curved surface and blend smoothly into the
+  frosted interior, without stretching artwork and text into a narrow strip.
 - Sidebar navigation and pinned playlists share one moving selection that fades when leaving
   the sidebar. Queue and lyrics hover highlights, along with row actions, ease in and out.
 

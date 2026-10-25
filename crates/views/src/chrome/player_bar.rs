@@ -41,6 +41,8 @@ const ROOMY_RISE: f32 = 7.5;
 /// How many times the theme's padding the Liquid Glass bar keeps above its seek bar and below
 /// its row of controls, so the track's capsule never sits on the bar's foot.
 const ROOMY_BREATH: f32 = 2.;
+/// A broad curved end makes the floating bar read as a lens at the theme's corner setting.
+const GLASS_BAR_ROUNDING: f32 = 3.;
 const CAPSULE_FILL: f32 = 0.06;
 const CAPSULE_RIM: f32 = 0.08;
 /// The least room kept after the track capsule's title, as a share of the capsule's corner
@@ -216,7 +218,7 @@ impl PlayerBar {
                         true => "player-unmute",
                         false => "player-mute",
                     })
-                    .tint(theme.muted_foreground)
+                    .tint(ui::liquid_secondary(cx))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         let wanted = match level <= 0.001 {
                             true => restore,
@@ -397,7 +399,7 @@ impl PlayerBar {
     /// moving the cover or transport with them.
     fn track_details(&self, centered: bool, cx: &mut Context<Self>) -> gpui::Div {
         let theme = cx.theme();
-        let muted = theme.muted_foreground;
+        let muted = ui::liquid_secondary(cx);
         let artists = theme.text(ui::Text::Small);
         let shown = self.playback.read(cx).shown_track(cx);
         let track = shown.as_ref();
@@ -615,7 +617,7 @@ impl PlayerBar {
 impl Render for PlayerBar {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = *cx.theme();
-        let muted = theme.muted_foreground;
+        let muted = ui::liquid_secondary(cx);
         let empty = muted.opacity(0.3);
         let span = Chrome::window_room(window);
         let layout = self.settings.read(cx).player_bar_layout();
@@ -711,8 +713,11 @@ impl Render for PlayerBar {
             })
             .when(stacked, |this| this.py_2())
             .map(|this| match liquid {
-                true => ui::liquid_glass(this.rounded(ui::liquid_radius(cx)), cx)
-                    .text_color(theme.popover_foreground),
+                true => ui::liquid_glass(
+                    this.rounded((ui::liquid_radius(cx) * GLASS_BAR_ROUNDING).min(height / 2.)),
+                    cx,
+                )
+                .text_color(theme.popover_foreground),
                 false => this
                     .when_some(radius, |this, radius| this.rounded_b(radius))
                     .when_else(
