@@ -59,8 +59,7 @@ const DOCK: f32 = 1.15;
 const DOCK_FULL: f32 = 1.7;
 const SINK: f32 = 24.;
 const LEAVE_DROP: f32 = 2.;
-/// The fullscreen view's bottom and side padding, which the cornered switcher measures from.
-const SWITCHER_BOTTOM: f32 = 24.;
+/// The fullscreen view's side padding, which the cornered switcher measures from.
 const SWITCHER_SIDE: f32 = 32.;
 const PILL_GAP: f32 = 2.;
 const SEEK_MAX: f32 = 420.;
@@ -144,8 +143,8 @@ pub struct FullscreenView {
     /// How tall the dock's controls stand at full size, measured as they are laid out, which
     /// the dock collapses from as it hides and grows back to as it shows.
     dock_high: Rc<Cell<Pixels>>,
-    /// The cornered switcher's measured width, which the controls keep clear of.
-    switcher_wide: Rc<Cell<Pixels>>,
+    /// The cornered switcher's measured size, which the controls keep clear of.
+    switcher_size: Rc<Cell<gpui::Size<Pixels>>>,
     /// Where the controls, the switcher and the leave button were drawn this frame.
     zones: Rc<Zones>,
     /// Where the pointer last was inside the view, at any distance it moved.
@@ -207,7 +206,7 @@ impl FullscreenView {
             root_bounds: Rc::new(Cell::new(Bounds::default())),
             meta_bounds: Rc::new(Cell::new(Bounds::default())),
             dock_high: Rc::new(Cell::new(Pixels::ZERO)),
-            switcher_wide: Rc::new(Cell::new(Pixels::ZERO)),
+            switcher_size: Rc::new(Cell::new(gpui::Size::default())),
             zones: Rc::new(Zones::default()),
             pointer: None,
         }
@@ -873,18 +872,10 @@ impl FullscreenView {
             false => cap,
         };
         let dock_high = self.dock_high.clone();
-        // With the switcher in the bottom left corner the controls keep its width clear on
-        // both sides, so they stay centred and only narrow where the window is too tight to
-        // hold them and the switcher side by side.
-        let reserve = match cornered(room, cx) {
-            true => self.switcher_reserve(cx),
-            false => Pixels::ZERO,
-        };
         div()
             .flex()
             .flex_none()
             .w_full()
-            .px(reserve)
             .justify_center()
             .items_start()
             .on_children_prepainted(move |bounds, _, _| {
@@ -1125,38 +1116,71 @@ impl FullscreenView {
             )
     }
 
-    /// The room the controls leave on each side for the cornered switcher: its width and a
-    /// padding either side of it. Before the switcher has been measured, its three tabs and
-    /// the bar around them stand in.
-    fn switcher_reserve(&self, cx: &App) -> Pixels {
-        let theme = cx.theme();
-        let measured = self.switcher_wide.get();
-        let wide = match measured > Pixels::ZERO {
+    /// The cornered switcher's size, its three tabs and the bar around them standing in
+    /// until it has been measured.
+    fn switcher_size(&self, cx: &App) -> gpui::Size<Pixels> {
+        let measured = self.switcher_size.get();
+        match measured.width > Pixels::ZERO {
             true => measured,
-            false => theme.metrics.control_small * LIQUID_BUTTON * 3. + px(PILL_GAP) * 4.,
-        };
-        wide + theme.metrics.pad * 2.
+            false => {
+                let side = cx.theme().metrics.control_small * LIQUID_BUTTON;
+                let rim = px(PILL_GAP) * 4.;
+                gpui::size(side * 3. + rim, side + rim)
+            }
+        }
     }
 
-    /// The cover, lyrics and queue switcher where a wide Liquid Glass view keeps it: tucked
-    /// into the bottom left corner, one padding in from the view's edge, mirroring the
-    /// fullscreen exit button in the bottom right. It stays outside the panel and the
-    /// controls, so it stays put whichever of them shows and only its selection lens moves
-    /// between the tabs. It rides the controls' visibility, sinking and fading with them.
-    fn cornered_switcher(&self, hide: f32, cx: &mut Context<Self>) -> impl IntoElement {
+    /// Where the middle of the bottom row stands above the window's edge: the row the leave
+    /// button sits on in the bottom right corner, and the cornered switcher in the bottom left.
+    fn bottom_row(window: &Window, cx: &App) -> Pixels {
+        snapped(cx.theme().metrics.player_bar, window) / 2. - px(LEAVE_DROP)
+    }
+
+    /// How far the page's content has to stand above the window's bottom edge to keep clear of
+    /// the cornered switcher, or `None` where the controls already miss it side to side. A
+    /// split view always lifts, since its controls stand under the cover in the left column
+    /// and would run into the switcher there; a full width one only when the window is too
+    /// narrow to hold the centred controls with the switcher beside them.
+    fn switcher_lift(&self, room: Room, split: bool, window: &Window, cx: &App) -> Option<Pixels> {
+        if !cornered(room, cx) {
+            return None;
+        }
+        let theme = cx.theme();
+        let switcher = self.switcher_size(cx);
+        let width = window.viewport_size().width;
+        let page = width - px(SWITCHER_SIDE) * 2.;
+        let controls = page.min(px(LIQUID_SEEK_MAX));
+        let controls_left = px(SWITCHER_SIDE) + (page - controls) / 2.;
+        let switcher_right = px(SWITCHER_SIDE) + theme.metrics.pad + switcher.width;
+        let clear = controls_left >= switcher_right + theme.metrics.pad;
+        (split || !clear)
+            .then(|| Self::bottom_row(window, cx) + switcher.height / 2. + theme.metrics.pad)
+    }
+
+    /// The cover, lyrics and queue switcher where a wide Liquid Glass view keeps it: in the
+    /// bottom left corner, one padding in from the view's edge, on one row with the fullscreen
+    /// exit button in the bottom right. It stays outside the panel and the controls, which
+    /// stand above that row wherever they would otherwise run into it, so it stays put
+    /// whichever of them shows and only its selection lens moves between the tabs. It rides
+    /// the controls' visibility, sinking and fading with them.
+    fn cornered_switcher(
+        &self,
+        hide: f32,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let theme = *cx.theme();
-        // The view's own bottom and side padding, then the panel's margin and padding, so
-        // its bottom lines up with the panel's inner edge.
-        let bottom = px(SWITCHER_BOTTOM) + theme.metrics.inset + theme.metrics.pad;
+        let switcher = self.switcher_size(cx);
+        let bottom = Self::bottom_row(window, cx) - switcher.height / 2.;
         let left = px(SWITCHER_SIDE) + theme.metrics.pad;
-        let switcher_wide = self.switcher_wide.clone();
+        let switcher_size = self.switcher_size.clone();
         div()
             .absolute()
             .bottom(bottom - px(SINK) * hide)
             .left(left)
             .on_children_prepainted(move |bounds, _, _| {
                 if let Some(bounds) = bounds.first() {
-                    switcher_wide.set(bounds.size.width);
+                    switcher_size.set(bounds.size);
                 }
             })
             .flex()
@@ -1342,7 +1366,11 @@ impl Render for FullscreenView {
                 .round()
         };
         let meta = line(Text::Title) + rem * META_GAP + line(Text::Body);
-        let stack = theme.metrics.title_bar + rem * (COLUMN_GAP * 2. + PAGE_PAD) + meta;
+        // A lifted page stands its content above the switcher's row rather than on its own
+        // bottom padding.
+        let raised = self.switcher_lift(room, split, window, cx);
+        let foot = raised.unwrap_or(rem * PAGE_PAD);
+        let stack = theme.metrics.title_bar + rem * COLUMN_GAP * 2. + foot + meta;
         // The dock reserves the cap it clamps itself to while fading, and nothing at all once
         // it is hidden, which is the whole difference between the awake and the resting fit.
         let dock = theme.metrics.player_bar
@@ -1426,7 +1454,10 @@ impl Render for FullscreenView {
             .w_full()
             .gap_5()
             .px_8()
-            .pb_6()
+            .map(|this| match raised {
+                Some(raised) => this.pb(raised),
+                None => this.pb_6(),
+            })
             .on_click(|event: &ClickEvent, window, cx| {
                 if event.click_count() == 2 {
                     window.dispatch_action(Box::new(ToggleWindowFullscreen), cx);
@@ -1567,7 +1598,7 @@ impl Render for FullscreenView {
                 this.child(self.dock(theme.metrics.player_bar * DOCK_FULL, hide, room, cx))
             })
             .when(shown && cornered, |this| {
-                this.child(self.cornered_switcher(hide, cx))
+                this.child(self.cornered_switcher(hide, window, cx))
             })
             .when(idle < 1., |this| this.child(self.leave(idle, window, cx)))
             .children(self.menu(cx))
