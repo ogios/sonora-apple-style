@@ -1,6 +1,7 @@
 use gpui::{AnyView, Context, Entity, MouseButton, NavigationDirection, Render, Task};
 use gpui::{App, Font, FontFallbacks, SharedString, StyleRefinement, font, prelude::*};
 use gpui::{Window, div};
+use i18n::Language;
 use input::{
     CloseWindow, MinimizeWindow, NavigateBack, NavigateForward, OpenFilter, OpenSearch,
     OpenSettings, Refresh, ToggleFullscreen, ToggleLyrics, ToggleQueue, ToggleWindowFullscreen,
@@ -740,16 +741,18 @@ impl Root {
         // Liquid Glass sets the default font in Pretendard, the face Cider uses, instead of
         // Inter. A font the user picked stays theirs either way.
         let liquid = ui::liquid(cx);
+        // The language picks the order of the Han faces, so it is part of the key too.
+        let language = i18n::language();
         let key = match liquid {
-            true => format!("{chosen}\u{1}liquid"),
-            false => chosen.to_owned(),
+            true => format!("{chosen}\u{1}liquid\u{1}{language:?}"),
+            false => format!("{chosen}\u{1}{language:?}"),
         };
         match &self.font {
             Some((name, font)) if *name == key => font.clone(),
             _ => {
                 let font = match liquid && chosen == SYSTEM_FONT {
                     true => Font {
-                        fallbacks: Some(scripts(true).clone()),
+                        fallbacks: Some(scripts(true)),
                         ..font(LIQUID_FONT)
                     },
                     false => ui_font(chosen),
@@ -931,22 +934,37 @@ const UI_FONT: &str = "Inter";
 /// The bundled face Liquid Glass sets the interface in, with Inter behind it.
 const LIQUID_FONT: &str = "Pretendard Std";
 
-const SCRIPTS: [&str; 18] = [
-    "Source Han Sans",
-    "Noto Sans CJK JP",
+/// Han characters are shared across Chinese, Japanese and Korean, but each locale draws many
+/// of them differently (关, 复, 制 and 门 among them), and a pan-CJK face picks the Japanese
+/// forms unless told otherwise. So the Han faces go in the order the interface language
+/// reads them: Simplified Chinese first, with PingFang SC where the system has it and the
+/// bundled Noto Sans SC subset everywhere else, and Japanese faces first only when the
+/// interface is in Japanese.
+const CHINESE: [&str; 5] = [
+    "PingFang SC",
+    "Noto Sans SC",
     "Noto Sans CJK SC",
+    "Source Han Sans SC",
+    "Microsoft YaHei UI",
+];
+const JAPANESE: [&str; 5] = [
+    "Hiragino Sans",
+    "Noto Sans CJK JP",
+    "Source Han Sans",
+    "Source Han Sans JP",
+    "Yu Gothic UI",
+];
+const OTHER_HAN: [&str; 4] = [
     "Noto Sans CJK TC",
     "Noto Sans CJK KR",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+];
+const SCRIPTS: [&str; 7] = [
     "Noto Sans Arabic",
     "Noto Sans Hebrew",
     "Noto Sans Thai",
     "Noto Sans Devanagari",
-    "Hiragino Sans",
-    "PingFang SC",
-    "Apple SD Gothic Neo",
-    "Yu Gothic UI",
-    "Microsoft YaHei UI",
-    "Malgun Gothic",
     "Noto Color Emoji",
     "Apple Color Emoji",
     "Segoe UI Emoji",
@@ -955,26 +973,32 @@ const SCRIPTS: [&str; 18] = [
 fn ui_font(chosen: &str) -> Font {
     match chosen == SYSTEM_FONT {
         true => Font {
-            fallbacks: Some(scripts(false).clone()),
+            fallbacks: Some(scripts(false)),
             ..font(UI_FONT)
         },
         false => Font {
-            fallbacks: Some(scripts(true).clone()),
+            fallbacks: Some(scripts(true)),
             ..font(SharedString::from(chosen.to_owned()))
         },
     }
 }
 
-fn scripts(custom: bool) -> &'static FontFallbacks {
-    static BUNDLED: std::sync::OnceLock<FontFallbacks> = std::sync::OnceLock::new();
-    static CHOSEN: std::sync::OnceLock<FontFallbacks> = std::sync::OnceLock::new();
-    let named = || SCRIPTS.iter().map(|name| (*name).to_owned());
-    match custom {
-        true => CHOSEN.get_or_init(|| {
-            FontFallbacks::from_fonts(std::iter::once(UI_FONT.to_owned()).chain(named()).collect())
-        }),
-        false => BUNDLED.get_or_init(|| FontFallbacks::from_fonts(named().collect())),
-    }
+/// The faces behind the interface font, in the order the interface language wants its Han
+/// characters drawn. Built only when the font is, so the cost does not matter.
+fn scripts(custom: bool) -> FontFallbacks {
+    let han: Vec<&str> = match i18n::language() {
+        Language::Japanese => JAPANESE.iter().chain(&CHINESE).copied().collect(),
+        _ => CHINESE.iter().chain(&JAPANESE).copied().collect(),
+    };
+    let lead = custom.then_some(UI_FONT);
+    let faces = lead
+        .into_iter()
+        .chain(han)
+        .chain(OTHER_HAN)
+        .chain(SCRIPTS)
+        .map(str::to_owned)
+        .collect();
+    FontFallbacks::from_fonts(faces)
 }
 
 /// Tells the wake lock whether the window has focus, which the display lock needs.

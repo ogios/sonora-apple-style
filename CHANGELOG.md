@@ -81,6 +81,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Chinese text is drawn with Simplified Chinese character forms. Characters such as 关, 闭, 复
+  and 门 used to come out in their Japanese shapes because a Japanese CJK face came first in
+  the font fallback. PingFang SC is used where the system has it, and Sonora now bundles a
+  Simplified Chinese subset of Noto Sans SC for everywhere else. Japanese faces still come
+  first when the interface is in Japanese.
 - Switching pages under Liquid Glass no longer flashes the content area black.
 - Covers and cards no longer jump bigger and smaller while a sidebar slides open or shut. The
   page settles into its new layout once, as the sidebar starts to move.

@@ -9,6 +9,7 @@ The binary embeds:
 
 - Inter — SIL Open Font License 1.1, `assets/fonts/LICENSE.txt`
 - Pretendard Std 1.3.9 — SIL Open Font License 1.1, `assets/fonts/Pretendard-LICENSE.txt`
+- Noto Sans SC 2.004 (Regular, Medium and Bold instances of the variable font, subset to GB 2312 plus every character in the zh-CN interface text) — SIL Open Font License 1.1, `assets/fonts/NotoSansSC-LICENSE.txt`
 - Lucide icons — ISC License, `assets/icons/lucide/LICENSE`
 - Iconoir — MIT License, `assets/icons/iconoir/LICENSE`
 - Remix Icon 4.8.0 — Apache License 2.0, `assets/icons/remix/LICENSE`
