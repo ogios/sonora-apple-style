@@ -78,6 +78,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   rows, search's Browse all chips, the player bar's track and the account card, sits the same
   distance from the container's edge all round, its corners rounded concentric with the
   container's. The account card and the sidebar's search field fade their hover fill in and out.
+- The search page remembers your recent searches. With the field empty they show as chips above
+  Browse all: pick one to search for it again, use its cross to forget it or Clear to forget
+  them all. A search is kept once you press Enter or open one of its results, newest first, up
+  to 15.
+- A Browse all genre the provider has no picture for is a plain chip of its name washed with its
+  colour, YouTube Music's own where it gives one, rather than a card around a music-note glyph.
+- Under Liquid Glass the first and last rows of a menu round their outer corners to match the
+  menu's own, so a highlighted top or bottom row no longer cuts a tighter curve into it.
+- Under Liquid Glass an artist's picture stays sharp down most of the page header and fades out
+  gently near its foot into a soft wash of its own colours, which runs on below the picture and
+  melts into the page. A faint shade sits behind the name and buttons only.
+- Under Liquid Glass the fullscreen player's transport and volume buttons are plain glyphs that
+  glow under the pointer, without a ring each, and the cover, lyrics and queue switcher sits in
+  the bottom right corner: it stays where it is as the panel opens, closes or changes, and one
+  glass lens slides between its tabs.
 
 ### Fixed
 
@@ -86,6 +101,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the font fallback. PingFang SC is used where the system has it, and Sonora now bundles a
   Simplified Chinese subset of Noto Sans SC for everywhere else. Japanese faces still come
   first when the interface is in Japanese.
+- The fullscreen player's controls rise into place in one smooth motion when you move the
+  pointer, instead of stopping short with their panel cut off and then jumping the rest of the
+  way, and sink away the same way.
 - Switching pages under Liquid Glass no longer flashes the content area black.
 - Covers and cards no longer jump bigger and smaller while a sidebar slides open or shut. The
   page settles into its new layout once, as the sidebar starts to move.
