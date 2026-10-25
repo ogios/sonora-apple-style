@@ -4,7 +4,8 @@ use std::rc::Rc;
 use gpui::prelude::*;
 use gpui::{
     AnyElement, App, ClickEvent, Context, Entity, FocusHandle, Focusable, FontWeight, MouseButton,
-    MouseDownEvent, Pixels, Point, Render, ScrollHandle, SharedString, WeakEntity, Window, div,
+    MouseDownEvent, Pixels, Point, Render, ScrollHandle, SharedString, WeakEntity, Window, div, px,
+    svg,
 };
 use i18n::t;
 use input::SEARCH_CONTEXT;
@@ -31,6 +32,8 @@ use crate::shared::shelves;
 use crate::shared::trouble;
 
 const RAIL: Pixels = gpui::px(12.);
+/// The widest a recent search's chip grows before its text fades out.
+const RECENT_WIDE: f32 = 280.;
 const ROW_GAP: f32 = 0.25;
 /// A Liquid Glass result row, Cider's: how much taller than the theme's list row it stands,
 /// the gap between rows in text heights, its artwork as a share of its height, and its title
@@ -252,6 +255,7 @@ impl SearchView {
         let Some((column, row)) = self.cursor else {
             return;
         };
+        self.remember(cx);
         let stacked = stacked(window, cx);
         let seats = self.seats(self.kinds(column, stacked, cx), cx);
         let Some(&(at, _)) = seats.get(row) else {
@@ -276,6 +280,116 @@ impl SearchView {
             Hit::Album(album) => navigate(Destination::Album(album.id.into()), cx),
             Hit::Playlist(list) => navigate(Destination::Playlist(list.id.into()), cx),
         }
+    }
+
+    /// Keeps what is in the search field among the recent searches, once the user has acted
+    /// on it: pressed Enter in the field or opened one of its results.
+    fn remember(&self, cx: &mut Context<Self>) {
+        let query = self.input.read(cx).text().to_owned();
+        let settings = Sonora::global(cx).settings.clone();
+        settings.update(cx, |settings, cx| settings.remember_search(&query, cx));
+        cx.notify();
+    }
+
+    /// Searches for a recent query again, moving it back to the top.
+    fn recall(&mut self, query: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.input.update(cx, |input, cx| {
+            input.set_text(query.to_owned(), cx);
+            input.focus(window, cx);
+        });
+        self.remember(cx);
+    }
+
+    /// The recent searches over the browse grid while the field is empty: each one a chip
+    /// that runs it again, with a cross that forgets it, and a button that forgets them all.
+    fn recent(&self, gutter: Pixels, cx: &Context<Self>) -> Option<AnyElement> {
+        let history = Sonora::global(cx)
+            .settings
+            .read(cx)
+            .search_history()
+            .to_vec();
+        if history.is_empty() {
+            return None;
+        }
+        let theme = *cx.theme();
+        let liquid = ui::liquid(cx);
+        let clear = Button::new("search-recent-clear")
+            .ghost()
+            .small()
+            .label(t!("search-recent-clear"))
+            .on_click(cx.listener(|_, _, _, cx| {
+                let settings = Sonora::global(cx).settings.clone();
+                settings.update(cx, |settings, cx| settings.clear_search_history(cx));
+                cx.notify();
+            }));
+        let chips = history.into_iter().enumerate().map(|(place, query)| {
+            let asked = query.clone();
+            let forgotten = query.clone();
+            div()
+                .id(("search-recent", place))
+                .flex()
+                .flex_none()
+                .items_center()
+                .gap_1()
+                .max_w(px(RECENT_WIDE))
+                .h(theme.metrics.control_small)
+                .pl_3()
+                .pr_1()
+                .map(|chip| match liquid {
+                    true => chip.rounded_full(),
+                    false => chip.rounded(theme.radius),
+                })
+                .bg(theme.secondary)
+                .cursor_pointer()
+                .hover(|chip| chip.bg(theme.secondary_hover))
+                .on_click(cx.listener(move |this, _, window, cx| this.recall(&asked, window, cx)))
+                .child(
+                    svg()
+                        .path(icons::path("icons/rotate-ccw-clock.svg"))
+                        .size(theme.text(Text::Body))
+                        .flex_none()
+                        .text_color(theme.muted_foreground),
+                )
+                .child(
+                    div()
+                        .min_w_0()
+                        .overflow_hidden()
+                        .child(ui::fade_line(SharedString::from(query))),
+                )
+                .child(
+                    Button::new(("search-recent-remove", place))
+                        .ghost()
+                        .small()
+                        .icon("icons/x.svg")
+                        .tooltip("search-recent-remove")
+                        .on_click(cx.listener(move |_, _, _, cx| {
+                            cx.stop_propagation();
+                            let settings = Sonora::global(cx).settings.clone();
+                            settings
+                                .update(cx, |settings, cx| settings.forget_search(&forgotten, cx));
+                            cx.notify();
+                        })),
+                )
+        });
+
+        Some(
+            div()
+                .flex()
+                .flex_col()
+                .flex_none()
+                .gap_2()
+                .px(gutter)
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .child(eyebrow(t!("search-recent"), cx))
+                        .child(clear),
+                )
+                .child(div().flex().flex_wrap().gap_2().children(chips))
+                .into_any_element(),
+        )
     }
 
     fn deselect_hit(&mut self, _: &Deselect, window: &mut Window, cx: &mut Context<Self>) {
@@ -748,6 +862,10 @@ impl SearchView {
             .flex_1()
             .min_h_0()
             .gap_3()
+            .children(
+                self.recent(gutter, cx)
+                    .map(|recent| div().pb_3().child(recent)),
+            )
             .child(div().px(gutter).child(eyebrow(t!("search-browse"), cx)))
             .child(
                 crate::chrome::edge_fade(Scroller::new("search-browse", &self.browsing), false, cx)
@@ -929,6 +1047,7 @@ fn pressed(
     let me = me.clone();
 
     move |_, _, cx| {
+        me.update(cx, |this, cx| this.remember(cx)).ok();
         me.update(cx, |this, cx| match &target {
             Press::Song(track) => this
                 .playback
@@ -1142,6 +1261,11 @@ impl Render for SearchView {
                     .flex()
                     .flex_none()
                     .px(gutter)
+                    .on_key_down(cx.listener(|this, event: &gpui::KeyDownEvent, _, cx| {
+                        if event.keystroke.key == "enter" {
+                            this.remember(cx);
+                        }
+                    }))
                     .child(self.input.clone()),
             )
             .when(!stacked, |this| {

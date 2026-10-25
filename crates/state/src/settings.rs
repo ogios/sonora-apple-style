@@ -674,6 +674,8 @@ struct StateValues {
     system_theme: String,
     /// The variant last chosen in each theme family, by family id.
     theme_variants: HashMap<String, String>,
+    /// What the user searched for lately, newest first, at most `SEARCH_HISTORY` of them.
+    search_history: Vec<String>,
 }
 
 impl Default for StateValues {
@@ -704,9 +706,13 @@ impl Default for StateValues {
             window: None,
             system_theme: ThemeKind::Dark.id().to_owned(),
             theme_variants: HashMap::new(),
+            search_history: Vec::new(),
         }
     }
 }
+
+/// How many recent searches the search page keeps.
+const SEARCH_HISTORY: usize = 15;
 
 /// The `runtime` row of the `app_state` table: one JSON blob, replaced whole on every save.
 /// Every call goes through one kept connection, because playback saves every few seconds and
@@ -1806,6 +1812,47 @@ impl AppSettings {
             return;
         }
         self.state.sidebar_right_tab = tab;
+        self.schedule_state_save(cx);
+    }
+
+    /// What the user searched for lately, newest first.
+    pub fn search_history(&self) -> &[String] {
+        &self.state.search_history
+    }
+
+    /// Puts `query` at the top of the recent searches, moving it there if it was already
+    /// further down, and lets the oldest go past `SEARCH_HISTORY`. Case and outer spaces do
+    /// not make a query new.
+    pub fn remember_search(&mut self, query: &str, cx: &mut Context<Self>) {
+        let query = query.trim();
+        if query.is_empty() {
+            return;
+        }
+        let history = &mut self.state.search_history;
+        if history.first().is_some_and(|first| first == query) {
+            return;
+        }
+        history.retain(|kept| !kept.eq_ignore_ascii_case(query));
+        history.insert(0, query.to_owned());
+        history.truncate(SEARCH_HISTORY);
+        self.schedule_state_save(cx);
+    }
+
+    /// Drops one query from the recent searches.
+    pub fn forget_search(&mut self, query: &str, cx: &mut Context<Self>) {
+        let before = self.state.search_history.len();
+        self.state.search_history.retain(|kept| kept != query);
+        if self.state.search_history.len() != before {
+            self.schedule_state_save(cx);
+        }
+    }
+
+    /// Empties the recent searches.
+    pub fn clear_search_history(&mut self, cx: &mut Context<Self>) {
+        if self.state.search_history.is_empty() {
+            return;
+        }
+        self.state.search_history.clear();
         self.schedule_state_save(cx);
     }
 
