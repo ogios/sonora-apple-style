@@ -185,6 +185,9 @@ pub fn lingering(progress: f32) -> f32 {
     1. - ease_out_cubic((progress / SKELETON_FADE).clamp(0., 1.))
 }
 
+/// Draws a skeleton, once, while it shows or fades.
+type DrawSkeleton = Box<dyn FnOnce(&mut Window, &mut App) -> AnyElement>;
+
 /// A skeleton that hands over to its content. Style it as the item it stands for, so it
 /// takes the same place in its parent's layout, the way `w_full` or `flex_1` would on the
 /// item itself.
@@ -194,7 +197,7 @@ pub struct Reveal {
     base: Div,
     order: usize,
     content: Option<AnyElement>,
-    skeleton: Box<dyn FnOnce(&mut Window, &mut App) -> AnyElement>,
+    skeleton: DrawSkeleton,
 }
 
 impl Reveal {
