@@ -106,6 +106,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The back, forward and reload buttons no longer crowd the sidebar toggle and jump away when
+  the left sidebar finishes closing.
 - Sidebar navigation and pinned playlists share one moving selection that fades when leaving
   the sidebar. Queue and lyrics hover highlights, along with row actions, ease in and out.
 

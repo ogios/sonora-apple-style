@@ -432,7 +432,9 @@ impl Render for TitleBar {
                     })
                     .pr_3()
                     .gap_1()
-                    .when(offset > Pixels::ZERO, |this| this.w(offset))
+                    // Keep room for the toggle and window controls as the sidebar closes.
+                    // A fixed width squeezes them out, then jumps to their natural width at zero.
+                    .min_w(offset)
                     .when(leading, |this| {
                         this.child(window_controls(true, traffic_light))
                     })
