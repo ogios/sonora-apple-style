@@ -404,5 +404,10 @@ fn card(item: &Value) -> Option<Genre> {
             .to_owned(),
         name: button.run_text(&["buttonText"])?,
         cover: None,
+        // YouTube Music marks each mood and genre button with a stripe of colour, as ARGB.
+        tint: button
+            .pointer("/solid/leftStripeColor")
+            .and_then(Value::as_u64)
+            .map(|argb| (argb & 0xff_ff_ff) as u32),
     })
 }

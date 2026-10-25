@@ -321,6 +321,10 @@ pub(crate) fn plate(
     tile: Option<Pixels>,
     cx: &App,
 ) -> AnyElement {
+    // A genre the provider has no picture for is a chip of its name, not a stand-in glyph.
+    if tile.is_none() && genre.cover.is_none() {
+        return cards::genre_chip(id, genre, cx).into_any_element();
+    }
     cards::genre_card(id, genre)
         .map(|card| dressed(card, tile, cx))
         .into_any_element()

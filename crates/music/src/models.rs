@@ -196,6 +196,9 @@ pub struct Genre {
     pub id: String,
     pub name: String,
     pub cover: Option<String>,
+    /// The colour the provider marks the genre with when it has no picture for it, as
+    /// `0xRRGGBB`.
+    pub tint: Option<u32>,
 }
 
 /// One card of a browse shelf. A provider's home and genre pages mix whatever the shelf holds,

@@ -184,6 +184,61 @@ pub(crate) fn genre_card(id: impl Into<ElementId>, genre: &Genre) -> Card {
         .press(move |_, _, cx| navigate(Destination::Genre(opened.clone()), cx))
 }
 
+/// A genre with no picture of its own, as a plain chip rather than a card around a stand-in
+/// glyph: its name over the card fill, washed from the left with the colour the provider marks
+/// the genre with, or with a hue of its own taken from the name where the provider has none.
+pub(crate) fn genre_chip(
+    id: impl Into<ElementId>,
+    genre: &Genre,
+    cx: &App,
+) -> gpui::Stateful<gpui::Div> {
+    let theme = *cx.theme();
+    let opened = SharedString::from(genre.id.clone());
+    let tint = match genre.tint {
+        Some(rgb) => gpui::rgb(rgb).into(),
+        None => gpui::hsla(name_hue(&genre.name), 0.55, 0.55, 1.),
+    };
+
+    div()
+        .id(id)
+        .flex()
+        .items_center()
+        .w_full()
+        .h(theme.metrics.list_row)
+        .px(theme.metrics.pad * 2.)
+        .overflow_hidden()
+        .rounded(theme.radius)
+        .bg(theme.secondary)
+        .cursor_pointer()
+        .hover(|this| this.bg(theme.secondary_hover))
+        .child(div().absolute().inset_0().bg(gpui::linear_gradient(
+            90.,
+            gpui::linear_color_stop(tint.opacity(CHIP_WASH), 0.),
+            gpui::linear_color_stop(tint.opacity(0.), 0.75),
+        )))
+        .relative()
+        .child(
+            div()
+                .relative()
+                .min_w_0()
+                .overflow_hidden()
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(fade_line(SharedString::from(genre.name.clone()))),
+        )
+        .on_click(move |_, _, cx| navigate(Destination::Genre(opened.clone()), cx))
+}
+
+/// How strong a genre chip's wash of colour is at its left edge.
+const CHIP_WASH: f32 = 0.35;
+
+/// A steady hue for a name, so a genre without a colour keeps the same one every time.
+fn name_hue(name: &str) -> f32 {
+    let hash = name.bytes().fold(0x811c_9dc5_u32, |hash, byte| {
+        (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
+    });
+    (hash % 360) as f32 / 360.
+}
+
 /// Which releases a release listing keeps: everything, or one kind of release.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ReleaseFilter {

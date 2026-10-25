@@ -392,6 +392,7 @@ fn genre(uri: &str, container: WireCard) -> Option<Genre> {
         id,
         name: card.title.map(|title| title.label).unwrap_or_default(),
         cover: Some(cover),
+        tint: None,
     })
 }
 

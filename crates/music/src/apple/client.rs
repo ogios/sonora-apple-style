@@ -1876,6 +1876,7 @@ impl MusicApi for AppleClient {
                     id: row.id.as_str()?.to_owned(),
                     name: wire::text(&attributes.name)?,
                     cover: None,
+                    tint: None,
                 })
             })
             .await?;

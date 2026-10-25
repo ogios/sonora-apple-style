@@ -320,6 +320,7 @@ pub fn genre(value: &Value) -> Option<Genre> {
                 uuid.replace('-', "/")
             )
         }),
+        tint: None,
     })
 }
 

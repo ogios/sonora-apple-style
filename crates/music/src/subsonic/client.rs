@@ -1023,5 +1023,6 @@ fn source_genre(source: SourceGenre) -> Genre {
         id: name.clone(),
         name,
         cover: None,
+        tint: None,
     }
 }
