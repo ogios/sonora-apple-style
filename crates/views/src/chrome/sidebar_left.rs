@@ -893,15 +893,19 @@ impl SidebarLeft {
     /// own, floating clear of the entries above it, with the provider's initial in a disc and
     /// its name, opening settings.
     /// The account card at the sidebar's foot under Liquid Glass, built as it is drawn so its
-    /// hover fade lasts from frame to frame.
-    /// The account card: the signed-in user's picture and name over the service's name, the
-    /// way the providers page shows them. Without a profile, as a guest, offline or on local
-    /// files, it names the service over the way to the settings, with its initial for a picture.
+    /// hover fade lasts from frame to frame. It shows the signed-in user's picture and name
+    /// over the service's name, the way the providers page does. Without a profile, as a
+    /// guest, offline or on local files, it names the service over the way to the settings,
+    /// with its initial for a picture.
     fn account(&self, cx: &App) -> AnyElement {
         let session = self.session.read(cx);
         let provider = session.provider_name().unwrap_or_default();
         let account = match session.state() {
-            state::SessionState::SignedIn(profile) if !profile.display_name.trim().is_empty() => {
+            // A guest session, or an account without a name of its own, is named after the
+            // service, which would only say the same thing twice over the service's name.
+            state::SessionState::SignedIn(profile)
+                if !profile.display_name.trim().is_empty() && profile.display_name != provider =>
+            {
                 Account {
                     name: SharedString::from(profile.display_name.clone()),
                     detail: SharedString::new_static(provider),
