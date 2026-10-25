@@ -37,33 +37,32 @@ const CHIP_PAD_Y: f32 = 4.;
 const CHIP_PAD_X: f32 = 1.5;
 /// Under Liquid Glass an artist hero stands at least this many times the grown artwork's
 /// height, and as tall as this share of the window, as Cider's does. Its picture reaches up to
-/// the top of the content sheet and `ARTIST_BLEED` past either side, stays solid down this much
-/// of the hero and dissolves over `ARTIST_FADE` below it in this many bands.
+/// the top of the content sheet and `ARTIST_BLEED` past either side.
 const ARTIST_TALL: f32 = 1.6;
 const ARTIST_SHARE: f32 = 0.5;
 const ARTIST_BLEED: Pixels = px(160.);
-const ARTIST_SOLID: f32 = 0.45;
-const ARTIST_FADE: Pixels = px(160.);
-const ARTIST_BANDS: usize = 24;
 /// The picture is laid like a cover over the sheet's width at its own proportions, in a box
-/// `ARTIST_ASPECT` wide to high. Where it is
+/// `ARTIST_ASPECT` wide to high, but never shorter than `ARTIST_LEAST` of the hero. Where it is
 /// cut top and bottom, this share of the cut comes from above, so a face in the upper part of
 /// a portrait stays in.
 const ARTIST_FOCUS: f32 = 0.3;
-/// The width-to-height shape of the box an artist's picture is laid over, near the shape
-/// artist header pictures come in, so one is cut little at the sides.
 const ARTIST_ASPECT: f32 = 1.9;
-/// How far the dissolving bands are blurred, so the picture turns to frost as it fades.
-const ARTIST_FROST: Pixels = px(12.);
-/// Below the solid part the sharp picture crossfades into the frosted one over this far, in
-/// this many bands.
-const ARTIST_SHARPEN: Pixels = px(120.);
-const ARTIST_SHARP_BANDS: usize = 10;
-/// The scrim under an artist's name: where down the hero it starts, how dark it is at the
-/// name, and where along it that is. Below that it deepens to the page colour by the foot.
-const ARTIST_SCRIM_FROM: f32 = 0.3;
-const ARTIST_SCRIM: f32 = 0.5;
-const ARTIST_SCRIM_AT: f32 = 0.55;
+const ARTIST_LEAST: f32 = 0.75;
+/// The sharp picture stays whole down all but this share of its box and fades out over the
+/// rest, on a smooth falloff rather than at a line.
+const ARTIST_SOFTEN: f32 = 0.3;
+/// Below the picture its own colours run on this far: the bottom `ARTIST_STRIP` of it is
+/// stretched down over the extension, blurred by `ARTIST_FROST` together with the picture
+/// above it, and the whole frosted copy fades into the page over the extension.
+const ARTIST_EXTEND: Pixels = px(220.);
+const ARTIST_STRIP: Pixels = px(40.);
+const ARTIST_FROST: Pixels = px(40.);
+/// The scrim behind an artist's name and buttons only: it covers this share of the hero from
+/// its foot and this share of the sheet's width from the left, at this strength where it is
+/// darkest, and fades out toward its top and right.
+const ARTIST_SCRIM_HIGH: f32 = 0.5;
+const ARTIST_SCRIM_WIDE: f32 = 0.6;
+const ARTIST_SCRIM: f32 = 0.35;
 /// How much larger than the display size an artist's name is set over its picture.
 const ARTIST_NAME: f32 = 1.45;
 /// How much of a round play button its glyph spans.
@@ -655,11 +654,10 @@ fn artist_rise(window: &Window, cx: &App) -> Pixels {
 
 /// The full-bleed artist picture behind a Liquid Glass artist hero `tall` high, reaching `rise`
 /// above it to the top of the sheet. The picture is laid like a cover over the sheet's width,
-/// cropped top and bottom with the cut weighted below the subject, and solid down the upper
-/// part of the hero. Below that it frosts over, crossfading into a blurred copy, and the blurred
-/// copy dissolves in bands of falling opacity, since a picture cannot be masked by a gradient.
-/// A scrim deepens to the page colour by the foot, keeping the name legible over a bright
-/// picture and meeting the page without an edge.
+/// cropped top and bottom with the cut weighted below the subject, and stays sharp down most
+/// of its box before fading out over the last part. Under it lies a frosted copy that runs on
+/// below the picture in the picture's own colours, its bottom strip stretched down and blurred,
+/// and fades into the page, so the picture ends in a soft wash of itself rather than a band.
 fn artist_backdrop(
     cover: Option<String>,
     tall: Pixels,
@@ -668,63 +666,73 @@ fn artist_backdrop(
     cx: &App,
 ) -> AnyElement {
     let theme = cx.theme();
-    let height = rise + tall + ARTIST_FADE;
+    let hero = rise + tall;
     let width = crate::chrome::Chrome::content(window, cx);
-    let solid = rise + tall * ARTIST_SOLID;
-    // The picture's box keeps a wide shape so a wide picture shows most of its width, and
-    // ends partway down the frost, where the dissolving bands are faint enough to hide its foot.
+    // The picture's box keeps a wide shape so a wide picture shows most of its width, but
+    // reaches far enough down the hero that the name sits over picture rather than wash.
     let frame = ui::snapped(
-        (width / ARTIST_ASPECT).clamp(solid + ARTIST_SHARPEN, height),
+        (width / ARTIST_ASPECT).clamp(hero * ARTIST_LEAST, hero),
         window,
     );
-    let band = (height - solid) / ARTIST_BANDS as f32;
-    // A strip of the picture at `top` within a box that starts `base` down the backdrop.
-    let slice = |base: Pixels, top: Pixels, high: Pixels, opacity: f32| {
+    let height = frame + ARTIST_EXTEND;
+    let picture = || Banner::new(cover.clone(), width, frame).focus(ARTIST_FOCUS);
+    // Both copies are centred across the backdrop, so the picture lines up with the sheet.
+    let centred = |child: AnyElement| {
         div()
             .absolute()
-            .top(top)
+            .top_0()
             .left_0()
             .right_0()
-            .h(high)
-            .overflow_hidden()
             .flex()
             .flex_col()
             .items_center()
-            .opacity(opacity)
-            .child(
-                div()
-                    .flex_none()
-                    .mt(Pixels::ZERO - base - top)
-                    .child(Banner::new(cover.clone(), width, frame).focus(ARTIST_FOCUS)),
-            )
+            .child(child)
     };
 
-    // The frosted copy starts a little inside the solid part, so the blur has picture rather
-    // than nothing to draw from at its top, where the sharp picture still covers it.
-    let reach = ui::snapped(solid - ARTIST_FROST * 2., window);
     let frost = div()
         .absolute()
-        .top(reach)
+        .top_0()
         .left_0()
         .right_0()
-        .h(height - reach)
-        .blur(ARTIST_FROST)
-        .child(slice(reach, Pixels::ZERO, solid - reach, 1.))
-        .children((0..ARTIST_BANDS).map(|index| {
-            let fade = smooth((index as f32 + 0.5) / ARTIST_BANDS as f32);
-            let top = ui::snapped(solid + band * index as f32, window);
-            let foot = ui::snapped(solid + band * (index + 1) as f32, window);
-            slice(reach, top - reach, foot - top, 1. - fade)
-        }));
-    // Over it the sharp picture runs on below the solid part and fades out in bands of its
-    // own, so the picture frosts over gradually rather than at a line.
-    let step = ARTIST_SHARPEN / ARTIST_SHARP_BANDS as f32;
-    let sharpening = (0..ARTIST_SHARP_BANDS).map(|index| {
-        let fade = smooth((index as f32 + 0.5) / ARTIST_SHARP_BANDS as f32);
-        let top = ui::snapped(solid + step * index as f32, window);
-        let foot = ui::snapped(solid + step * (index + 1) as f32, window);
-        slice(Pixels::ZERO, top, foot - top, 1. - fade)
-    });
+        .h(height)
+        .fade_edges(Pixels::ZERO, ARTIST_EXTEND)
+        .child(
+            div().absolute().inset_0().blur(ARTIST_FROST).child(centred(
+                div()
+                    .flex()
+                    .flex_col()
+                    .child(picture())
+                    .child(
+                        Banner::new(cover.clone(), width, frame)
+                            .focus(ARTIST_FOCUS)
+                            .smear(ARTIST_STRIP, ARTIST_EXTEND),
+                    )
+                    .into_any_element(),
+            )),
+        );
+    let sharp = div()
+        .absolute()
+        .top_0()
+        .left_0()
+        .right_0()
+        .h(frame)
+        .fade_edges(Pixels::ZERO, ui::snapped(frame * ARTIST_SOFTEN, window))
+        .child(centred(picture().into_any_element()));
+    // A soft shade behind the name and buttons only, darkest at the bottom left and gone by
+    // its top and right, so the picture stays clear everywhere else.
+    let scrim_high = tall * ARTIST_SCRIM_HIGH;
+    let scrim = div()
+        .absolute()
+        .left_0()
+        .top(hero - scrim_high)
+        .w(ARTIST_BLEED + width * ARTIST_SCRIM_WIDE)
+        .h(scrim_high + ARTIST_EXTEND / 2.)
+        .fade_edges(scrim_high * 0.6, ARTIST_EXTEND / 2.)
+        .bg(linear_gradient(
+            90.,
+            linear_color_stop(theme.background.opacity(ARTIST_SCRIM), 0.3),
+            linear_color_stop(theme.background.opacity(0.), 1.),
+        ));
 
     div()
         .absolute()
@@ -733,47 +741,9 @@ fn artist_backdrop(
         .right(-ARTIST_BLEED)
         .h(height)
         .child(frost)
-        .child(slice(
-            Pixels::ZERO,
-            Pixels::ZERO,
-            ui::snapped(solid, window),
-            1.,
-        ))
-        .children(sharpening)
-        // The scrim runs from partway down the hero to the picture's foot, so the name stays
-        // legible, and ends in the page colour, so the frost meets the page without an edge.
-        .child(
-            div()
-                .absolute()
-                .left_0()
-                .right_0()
-                .top(rise + tall * ARTIST_SCRIM_FROM)
-                .bottom_0()
-                .bg(linear_gradient(
-                    180.,
-                    linear_color_stop(theme.background.opacity(0.), 0.),
-                    linear_color_stop(theme.background.opacity(ARTIST_SCRIM), ARTIST_SCRIM_AT),
-                ))
-                .child(
-                    div()
-                        .absolute()
-                        .left_0()
-                        .right_0()
-                        .bottom_0()
-                        .h(relative(1. - ARTIST_SCRIM_AT))
-                        .bg(linear_gradient(
-                            180.,
-                            linear_color_stop(theme.background.opacity(0.), 0.),
-                            linear_color_stop(theme.background, 1.),
-                        )),
-                ),
-        )
+        .child(sharp)
+        .child(scrim)
         .into_any_element()
-}
-
-/// Smoothstep over `0..=1`, the ease the dissolving bands fall off by.
-fn smooth(through: f32) -> f32 {
-    through * through * (3. - 2. * through)
 }
 
 fn eyebrow_label(label: SharedString, cx: &App) -> Div {

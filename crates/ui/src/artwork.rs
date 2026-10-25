@@ -1173,6 +1173,7 @@ pub struct Banner {
     width: Pixels,
     height: Pixels,
     focus: f32,
+    smear: Option<(Pixels, Pixels)>,
 }
 
 impl Banner {
@@ -1182,7 +1183,15 @@ impl Banner {
             width,
             height,
             focus: 0.5,
+            smear: None,
         }
+    }
+
+    /// Draws only the bottom `strip` of the picture as it would be laid in its box, stretched
+    /// top to bottom over a box `reach` high, so the picture's own colours run on below it.
+    pub fn smear(mut self, strip: Pixels, reach: Pixels) -> Self {
+        self.smear = Some((strip.max(px(1.)), reach));
+        self
     }
 
     /// The share of a top-to-bottom cut taken from above the picture's subject.
@@ -1199,8 +1208,10 @@ impl RenderOnce for Banner {
             width,
             height,
             focus,
+            smear,
         } = self;
-        let frame = div().flex_none().w(width).h(height).overflow_hidden();
+        let shown = smear.map_or(height, |(_, reach)| reach);
+        let frame = div().flex_none().w(width).h(shown).overflow_hidden();
         let Some(url) = url else {
             return frame;
         };
@@ -1215,11 +1226,26 @@ impl RenderOnce for Banner {
         };
         let scale = (width / px(wide)).max(height / px(high));
         let (drawn_wide, drawn_high) = (px(wide) * scale, px(high) * scale);
+        let lead = (height - drawn_high) * focus;
+        if let Some((strip, reach)) = smear {
+            // The strip runs from `height - strip` to `height` in the box; stretched by
+            // `reach / strip` it fills the smear's box, the rest of the picture above it.
+            let stretch = reach / strip;
+            return frame.relative().child(
+                picture
+                    .absolute()
+                    .left((width - drawn_wide) / 2.)
+                    .top((lead - (height - strip)) * stretch)
+                    .w(drawn_wide)
+                    .h(drawn_high * stretch)
+                    .object_fit(ObjectFit::Fill),
+            );
+        }
         frame.relative().child(
             picture
                 .absolute()
                 .left((width - drawn_wide) / 2.)
-                .top((height - drawn_high) * focus)
+                .top(lead)
                 .w(drawn_wide)
                 .h(drawn_high)
                 .object_fit(ObjectFit::Fill),
