@@ -1006,7 +1006,7 @@ pub struct Rows<T>(Arc<Vec<T>>);
 
 impl<T> Rows<T> {
     /// The rows as they stand, shared rather than copied.
-    fn share(&self) -> Arc<Vec<T>> {
+    pub(crate) fn share(&self) -> Arc<Vec<T>> {
         Arc::clone(&self.0)
     }
 

@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use anyhow::Result;
-use gpui::{Context, Entity, Task};
+use gpui::{AppContext as _, Context, Entity, Task};
 use music::{Album, ArtistRef, Playlist, Track};
 
 use crate::{Io, Library, Network, Session, SessionEvent, Shelf, join};
@@ -79,7 +79,7 @@ impl Hit {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct Catalog {
     tracks: Vec<Track>,
     albums: Vec<Album>,
@@ -113,10 +113,10 @@ impl Query {
     }
 }
 
-struct Scored {
+struct Scored<T = Hit> {
     score: u32,
     popularity: u32,
-    hit: Hit,
+    hit: T,
 }
 
 pub struct Search {
@@ -132,6 +132,7 @@ pub struct Search {
     io: Io,
     task: Option<Task<()>>,
     faces: Option<Task<()>>,
+    ranking: Option<Task<()>>,
 }
 
 impl Search {
@@ -170,6 +171,7 @@ impl Search {
             io,
             task: None,
             faces: None,
+            ranking: None,
         }
     }
 
@@ -200,6 +202,7 @@ impl Search {
     fn forget_results(&mut self) {
         self.task = None;
         self.faces = None;
+        self.ranking = None;
         self.query.clear();
         self.served = None;
         self.catalog.clear();
@@ -331,27 +334,42 @@ impl Search {
     }
 
     fn rank(&mut self, cx: &mut Context<Self>) {
-        let query = self.query.trim();
+        self.ranking = None;
+        let query = self.query.trim().to_owned();
         if query.is_empty() {
             self.hits.clear();
             cx.notify();
             return;
         }
 
-        self.hits = {
+        let (tracks, albums, playlists) = {
             let held = self.library.read(cx);
             let state = held.state(Shelf::Streaming);
-            rank(
-                state.tracks(),
-                state.albums(),
-                state.playlists(),
-                &self.catalog,
-                &self.portraits,
-                query,
-            )
+            match state.ready() {
+                Some(ready) => (
+                    ready.tracks.share(),
+                    ready.albums.share(),
+                    ready.playlists.share(),
+                ),
+                None => Default::default(),
+            }
         };
-        self.fetch_portraits(cx);
-        cx.notify();
+        let catalog = self.catalog.clone();
+        let portraits = self.portraits.clone();
+        self.ranking = Some(cx.spawn(async move |this, cx| {
+            let hits = cx
+                .background_spawn(async move {
+                    rank(&tracks, &albums, &playlists, &catalog, &portraits, &query)
+                })
+                .await;
+            this.update(cx, |this, cx| {
+                this.ranking = None;
+                this.hits = hits;
+                this.fetch_portraits(cx);
+                cx.notify();
+            })
+            .ok();
+        }));
     }
 }
 
@@ -378,10 +396,14 @@ fn rank(
 }
 
 fn songs(library: &[Track], catalog: &[Track], query: &Query) -> Vec<Scored> {
-    let mut scored: Vec<Scored> = Vec::new();
+    let mut scored = Vec::new();
+    let saved: HashSet<&str> = library
+        .iter()
+        .filter_map(|track| track.id.as_deref())
+        .collect();
 
     for (track, rank) in sources(library, catalog) {
-        if rank.is_some() && kept(library, track) {
+        if rank.is_some() && track.id.as_deref().is_some_and(|id| saved.contains(id)) {
             continue;
         }
 
@@ -397,11 +419,18 @@ fn songs(library: &[Track], catalog: &[Track], query: &Query) -> Vec<Scored> {
         scored.push(Scored {
             score,
             popularity: track.popularity,
-            hit: Hit::Song(track.clone()),
+            hit: track,
         });
     }
 
     capped(scored)
+        .into_iter()
+        .map(|scored| Scored {
+            score: scored.score,
+            popularity: scored.popularity,
+            hit: Hit::Song(scored.hit.clone()),
+        })
+        .collect()
 }
 
 fn albums_of(albums: &[Album], library: &[Track], catalog: &Catalog, query: &Query) -> Vec<Scored> {
@@ -445,7 +474,7 @@ fn albums_of(albums: &[Album], library: &[Track], catalog: &Catalog, query: &Que
     });
 
     let mut scored: Vec<Scored> = Vec::new();
-    let mut seen: Vec<&String> = Vec::new();
+    let mut seen = HashSet::new();
     for (id, name, artists, artist_refs, cover, rank, popularity, year) in
         saved.chain(found).chain(derived)
     {
@@ -453,10 +482,9 @@ fn albums_of(albums: &[Album], library: &[Track], catalog: &Catalog, query: &Que
         let Some(score) = favored(fit(&fields, query), rank).max(inherited(rank)) else {
             continue;
         };
-        if seen.contains(&id) {
+        if !seen.insert(id) {
             continue;
         }
-        seen.push(id);
 
         scored.push(Scored {
             score,
@@ -484,7 +512,7 @@ fn playlists_of(playlists: &[Playlist], catalog: &[Playlist], query: &Query) -> 
         .map(move |(at, playlist)| (playlist, Some(placed(at, total))));
 
     let mut scored: Vec<Scored> = Vec::new();
-    let mut seen: Vec<&String> = Vec::new();
+    let mut seen = HashSet::new();
     for (playlist, rank) in saved.chain(found) {
         let fields = [
             (TITLE, playlist.name.as_str()),
@@ -493,10 +521,9 @@ fn playlists_of(playlists: &[Playlist], catalog: &[Playlist], query: &Query) -> 
         let Some(score) = favored(fit(&fields, query), rank).max(inherited(rank)) else {
             continue;
         };
-        if seen.contains(&&playlist.id) {
+        if !seen.insert(&playlist.id) {
             continue;
         }
-        seen.push(&playlist.id);
 
         scored.push(Scored {
             score,
@@ -521,6 +548,9 @@ fn artists(
     query: &Query,
 ) -> Vec<Scored> {
     let mut tallies: Vec<(u32, u32, ArtistHit)> = Vec::new();
+    let mut by_id: HashMap<String, usize> = HashMap::new();
+    let mut by_name: HashMap<String, usize> = HashMap::new();
+    let mut unnamed_id: HashMap<String, usize> = HashMap::new();
 
     let mut record = |artist: &ArtistRef, score, popularity, mine| {
         let name = &artist.name;
@@ -530,29 +560,52 @@ fn artists(
             .and_then(|id| portraits.get(id))
             .filter(|url| !url.is_empty())
             .cloned();
-        match tallies
-            .iter_mut()
-            .find(|(_, _, current)| match (&current.id, &id) {
-                (Some(current), Some(incoming)) => current == incoming,
-                (None, _) | (_, None) => current.name == *name,
-            }) {
-            Some((best, top, current)) => {
+        let index = match id.as_ref() {
+            Some(id) => by_id
+                .get(id)
+                .copied()
+                .into_iter()
+                .chain(unnamed_id.get(name).copied())
+                .min(),
+            None => by_name.get(name).copied(),
+        };
+        match index {
+            Some(index) => {
+                let (best, top, current) = &mut tallies[index];
                 *best = (*best).max(score);
                 *top = (*top).max(popularity);
                 current.saved += mine;
-                current.id = current.id.take().or(id);
+                if current.id.is_none()
+                    && let Some(id) = id
+                {
+                    unnamed_id.remove(name);
+                    by_id.insert(id.clone(), index);
+                    current.id = Some(id);
+                }
                 current.cover = current.cover.take().or(cover);
             }
-            None => tallies.push((
-                score,
-                popularity,
-                ArtistHit {
-                    name: name.clone(),
-                    id,
-                    cover,
-                    saved: mine,
-                },
-            )),
+            None => {
+                let index = tallies.len();
+                by_name.entry(name.clone()).or_insert(index);
+                match id.as_ref() {
+                    Some(id) => {
+                        by_id.insert(id.clone(), index);
+                    }
+                    None => {
+                        unnamed_id.insert(name.clone(), index);
+                    }
+                }
+                tallies.push((
+                    score,
+                    popularity,
+                    ArtistHit {
+                        name: name.clone(),
+                        id,
+                        cover,
+                        saved: mine,
+                    },
+                ));
+            }
         }
     };
 
@@ -619,7 +672,7 @@ fn favored(score: Option<u32>, rank: Option<u32>) -> Option<u32> {
     }
 }
 
-fn order(scored: &mut [Scored]) {
+fn order<T>(scored: &mut [Scored<T>]) {
     scored.sort_by(|left, right| {
         right
             .score
@@ -628,7 +681,8 @@ fn order(scored: &mut [Scored]) {
     });
 }
 
-fn capped(mut scored: Vec<Scored>) -> Vec<Scored> {
+fn capped<T>(mut scored: Vec<Scored<T>>) -> Vec<Scored<T>> {
+    // Stable sorting keeps source order for ties, including the boundary at LIMIT.
     order(&mut scored);
     scored.truncate(LIMIT);
     scored
@@ -647,15 +701,7 @@ fn salvaged<T>(found: Result<Vec<T>>, kept: Vec<T>, trouble: &mut Vec<String>) -
     }
 }
 
-fn kept(library: &[Track], track: &Track) -> bool {
-    track
-        .id
-        .as_ref()
-        .is_some_and(|id| library.iter().any(|kept| kept.id.as_ref() == Some(id)))
-}
-
 fn score(value: &str, term: &str) -> u32 {
-    let value = value.trim().to_lowercase();
     if value == term {
         return EXACT;
     }
@@ -672,6 +718,10 @@ fn score(value: &str, term: &str) -> u32 {
 }
 
 fn fit(fields: &[(u32, &str)], query: &Query) -> Option<u32> {
+    let fields: Vec<_> = fields
+        .iter()
+        .map(|(weight, value)| (*weight, value.trim().to_lowercase()))
+        .collect();
     let ceiling = fields.iter().map(|(weight, _)| *weight).max()? * EXACT;
     let best = |term: &str| {
         fields

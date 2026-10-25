@@ -16,14 +16,15 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{Context as _, Result};
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use gpui::WindowDecorations;
 use gpui::{
-    App, Bounds, Context, DisplayId, EventEmitter, Pixels, Size, Subscription, Task, Window,
-    WindowBounds, point, px, size,
+    App, AppContext as _, Bounds, Context, DisplayId, EventEmitter, Pixels, Size, Subscription,
+    Task, Window, WindowBounds, point, px, size,
 };
 use music::lyrics::LOCAL;
 use music::scrobble::Account;
@@ -558,7 +559,64 @@ enum SettingsReload {
 /// error so the last attempt can show it.
 enum SettingsSave {
     Complete,
+    Saved(Vec<u8>),
+    Overwritten,
     Retry(String),
+}
+
+/// An immutable preferences snapshot, written off the UI thread against the last known file.
+struct SettingsWrite {
+    path: PathBuf,
+    values: Values,
+    disk: Option<Vec<u8>>,
+}
+
+impl SettingsWrite {
+    /// Writes `settings.json` now, or logs why it cannot. A save skipped because another
+    /// program changed the file warns the user when the reload that follows drops their change.
+    fn save(self) -> SettingsSave {
+        let Some(parent) = self.path.parent() else {
+            return SettingsSave::Complete;
+        };
+        if let Err(error) = fs::create_dir_all(parent) {
+            log::error!("settings: cannot create {}: {error}", parent.display());
+            return SettingsSave::Retry(error.to_string());
+        }
+
+        let bytes = match serde_json::to_vec_pretty(&self.values) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                log::error!("settings: cannot serialize values: {error}");
+                return SettingsSave::Complete;
+            }
+        };
+        let current = match fs::read(&self.path) {
+            Ok(bytes) => Some(bytes),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => {
+                log::warn!("settings: cannot read {}: {error}", self.path.display());
+                return SettingsSave::Retry(error.to_string());
+            }
+        };
+        if current != self.disk {
+            log::warn!(
+                "settings: not saving {}, file changed on disk",
+                self.path.display()
+            );
+            if current
+                .as_deref()
+                .is_some_and(|current| overrides(current, &bytes))
+            {
+                return SettingsSave::Overwritten;
+            }
+            return SettingsSave::Complete;
+        }
+        if let Err(error) = save_settings(&self.path, &bytes, current.as_deref()) {
+            log::error!("settings: cannot write {}: {error:#}", self.path.display());
+            return SettingsSave::Retry(format!("{error:#}"));
+        }
+        SettingsSave::Saved(bytes)
+    }
 }
 
 impl Default for Values {
@@ -828,9 +886,14 @@ pub struct AppSettings {
     themes: Vec<ThemeVariant>,
     /// The bundled themes and `themes`, grouped the way the Appearance page lists them.
     families: Vec<ThemeFamily>,
-    store: StateStore,
+    store: Arc<Mutex<StateStore>>,
     save: Option<Task<()>>,
     save_state: Option<Task<()>>,
+    /// In-flight writes finish before newer snapshots or filesystem reloads can replace them.
+    saving: bool,
+    save_pending: bool,
+    saving_state: bool,
+    state_pending: bool,
     watch: Option<Subscription>,
     writable: bool,
     /// What `settings.json` held when it was last read or written, so the watcher can tell our
@@ -840,6 +903,8 @@ pub struct AppSettings {
     broken: Option<usize>,
     /// The watch on the config folder. Dropping it ends the watch.
     watcher: Option<RecommendedWatcher>,
+    /// Wakes the file watcher after a save that temporarily deferred external changes.
+    reload_trigger: Option<tokio::sync::mpsc::UnboundedSender<FileChanges>>,
     reload: Option<Task<()>>,
     /// Set once a save gives up after its retries, so the failure toast shows once until a
     /// save lands again.
@@ -908,14 +973,19 @@ impl AppSettings {
             path,
             themes,
             families,
-            store,
+            store: Arc::new(Mutex::new(store)),
             save: None,
             save_state: None,
+            saving: false,
+            save_pending: false,
+            saving_state: false,
+            state_pending: false,
             watch: None,
             writable,
             disk,
             broken,
             watcher: None,
+            reload_trigger: None,
             reload: None,
             failing: false,
         }
@@ -2232,19 +2302,68 @@ impl AppSettings {
         self.save_quietly(cx);
     }
 
-    /// Debounces a `settings.json` write. Replacing the task restarts the delay.
+    /// Debounces preferences writes and coalesces changes made while a write is in flight.
     fn save_quietly(&mut self, cx: &mut Context<Self>) {
+        self.save_pending = true;
+        if self.saving {
+            return;
+        }
         self.save = Some(cx.spawn(async move |this, cx| {
             cx.background_executor().timer(SAVE_DELAY).await;
             for attempt in 0..=SAVE_RETRIES {
-                let Ok(result) = this.update(cx, |this, cx| this.save_now(cx)) else {
+                let Ok(request) = this.update(cx, |this, _| {
+                    this.saving = true;
+                    this.save_pending = false;
+                    this.writable.then(|| SettingsWrite {
+                        path: this.path.clone(),
+                        values: this.values.clone(),
+                        disk: this.disk.clone(),
+                    })
+                }) else {
                     break;
                 };
-                let SettingsSave::Retry(error) = result else {
-                    break;
-                };
-                if attempt == SAVE_RETRIES {
-                    this.update(cx, |this, cx| this.give_up(error, cx)).ok();
+                let result = cx
+                    .background_spawn(async move {
+                        request.map_or(SettingsSave::Complete, SettingsWrite::save)
+                    })
+                    .await;
+                let done = this.update(cx, |this, cx| {
+                    let complete = match result {
+                        SettingsSave::Saved(bytes) => {
+                            this.disk = Some(bytes);
+                            this.failing = false;
+                            true
+                        }
+                        SettingsSave::Complete => true,
+                        SettingsSave::Overwritten => {
+                            Toasts::show(Outcome::Warning, "toast-settings-overwritten", cx);
+                            true
+                        }
+                        SettingsSave::Retry(error) if attempt == SAVE_RETRIES => {
+                            this.give_up(error, cx);
+                            true
+                        }
+                        SettingsSave::Retry(_) => false,
+                    };
+                    if complete {
+                        this.saving = false;
+                        if let Some(trigger) = &this.reload_trigger {
+                            trigger
+                                .send(FileChanges {
+                                    settings: true,
+                                    themes: false,
+                                })
+                                .ok();
+                        }
+                        if this.save_pending {
+                            this.save_quietly(cx);
+                        } else {
+                            this.save = None;
+                        }
+                    }
+                    complete
+                });
+                if done.unwrap_or(true) {
                     break;
                 }
                 cx.background_executor().timer(SAVE_RETRY_DELAY).await;
@@ -2258,18 +2377,42 @@ impl AppSettings {
         self.save_state_quietly(cx);
     }
 
-    /// Debounces a `state.sqlite` write without waking observers, for state no view renders.
+    /// Coalesces runtime snapshots and writes them serially off the UI thread.
     fn save_state_quietly(&mut self, cx: &mut Context<Self>) {
+        self.state_pending = true;
+        if self.saving_state {
+            return;
+        }
         self.save_state = Some(cx.spawn(async move |this, cx| {
             cx.background_executor().timer(SAVE_DELAY).await;
-            this.update(cx, |this, _| this.save_state_now()).ok();
+            let Ok((store, state)) = this.update(cx, |this, _| {
+                this.saving_state = true;
+                this.state_pending = false;
+                (this.store.clone(), this.state.clone())
+            }) else {
+                return;
+            };
+            let result = cx
+                .background_spawn(async move {
+                    store
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .save(&state)
+                })
+                .await;
+            if let Err(error) = result {
+                log::error!("settings: cannot save app state: {error:#}");
+            }
+            this.update(cx, |this, cx| {
+                this.saving_state = false;
+                if this.state_pending {
+                    this.save_state_quietly(cx);
+                } else {
+                    this.save_state = None;
+                }
+            })
+            .ok();
         }));
-    }
-
-    fn save_state_now(&self) {
-        if let Err(error) = self.store.save(&self.state) {
-            log::error!("settings: cannot save app state: {error:#}");
-        }
     }
 
     /// Tells the user that `settings.json` could not be written, once per run of failed saves.
@@ -2284,57 +2427,6 @@ impl AppSettings {
             error,
             cx,
         );
-    }
-
-    /// Writes `settings.json` now, or logs why it cannot. A save skipped because another
-    /// program changed the file warns the user when the reload that follows drops their change.
-    fn save_now(&mut self, cx: &mut App) -> SettingsSave {
-        if !self.writable {
-            return SettingsSave::Complete;
-        }
-        let Some(parent) = self.path.parent() else {
-            return SettingsSave::Complete;
-        };
-        if let Err(error) = fs::create_dir_all(parent) {
-            log::error!("settings: cannot create {}: {error}", parent.display());
-            return SettingsSave::Retry(error.to_string());
-        }
-
-        let bytes = match serde_json::to_vec_pretty(&self.values) {
-            Ok(bytes) => bytes,
-            Err(error) => {
-                log::error!("settings: cannot serialize values: {error}");
-                return SettingsSave::Complete;
-            }
-        };
-        let current = match fs::read(&self.path) {
-            Ok(bytes) => Some(bytes),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-            Err(error) => {
-                log::warn!("settings: cannot read {}: {error}", self.path.display());
-                return SettingsSave::Retry(error.to_string());
-            }
-        };
-        if current != self.disk {
-            log::warn!(
-                "settings: not saving {}, file changed on disk",
-                self.path.display()
-            );
-            if current
-                .as_deref()
-                .is_some_and(|current| overrides(current, &bytes))
-            {
-                Toasts::show(Outcome::Warning, "toast-settings-overwritten", cx);
-            }
-            return SettingsSave::Complete;
-        }
-        if let Err(error) = save_settings(&self.path, &bytes, current.as_deref()) {
-            log::error!("settings: cannot write {}: {error:#}", self.path.display());
-            return SettingsSave::Retry(format!("{error:#}"));
-        }
-        self.disk = Some(bytes);
-        self.failing = false;
-        SettingsSave::Complete
     }
 
     /// Watches the config and themes folders for changes made by another program.
@@ -2372,6 +2464,7 @@ impl AppSettings {
 
         let (sender, mut changes) = tokio::sync::mpsc::unbounded_channel();
         let trigger = sender.clone();
+        self.reload_trigger = Some(trigger.clone());
         let watcher = RecommendedWatcher::new(
             move |result: notify::Result<Event>| match result {
                 Ok(event) => {
@@ -2497,6 +2590,9 @@ impl AppSettings {
     /// Accepts valid external settings, treats an empty file like a deletion, and protects
     /// nonempty broken files from app saves.
     fn reload_settings(&mut self, cx: &mut Context<Self>) -> SettingsReload {
+        if self.saving {
+            return SettingsReload::Retry;
+        }
         let bytes = match fs::read(&self.path) {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {

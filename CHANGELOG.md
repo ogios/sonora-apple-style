@@ -106,6 +106,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Search stays responsive with large music libraries, and sorting or filtering a fully selected
+  track list no longer repeatedly scans every row.
+- Saving settings and playback progress no longer performs disk writes on the UI thread.
+- Large NetEase playlists show their first tracks while the remaining tracks load. Cover caches
+  leave room for new images after cleanup to avoid repeated full-directory scans.
 - Chinese text is drawn with Simplified Chinese character forms. Characters such as 关, 闭, 复
   and 门 used to come out in their Japanese shapes because a Japanese CJK face came first in
   the font fallback. PingFang SC is used where the system has it, and Sonora now bundles a

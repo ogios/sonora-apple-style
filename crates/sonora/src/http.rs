@@ -18,6 +18,8 @@ const USER_AGENT: &str = "sonora";
 const CACHE_BYTES: u64 = 128 * 1024 * 1024;
 const CACHE_AGE: Duration = Duration::from_secs(30 * 24 * 60 * 60);
 const CACHE_SWEEP: Duration = Duration::from_secs(60 * 60);
+/// Leave room for new covers so a full cache does not sweep on every insertion.
+const CACHE_LOW_WATER_PERCENT: u64 = 80;
 
 static TEMP_FILE: AtomicU64 = AtomicU64::new(0);
 
@@ -266,8 +268,17 @@ impl DiskCache {
 
         entries.sort_unstable_by_key(|(_, used, _)| *used);
         let mut bytes = entries.iter().map(|(_, _, size)| size).sum::<u64>();
+        let target = match bytes > self.max_bytes {
+            // Keep the newest cover even when it alone exceeds the low-water mark.
+            true => (self.max_bytes.saturating_mul(CACHE_LOW_WATER_PERCENT) / 100).max(
+                entries
+                    .last()
+                    .map_or(0, |(_, _, size)| (*size).min(self.max_bytes)),
+            ),
+            false => self.max_bytes,
+        };
         for (path, _, size) in entries {
-            if bytes <= self.max_bytes {
+            if bytes <= target {
                 break;
             }
             if fs::remove_file(path).is_ok() {

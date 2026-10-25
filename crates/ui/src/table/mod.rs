@@ -204,6 +204,8 @@ pub struct TableDelegate<S: TableSource> {
     sort: Option<(S::Field, Sort)>,
     query: String,
     order: Vec<usize>,
+    /// Display positions indexed by source row; filtered rows have no position.
+    positions: Vec<Option<usize>>,
 }
 
 impl<S: TableSource> TableDelegate<S> {
@@ -231,6 +233,7 @@ impl<S: TableSource> TableDelegate<S> {
             sort: None,
             query: String::new(),
             order: Vec::new(),
+            positions: Vec::new(),
         };
         delegate.reorder(cx);
         delegate
@@ -367,7 +370,7 @@ impl<S: TableSource> TableDelegate<S> {
     }
 
     fn display_of(&self, row: usize) -> Option<usize> {
-        self.order.iter().position(|&candidate| candidate == row)
+        self.positions.get(row).copied().flatten()
     }
 
     pub fn group(&self, display: usize, cx: &App) -> Option<SharedString> {
@@ -515,6 +518,11 @@ impl<S: TableSource> TableDelegate<S> {
             }
         }
 
+        self.positions.clear();
+        self.positions.resize(self.source.rows(cx), None);
+        for (display, &row) in order.iter().enumerate() {
+            self.positions[row] = Some(display);
+        }
         self.order = order;
         self.prune_selection();
     }

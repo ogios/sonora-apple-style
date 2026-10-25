@@ -13,7 +13,9 @@ use std::time::Duration;
 
 use anyhow::{Context as _, Result, bail};
 use async_trait::async_trait;
+use futures::{StreamExt as _, TryStreamExt as _};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
 use crate::netease::auth::Credentials;
@@ -60,6 +62,8 @@ const RADIO_LIMIT: usize = 50;
 const PORTRAIT_LIMIT: usize = 12;
 /// How far ahead the paged favorites run of the page reading them.
 const FAN: usize = 2;
+/// Bound independent detail requests so large collections do not overwhelm the service.
+const DETAIL_CONCURRENCY: usize = 2;
 
 /// The levels NetEase serves, best first. Hi-res and lossless are FLAC, the rest MP3; what an
 /// account gets depends on its plan, and NetEase steps down by itself when the plan or the
@@ -128,6 +132,24 @@ pub struct Resolved {
     pub encoding: Option<Encoding>,
     /// The bit rate NetEase actually serves, which tells two copies of one song apart.
     pub bitrate: u32,
+}
+
+/// The remaining playlist entries in provider order, with their original addition times.
+#[derive(Deserialize, Serialize)]
+struct PlaylistPage {
+    entries: Vec<(u64, Option<i64>)>,
+}
+
+impl PlaylistPage {
+    /// An opaque local continuation, absent once every entry has been consumed.
+    fn continuation(self) -> Result<Option<String>> {
+        match self.entries.is_empty() {
+            true => Ok(None),
+            false => serde_json::to_string(&self)
+                .map(Some)
+                .context("cannot encode the netease playlist continuation"),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -278,18 +300,25 @@ impl NetEaseClient {
     /// longer knows is left out.
     pub(crate) async fn songs(&self, ids: &[u64]) -> Result<Vec<wire::Song>> {
         let mut found: HashMap<u64, wire::Song> = HashMap::new();
-        for batch in ids.chunks(DETAIL_BATCH) {
-            let wanted: Vec<Value> = batch.iter().map(|id| json!({ "id": id })).collect();
-            let answer: SongsAnswer = self
-                .call(
-                    "/api/v3/song/detail",
-                    params([("c", json!(Value::Array(wanted).to_string()))]),
-                    Scheme::Weapi,
-                )
-                .await
-                .context("cannot load netease songs")?;
-            let mut songs = answer.songs;
-            wire::merge(&mut songs, answer.privileges);
+        let requests: Vec<_> = ids
+            .chunks(DETAIL_BATCH)
+            .map(|batch| async move {
+                let wanted: Vec<Value> = batch.iter().map(|id| json!({ "id": id })).collect();
+                let answer: SongsAnswer = self
+                    .call(
+                        "/api/v3/song/detail",
+                        params([("c", json!(Value::Array(wanted).to_string()))]),
+                        Scheme::Weapi,
+                    )
+                    .await
+                    .context("cannot load netease songs")?;
+                let mut songs = answer.songs;
+                wire::merge(&mut songs, answer.privileges);
+                Ok::<_, anyhow::Error>(songs)
+            })
+            .collect();
+        let mut batches = futures::stream::iter(requests).buffered(DETAIL_CONCURRENCY);
+        while let Some(songs) = batches.try_next().await? {
             found.extend(songs.into_iter().map(|song| (song.id, song)));
         }
         Ok(ids.iter().filter_map(|id| found.remove(id)).collect())
@@ -818,8 +847,7 @@ impl MusicApi for NetEaseClient {
         Ok(self.album(album_id).await?.tracks)
     }
 
-    /// The whole playlist: the first stretch comes with the details, and the rest by id in
-    /// detail batches.
+    /// The first stretch of a playlist, with the rest available through a continuation.
     async fn playlist(&self, playlist_id: &str) -> Result<PlaylistDetail> {
         let head = self.playlist_head(playlist_id, PLAYLIST_HEAD).await?;
         let added: HashMap<u64, i64> = head
@@ -835,6 +863,7 @@ impl MusicApi for NetEaseClient {
         let missing: Vec<u64> = head
             .track_ids
             .iter()
+            .take(PLAYLIST_HEAD)
             .map(|entry| entry.id)
             .filter(|id| !songs.contains_key(id))
             .collect();
@@ -851,26 +880,66 @@ impl MusicApi for NetEaseClient {
             false => head
                 .track_ids
                 .iter()
+                .take(PLAYLIST_HEAD)
                 .filter_map(|entry| songs.get(&entry.id))
                 .map(|song| song.track(added.get(&song.id).copied()))
                 .collect(),
         };
         let mut playlist = head.playlist(self.user_id());
         if playlist.track_count == 0 {
-            playlist.track_count = tracks.len() as u32;
+            playlist.track_count = head.track_ids.len().max(tracks.len()) as u32;
         }
         if playlist.cover.is_none() {
             playlist.cover = tracks.iter().find_map(|track| track.cover.clone());
         }
+        let continuation = PlaylistPage {
+            entries: head
+                .track_ids
+                .iter()
+                .skip(PLAYLIST_HEAD)
+                .map(|entry| (entry.id, entry.at.map(|at| at / 1000)))
+                .collect(),
+        }
+        .continuation()?;
         Ok(PlaylistDetail {
             playlist,
             tracks,
-            continuation: None,
+            continuation,
         })
     }
 
+    async fn playlist_continuation(
+        &self,
+        continuation: &str,
+    ) -> Result<(Vec<Track>, Option<String>)> {
+        let mut page: PlaylistPage = serde_json::from_str(continuation)
+            .context("cannot decode the netease playlist continuation")?;
+        let rest = page.entries.split_off(page.entries.len().min(DETAIL_BATCH));
+        let ids: Vec<u64> = page.entries.iter().map(|(id, _)| *id).collect();
+        let songs: HashMap<_, _> = self
+            .songs(&ids)
+            .await?
+            .into_iter()
+            .map(|song| (song.id, song))
+            .collect();
+        let tracks = page
+            .entries
+            .into_iter()
+            .filter_map(|(id, at)| songs.get(&id).map(|song| song.track(at)))
+            .collect();
+        Ok((tracks, PlaylistPage { entries: rest }.continuation()?))
+    }
+
     async fn playlist_tracks(&self, playlist_id: &str) -> Result<Vec<Track>> {
-        Ok(self.playlist(playlist_id).await?.tracks)
+        let detail = self.playlist(playlist_id).await?;
+        let mut tracks = detail.tracks;
+        let mut continuation = detail.continuation;
+        while let Some(next) = continuation {
+            let (page, remaining) = self.playlist_continuation(&next).await?;
+            tracks.extend(page);
+            continuation = remaining;
+        }
+        Ok(tracks)
     }
 
     async fn playlist_covers(&self, playlist_id: &str, wanted: usize) -> Result<Vec<String>> {
