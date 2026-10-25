@@ -46,6 +46,7 @@ mod scroller;
 mod scrubber;
 mod separator;
 mod shield;
+mod reveal;
 mod skeleton;
 mod spinner;
 mod switch;
@@ -138,6 +139,7 @@ pub use scroller::{Scroller, middle_scroll, perch_room, perched, return_to, retu
 pub use scrubber::{Scrubber, ScrubberState};
 pub use separator::Separator;
 pub use shield::Shield;
+pub use reveal::Reveal;
 pub use skeleton::{Initials, Skeleton};
 pub use spinner::{Spin, Spinner};
 pub use switch::Switch;
