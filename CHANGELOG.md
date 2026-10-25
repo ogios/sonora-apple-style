@@ -97,6 +97,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Under Liquid Glass the account card at the foot of the sidebar shows your account's picture and
   name over the service it belongs to, as the providers page does. As a guest, or on an account
   with no name of its own, it names the service over the way to the settings.
+- Loading placeholders hand over to what they stood in for instead of cutting to it: the
+  placeholder fades out as the content fades in and settles a few pixels up into its place, item
+  by item across lists, card grids, shelves, quick picks, search results and page headers, a
+  little after the one before. Placeholders that turn out to have nothing behind them fade out on
+  their own. Content that is already there when a page opens shows at once, and Reduce motion
+  turns the hand-over off.
 
 ### Fixed
 
@@ -142,6 +148,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Under Liquid Glass the cover in the player bar's track capsule now sits the same distance from
   every edge of the capsule at each corner setting, and the queue's item count shows as a bare
   number rather than being cut off when the sidebar is too narrow for the words.
+- The shadow under the fullscreen player's controls no longer gets cut off at the top and bottom
+  while the controls show or hide, then pops back in once they have settled.
 
 ## [0.44.1] - 2026-10-22
 
