@@ -5,7 +5,7 @@ use gpui::{
 };
 use i18n::t;
 use state::{AppSettings, GenreDetails, Playback, Sonora};
-use ui::{ActiveTheme as _, Mode, Popovers, Scrollbar, Scroller, Skeleton, Text, vacant};
+use ui::{ActiveTheme as _, Mode, Popovers, Reveal, Scrollbar, Scroller, Skeleton, Text, vacant};
 
 use crate::chrome::{Chrome, Toolbar, Tooled, tools};
 use crate::shared::cells;
@@ -151,19 +151,23 @@ impl Render for GenreView {
                         .flex()
                         .flex_col()
                         .gap_8()
-                        .when(title.is_none() && loading, |this| {
-                            this.child(
-                                Skeleton::new()
-                                    .w(TITLE_SKELETON)
-                                    .h(theme.text(Text::Display)),
-                            )
-                        })
-                        .when_some(title, |this, title| {
-                            this.child(
+                        // The name crosses in over its skeleton once it lands.
+                        .when(title.is_some() || loading, |this| {
+                            let name = title.map(|title| {
                                 div()
                                     .text_size(theme.text(Text::Display))
                                     .font_weight(FontWeight::BOLD)
-                                    .child(SharedString::from(title)),
+                                    .child(SharedString::from(title))
+                                    .into_any_element()
+                            });
+                            this.child(
+                                Reveal::new("genre-title-reveal", name, |_, cx| {
+                                    Skeleton::new()
+                                        .w(TITLE_SKELETON)
+                                        .h(cx.theme().text(Text::Display))
+                                        .into_any_element()
+                                })
+                                .w_full(),
                             )
                         })
                         .when(empty, |this| this.child(vacant(t!("genre-empty"), cx)))
