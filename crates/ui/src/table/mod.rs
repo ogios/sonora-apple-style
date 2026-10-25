@@ -44,6 +44,8 @@ const OVERSCAN: usize = 2;
 const OVERSCAN_ABOVE: usize = 1;
 /// How tall a skeleton bar stands against its row.
 const SKELETON_BAR: f32 = 0.3;
+/// The most skeleton rows past the last row looked up as they fade, more than a screen holds.
+const LEAVERS_MAX: usize = 256;
 /// How far a skeleton bar reaches across its cell, stepped by row and column so the column
 /// edges do not line up into a grid.
 const SKELETON_REACH: [f32; 5] = [0.6, 0.85, 0.45, 0.7, 0.55];
@@ -794,6 +796,20 @@ impl<S: TableSource> TableState<S> {
             .collect()
     }
 
+    /// How much still shows of each skeleton row past the last row, while a list that came
+    /// in shorter than its skeletons lets the rest fade.
+    fn leavers(&self, window: &mut Window, cx: &App) -> Vec<f32> {
+        let count = self.delegate.row_count();
+        crate::reveal::leavers(
+            (count..count + LEAVERS_MAX).map(|display| self.reveal_id(display)),
+            window,
+            cx,
+        )
+        .into_iter()
+        .map(|(_, shows)| shows)
+        .collect()
+    }
+
     /// Where the hand-over from a skeleton row to the row at `display` is remembered, one
     /// place per table and row.
     fn reveal_id(&self, display: usize) -> gpui::ElementId {
@@ -1120,6 +1136,7 @@ impl<S: TableSource> TableState<S> {
         &self,
         head: Pixels,
         row_height: Pixels,
+        leavers: &[f32],
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Vec<AnyElement> {
@@ -1251,6 +1268,11 @@ impl<S: TableSource> TableState<S> {
             })
             .collect();
         rows.extend(lingering);
+        rows.extend(leavers.iter().enumerate().map(|(index, shows)| {
+            self.skeleton(head, row_height, count + index, cx)
+                .opacity(*shows)
+                .into_any_element()
+        }));
         rows.push(
             self.upcoming(first..last, row_height, cx)
                 .into_any_element(),
@@ -1365,7 +1387,17 @@ impl<S: TableSource> Render for TableState<S> {
         let row = row_height(window, cx);
         let head = snapped(metrics.header, window);
         let placeholders = self.placeholders(row, cx);
-        let height = self.height(head, row, self.delegate.row_count().max(placeholders));
+        // Skeleton rows past the last row that came fade out where they stood, the table
+        // keeping its height for them until they have gone.
+        let leavers = match placeholders {
+            0 => self.leavers(window, cx),
+            _ => Vec::new(),
+        };
+        let height = self.height(
+            head,
+            row,
+            (self.delegate.row_count() + leavers.len()).max(placeholders),
+        );
         let pinned = snapped(self.viewport.top.clamp(Pixels::ZERO, height - head), window);
         let top = unpinned(self.corners, pinned);
         // With Blur UI on the rows pass behind the head and it frosts them in the material of a
@@ -1436,7 +1468,7 @@ impl<S: TableSource> Render for TableState<S> {
                             .right_0()
                             .h(height)
                             .children(match placeholders {
-                                0 => self.rows(head, row, window, cx),
+                                0 => self.rows(head, row, &leavers, window, cx),
                                 count => self.skeletons(head, row, count, cx),
                             }),
                     ),
