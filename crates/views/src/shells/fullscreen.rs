@@ -35,6 +35,10 @@ const PANEL_SLIDE: f32 = 48.;
 const BACKDROP_REACH: f32 = 1.2;
 const BACKDROP_BLUR: f32 = 80.;
 const BACKDROP_SHADE: f32 = 0.35;
+/// How much of the blurred cover shows over the ambient field when that is on. The field's
+/// colours and drift read through the rest, so the ambient settings change what Liquid Glass
+/// stands on rather than hiding under an opaque cover.
+const BACKDROP_OVER_AMBIENT: f32 = 0.4;
 const COVER_TALL: f32 = 0.46;
 const COVER_WIDE: f32 = 0.34;
 const COVER_TALL_TIGHT: f32 = 0.6;
@@ -1190,6 +1194,7 @@ impl FullscreenView {
 /// track changes.
 pub(crate) fn backdrop(
     cover: Option<String>,
+    ambient: bool,
     window: &mut Window,
     cx: &mut App,
 ) -> gpui::AnyElement {
@@ -1205,6 +1210,7 @@ pub(crate) fn backdrop(
         .child(
             div()
                 .flex_none()
+                .when(ambient, |this| this.opacity(BACKDROP_OVER_AMBIENT))
                 .blur(px(BACKDROP_BLUR))
                 .child(ui::crossfade(
                     "fullscreen-backdrop",
@@ -1214,12 +1220,16 @@ pub(crate) fn backdrop(
                     move |cover| Artwork::new(cover).size(edge).into_any_element(),
                 )),
         )
-        .child(
-            div()
-                .absolute()
-                .inset_0()
-                .bg(gpui::black().opacity(BACKDROP_SHADE)),
-        )
+        // The ambient field comes shaded already, so over it the cover takes no shade of its
+        // own.
+        .when(!ambient, |this| {
+            this.child(
+                div()
+                    .absolute()
+                    .inset_0()
+                    .bg(gpui::black().opacity(BACKDROP_SHADE)),
+            )
+        })
         .into_any_element()
 }
 

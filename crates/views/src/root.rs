@@ -1237,11 +1237,15 @@ impl Render for Root {
             // Liquid Glass floats its chrome over a colour field of the cover's tint, which is
             // what its panels blur and their rims catch. Fullscreen's ambient field stands in.
             .when(theme.liquid, |this| match self.view {
-                // Fullscreen under Liquid Glass stands on the blurred cover itself, over the
-                // ambient field when that is on too.
+                // Fullscreen under Liquid Glass stands on the blurred cover itself. With the
+                // ambient background on, the cover thins over the ambient field so its colours
+                // and its drift show; an opaque cover used to hide the field whole, and with it
+                // both ambient settings.
                 RootView::Fullscreen => {
                     let cover = self.shells.fullscreen.read(cx).cover(cx);
-                    this.child(crate::shells::fullscreen::backdrop(cover, window, cx))
+                    this.child(crate::shells::fullscreen::backdrop(
+                        cover, ambient, window, cx,
+                    ))
                 }
                 RootView::Workspace if !ambient => this.child(ui::liquid_field(window, cx)),
                 RootView::Workspace => this,
