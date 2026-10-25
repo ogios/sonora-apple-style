@@ -27,26 +27,81 @@ Stream from your favorite services and play local files — all in one **native*
 </div>
 
 <div align="center">
-    <table>
-      <tr>
-        <td colspan="2">
-          <img width="1613" height="981" alt="image" src="https://github.com/user-attachments/assets/7952a912-7fbc-4186-b467-a08dd7e71e22" />
-        </td>
-      </tr>
-      <tr>
-        <td width="50%">
-          <img width="1623" height="987" alt="image" src="https://github.com/user-attachments/assets/580bf9d6-db85-4fde-b599-82ba2a28cc51" />
-        </td>
-        <td width="50%">
-          <img width="1623" height="987" alt="image" src="https://github.com/user-attachments/assets/64fcd709-5917-432c-a418-2e07527343d2" />
-        </td>
-      </tr>
-    </table>
-</div>
-<div align="center">
-    <sub>
-      Adaptive themes are optional. Everything is (or will be) customizable.
-    </sub>
+  <p><b>Make room for your music</b></p>
+  <table>
+    <tr>
+      <td width="44%" align="center" valign="top">
+        <a href="./.github/screenshots/layout-lyrics.webp">
+          <img src="./.github/screenshots/layout-lyrics.webp" alt="Sonora home with both sidebars visible and synchronized lyrics in the right sidebar" width="100%">
+        </a>
+        <br>
+        <sub>Lyrics alongside your music</sub>
+      </td>
+      <td width="44%" align="center" valign="top">
+        <a href="./.github/screenshots/layout-focus.webp">
+          <img src="./.github/screenshots/layout-focus.webp" alt="Sonora home with both sidebars hidden to give recommendations the full window width" width="100%">
+        </a>
+        <br>
+        <sub>Both sidebars hidden</sub>
+      </td>
+      <td width="12%" align="center" valign="top">
+        <a href="./.github/screenshots/queue.webp">
+          <img src="./.github/screenshots/queue.webp" alt="The right sidebar showing the current song, upcoming tracks, and similar tracks" width="100%">
+        </a>
+        <br>
+        <sub>Queue</sub>
+      </td>
+    </tr>
+  </table>
+
+  <p><b>Explore artists, albums, and recommendations</b></p>
+  <table>
+    <tr>
+      <td width="33%" align="center" valign="top">
+        <a href="./.github/screenshots/artist.webp">
+          <img src="./.github/screenshots/artist.webp" alt="Vansire artist page with a full-width artist photo and popular songs; the right sidebar is hidden" width="100%">
+        </a>
+        <br>
+        <sub>Artist</sub>
+      </td>
+      <td width="34%" align="center" valign="top">
+        <a href="./.github/screenshots/album.webp">
+          <img src="./.github/screenshots/album.webp" alt="After Fillmore County album page with tracks and recommendations; the right sidebar is hidden" width="100%">
+        </a>
+        <br>
+        <sub>Album</sub>
+      </td>
+      <td width="33%" align="center" valign="top">
+        <a href="./.github/screenshots/home.webp">
+          <img src="./.github/screenshots/home.webp" alt="YouTube Music home with quick picks, trending songs, and playlists; the right sidebar is hidden" width="100%">
+        </a>
+        <br>
+        <sub>Home</sub>
+      </td>
+    </tr>
+  </table>
+
+  <p><b>Follow every line in fullscreen</b></p>
+  <table>
+    <tr>
+      <td width="50%" align="center" valign="top">
+        <a href="./.github/screenshots/fullscreen-clean.webp">
+          <img src="./.github/screenshots/fullscreen-clean.webp" alt="Every Time Around playing in fullscreen with automatically scrolling synchronized lyrics and hidden playback controls" width="100%">
+        </a>
+        <br>
+        <sub>Lyrics in focus · controls hidden</sub>
+      </td>
+      <td width="50%" align="center" valign="top">
+        <a href="./.github/screenshots/fullscreen-controls.webp">
+          <img src="./.github/screenshots/fullscreen-controls.webp" alt="Every Time Around playing in fullscreen with synchronized lyrics and visible playback controls" width="100%">
+        </a>
+        <br>
+        <sub>Playback controls at hand</sub>
+      </td>
+    </tr>
+  </table>
+
+  <p><sub>Captured on Linux with the Liquid Glass style. Adaptive themes are optional; appearance is customizable.</sub></p>
 </div>
 
 > [!IMPORTANT]
