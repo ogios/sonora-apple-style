@@ -83,25 +83,60 @@ impl Revealing {
     }
 
     /// Wraps `cards`, the grid's from its first place on, so each crosses in over its skeleton
-    /// if one stood there, a row lower a little after the one above and so on across it.
+    /// if one stood there, a row lower a little after the one above and so on across it. The
+    /// skeletons left over in the last row, where fewer cards came than were guessed, fade out
+    /// in their places. Those in rows below go with the rows, which the layout no longer has.
     pub(crate) fn wrap(
         self,
         cards: Vec<AnyElement>,
         layout: CardLayout,
-    ) -> impl Iterator<Item = AnyElement> {
+        window: &mut Window,
+        cx: &App,
+    ) -> Vec<AnyElement> {
         let columns = layout.columns.max(1);
-        cards.into_iter().enumerate().map(move |(index, card)| {
-            let place = self.first + index;
-            let key = self.key.clone();
-            let circle = self.circle;
-            Reveal::new(self.id(place), Some(card), move |_, _| {
-                Self::skeleton(key, place, layout.card, circle)
+        let end = self.first + cards.len();
+        let leavers = match end % columns {
+            0 => Vec::new(),
+            filled => ui::reveal::leavers(
+                (end..end + columns - filled).map(|place| self.id(place)),
+                window,
+                cx,
+            ),
+        };
+        let leaving = leavers
+            .into_iter()
+            .enumerate()
+            .map(|(index, (_, shows))| {
+                div()
+                    .flex_none()
+                    .opacity(shows)
+                    .child(Self::skeleton(
+                        self.key.clone(),
+                        end + index,
+                        layout.card,
+                        self.circle,
+                    ))
+                    .into_any_element()
             })
-            .order(place / columns + place % columns)
-            .flex_none()
-            .w(layout.card)
-            .into_any_element()
-        })
+            .collect::<Vec<_>>();
+        let mut wrapped: Vec<AnyElement> = cards
+            .into_iter()
+            .enumerate()
+            .map(|(index, card)| {
+                let place = self.first + index;
+                let key = self.key.clone();
+                let circle = self.circle;
+                Reveal::new(self.id(place), Some(card), move |_, _| {
+                    Self::skeleton(key, place, layout.card, circle)
+                })
+                .order(place / columns + place % columns)
+                .flex_none()
+                .w(layout.card)
+                .into_any_element()
+            })
+            .collect();
+        wrapped.extend(leaving);
+        wrapped
     }
 }
 
@@ -138,14 +173,14 @@ impl CardGrid {
 }
 
 impl RenderOnce for CardGrid {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let Self {
             layout,
             cards,
             reveal,
         } = self;
         let cards: Vec<AnyElement> = match reveal {
-            Some(reveal) => reveal.wrap(cards, layout).collect(),
+            Some(reveal) => reveal.wrap(cards, layout, window, cx),
             None => cards,
         };
         div().flex().w_full().gap_x(layout.gap).children(cards)
@@ -185,7 +220,7 @@ impl AlbumGrid {
 }
 
 impl RenderOnce for AlbumGrid {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let Self {
             id,
             layout,
@@ -200,7 +235,7 @@ impl RenderOnce for AlbumGrid {
             })
             .collect();
         let cards: Vec<AnyElement> = match reveal {
-            Some(reveal) => reveal.wrap(cards, layout).collect(),
+            Some(reveal) => reveal.wrap(cards, layout, window, cx),
             None => cards,
         };
 
