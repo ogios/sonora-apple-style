@@ -7,7 +7,9 @@ use std::rc::Rc;
 
 use music::{GenreItem, GenreSection};
 use state::Playback;
-use ui::{ActiveTheme as _, Button, Card, Deck, Glide, Mode, Skeleton, Text, heading, snapped};
+use ui::{
+    ActiveTheme as _, Button, Card, Deck, Glide, Mode, Reveal, Skeleton, Text, heading, snapped,
+};
 
 use crate::shared::album_grid::CardGrid;
 use crate::shared::cards;
@@ -46,23 +48,19 @@ impl Shelves {
     }
 
     pub(crate) fn pending(&self, width: Pixels, cx: &App) -> Vec<AnyElement> {
-        let theme = *cx.theme();
         let layout = CardGrid::layout(width);
 
         (0..PENDING)
             .map(|shelf| {
+                ui::reveal::waiting(&self.heading_reveal(shelf), cx);
                 div()
                     .flex()
                     .flex_col()
                     .gap_3()
-                    .child(
-                        Skeleton::new()
-                            .w(HEADING)
-                            .h(theme.text(Text::Large))
-                            .rounded(theme.radius),
-                    )
+                    .child(heading_skeleton(cx))
                     .child(div().flex().w_full().gap_4().overflow_hidden().children(
                         (0..layout.columns).map(|place| {
+                            ui::reveal::waiting(&self.card_reveal(shelf, place), cx);
                             Card::skeleton(self.tag("pending", shelf * 100 + place))
                                 .tile(layout.card)
                         }),
@@ -70,6 +68,16 @@ impl Shelves {
                     .into_any_element()
             })
             .collect()
+    }
+
+    /// Where a shelf's heading is remembered as it crosses in from its skeleton.
+    fn heading_reveal(&self, shelf: usize) -> ElementId {
+        ElementId::NamedInteger(self.tag("reveal-heading", 0), shelf as u64)
+    }
+
+    /// Where a shelf's card is remembered as it crosses in from its skeleton.
+    fn card_reveal(&self, shelf: usize, place: usize) -> ElementId {
+        ElementId::NamedInteger(self.tag("reveal-card", shelf), place as u64)
     }
 
     pub(crate) fn reset(&mut self) {
@@ -195,22 +203,30 @@ impl Shelves {
         let drawn = me.clone();
         let card = layout.card;
         let tall = Card::tile_height(card, window, cx);
+        let head_row = div()
+            .flex()
+            .items_end()
+            .justify_between()
+            .gap_4()
+            .h(head(window, cx))
+            .child(heading(i18n::translate(&section.title), cx))
+            .when(crowded, |this| {
+                this.child(self.arrows(place, &handle, &glide, me))
+            })
+            .into_any_element();
+        let reveals = self.tag("reveal-card", place);
+        let pending = self.tag("pending", 0);
 
         div()
             .flex()
             .flex_col()
             .gap_3()
             .child(
-                div()
-                    .flex()
-                    .items_end()
-                    .justify_between()
-                    .gap_4()
-                    .h(head(window, cx))
-                    .child(heading(i18n::translate(&section.title), cx))
-                    .when(crowded, |this| {
-                        this.child(self.arrows(place, &handle, &glide, me))
-                    }),
+                Reveal::new(self.heading_reveal(place), Some(head_row), |_, cx| {
+                    heading_skeleton(cx).into_any_element()
+                })
+                .order(place)
+                .w_full(),
             )
             .child(
                 div()
@@ -245,8 +261,25 @@ impl Shelves {
                                     return div().into_any_element();
                                 };
 
-                                view.read(cx)
-                                    .card(place * 100 + index, item, Some(card), cx)
+                                let shown =
+                                    view.read(cx)
+                                        .card(place * 100 + index, item, Some(card), cx);
+                                let pending = pending.clone();
+                                Reveal::new(
+                                    ElementId::NamedInteger(reveals.clone(), index as u64),
+                                    Some(shown),
+                                    move |_, _| {
+                                        Card::skeleton(ElementId::NamedInteger(
+                                            pending,
+                                            (place * 100 + index) as u64,
+                                        ))
+                                        .tile(card)
+                                        .into_any_element()
+                                    },
+                                )
+                                .order(place + index)
+                                .w(card)
+                                .into_any_element()
                             }),
                     ),
             )
@@ -632,4 +665,13 @@ fn slot(kind: &'static str, place: usize) -> ElementId {
 /// trackpad scrolls the rail itself and a vertical notch belongs to the page.
 fn sideways(event: &ScrollWheelEvent) -> bool {
     !event.delta.precise() && event.delta.pixel_delta(px(1.)).x != Pixels::ZERO
+}
+
+/// The bar that stands in for a shelf's heading while its cards are on their way.
+fn heading_skeleton(cx: &App) -> Skeleton {
+    let theme = cx.theme();
+    Skeleton::new()
+        .w(HEADING)
+        .h(theme.text(Text::Large))
+        .rounded(theme.radius)
 }
