@@ -93,7 +93,9 @@ const TEXT_SHADOW: [f32; 3] = [1.5, 4., 10.];
 const DOCK_BLUR: Pixels = px(8.);
 /// Below this the dock's blur is not worth a layer of its own.
 const DOCK_BLUR_LEAST: Pixels = px(0.05);
-const REST: Duration = Duration::from_millis(1500);
+/// How long the view waits with no input at all, the pointer resting anywhere in it, before
+/// the controls and the cursor go.
+const REST: Duration = Duration::from_millis(3000);
 const WAKE_DEBOUNCE: Duration = Duration::from_millis(400);
 /// How far the pointer has to travel, in pixels, before it wakes the controls, so the drift a
 /// resting hand gives a trackpad or a sensitive mouse leaves them asleep.
@@ -144,6 +146,10 @@ pub struct FullscreenView {
     dock_high: Rc<Cell<Pixels>>,
     /// The cornered switcher's measured width, which the controls keep clear of.
     switcher_wide: Rc<Cell<Pixels>>,
+    /// Where the controls, the switcher and the leave button were drawn this frame.
+    zones: Rc<Zones>,
+    /// Where the pointer last was inside the view, at any distance it moved.
+    pointer: Option<Point<Pixels>>,
 }
 
 impl FullscreenView {
@@ -202,6 +208,8 @@ impl FullscreenView {
             meta_bounds: Rc::new(Cell::new(Bounds::default())),
             dock_high: Rc::new(Cell::new(Pixels::ZERO)),
             switcher_wide: Rc::new(Cell::new(Pixels::ZERO)),
+            zones: Rc::new(Zones::default()),
+            pointer: None,
         }
     }
 
@@ -262,6 +270,7 @@ impl FullscreenView {
     }
 
     fn hover(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
+        self.pointer = Some(event.position);
         let pad = cx.theme().metrics.pad;
         let seek = self.seek.hovered(event.position, pad);
         if moved(self.over_seek, seek) {
@@ -292,18 +301,17 @@ impl FullscreenView {
         self.stir(cx);
     }
 
-    /// Whether anything under the pointer should hold the chrome awake. A hover flag only counts
-    /// while the pointer is over the window: one set when it left stays set, and a stale flag
-    /// would keep the controls up for good. A Jam invite drawn over the view holds it too, since
-    /// the pointer over the dialog never reaches the view and the cursor would hide under it.
+    /// Whether anything should hold the chrome awake: the pointer resting on the controls, the
+    /// switcher, the leave button or the open volume panel, a drag on the seek or the volume
+    /// bar, or a menu. Anywhere else, the lyrics and the cover included, the controls go once
+    /// the input stops. The pointer is tested against where those were drawn this frame rather
+    /// than against hover flags, which an element that moved or vanished under a still pointer
+    /// leaves set and which used to hold the controls up for good. It only counts while the
+    /// pointer is over the window. A Jam invite drawn over the view holds it too, since the
+    /// pointer over the dialog never reaches the view and the cursor would hide under it.
     fn busy(&self, cx: &App) -> bool {
-        let parked = self.over_volume
-            || self.over_zone
+        let parked = self.pointer.is_some_and(|pointer| self.zones.hold(pointer))
             || self.over_panel
-            || self.over_pill
-            || self.over_transport
-            || self.over_leave
-            || self.over_seek.is_some()
             || self.scrollbar_held(cx);
         (self.inside && parked)
             || self.volume_held
@@ -324,6 +332,7 @@ impl FullscreenView {
         if !inside {
             self.over_seek = None;
             self.last_pos = None;
+            self.pointer = None;
             self.stir(cx);
         }
     }
@@ -798,8 +807,18 @@ impl FullscreenView {
             false => theme.metrics.control_small,
         };
 
+        let zones = self.zones.clone();
         div()
             .id("fullscreen-controls")
+            .relative()
+            .child(
+                canvas(
+                    move |bounds, _, _| zones.controls.set(bounds),
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_full(),
+            )
             .flex()
             .flex_col()
             .items_center()
@@ -929,10 +948,17 @@ impl FullscreenView {
                 .on_click(cx.listener(move |this, _, _, cx| this.show(panel, cx)))
         };
 
+        let zones = self.zones.clone();
         div()
             .id("fullscreen-pill")
+            .relative()
             .flex_none()
             .on_hover(linger)
+            .child(
+                canvas(move |bounds, _, _| zones.pill.set(bounds), |_, _, _, _| {})
+                    .absolute()
+                    .size_full(),
+            )
             .child(
                 TabBar::new("fullscreen-pill-bar")
                     .when(frosted, TabBar::blurred)
@@ -1160,6 +1186,7 @@ impl FullscreenView {
     fn leave(&self, idle: f32, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = *cx.theme();
         let frosted = ambient::shown(cx);
+        let zones = self.zones.clone();
 
         div()
             .id("leave-fullscreen-hover")
@@ -1175,6 +1202,11 @@ impl FullscreenView {
                 this.over_leave = *hovering;
                 cx.notify();
             }))
+            .child(
+                canvas(move |bounds, _, _| zones.leave.set(bounds), |_, _, _, _| {})
+                    .absolute()
+                    .size_full(),
+            )
             .child(
                 Button::new("leave-fullscreen")
                     .ghost()
@@ -1270,6 +1302,8 @@ impl Render for FullscreenView {
         let room = Room::of(viewport.width);
         let split = room.fits(Room::Wide) && self.panel.is_some();
         self.watch(window, cx);
+        // Each zone is drawn again below if it still shows, so one that went stays out.
+        self.zones.clear();
         let idle = self.hidden(window, cx);
         let hide = match self.settings.read(cx).fullscreen_controls_autohide() {
             FullscreenControlsAutohide::Automatic => idle,
@@ -1570,5 +1604,28 @@ mod tests {
         let scale = presentation_scale(presented, layout);
 
         assert!((layout.as_f32() * scale - presented.as_f32()).abs() < 0.001);
+    }
+}
+
+/// Where the controls that hold the view awake were drawn, for the idle clock to test the
+/// pointer against.
+#[derive(Default)]
+struct Zones {
+    controls: Cell<Bounds<Pixels>>,
+    pill: Cell<Bounds<Pixels>>,
+    leave: Cell<Bounds<Pixels>>,
+}
+
+impl Zones {
+    fn clear(&self) {
+        self.controls.take();
+        self.pill.take();
+        self.leave.take();
+    }
+
+    fn hold(&self, pointer: Point<Pixels>) -> bool {
+        [&self.controls, &self.pill, &self.leave]
+            .iter()
+            .any(|zone| zone.get().contains(&pointer))
     }
 }
