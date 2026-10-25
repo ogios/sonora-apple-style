@@ -1,8 +1,8 @@
 use gpui::prelude::*;
-use gpui::{AnyElement, App, Entity, Pixels, RenderOnce, Window, div, px};
+use gpui::{AnyElement, App, ElementId, Entity, Pixels, RenderOnce, SharedString, Window, div, px};
 use music::Album;
 use state::Playback;
-use ui::Card;
+use ui::{Card, Reveal};
 
 use crate::shared::cards;
 
@@ -35,10 +35,77 @@ impl CardLayout {
     }
 }
 
+/// Where a grid's cards are remembered as they cross in from their skeletons: a name for the
+/// grid, unique to its page, the place of its first card in the whole grid, and whether its
+/// cards are round.
+#[derive(Clone)]
+pub(crate) struct Revealing {
+    pub(crate) key: SharedString,
+    pub(crate) first: usize,
+    pub(crate) circle: bool,
+}
+
+impl Revealing {
+    pub(crate) fn new(key: impl Into<SharedString>, first: usize) -> Self {
+        Self {
+            key: key.into(),
+            first,
+            circle: false,
+        }
+    }
+
+    pub(crate) fn circle(mut self, circle: bool) -> Self {
+        self.circle = circle;
+        self
+    }
+
+    fn id(&self, place: usize) -> ElementId {
+        ElementId::NamedInteger(self.key.clone(), place as u64)
+    }
+
+    /// The skeleton card at `place`, as the grid draws it while its cards are on their way.
+    fn skeleton(key: SharedString, place: usize, card: Pixels, circle: bool) -> AnyElement {
+        Card::skeleton(ElementId::NamedInteger(key, place as u64))
+            .tile(card)
+            .when(circle, Card::circle)
+            .into_any_element()
+    }
+
+    /// `count` skeleton cards from the grid's first place on, each remembered as waiting so
+    /// the card that replaces it crosses in over it.
+    pub(crate) fn skeletons(&self, count: usize, card: Pixels, cx: &App) -> Vec<AnyElement> {
+        (self.first..self.first + count)
+            .map(|place| {
+                ui::reveal::waiting(&self.id(place), cx);
+                Self::skeleton(self.key.clone(), place, card, self.circle)
+            })
+            .collect()
+    }
+
+    /// Wraps `cards`, the grid's from its first place on, so each crosses in over its skeleton
+    /// if one stood there, a row lower a little after the one above and so on across it.
+    fn wrap(self, cards: Vec<AnyElement>, layout: CardLayout) -> impl Iterator<Item = AnyElement> {
+        let columns = layout.columns.max(1);
+        cards.into_iter().enumerate().map(move |(index, card)| {
+            let place = self.first + index;
+            let key = self.key.clone();
+            let circle = self.circle;
+            Reveal::new(self.id(place), Some(card), move |_, _| {
+                Self::skeleton(key, place, layout.card, circle)
+            })
+            .order(place / columns + place % columns)
+            .flex_none()
+            .w(layout.card)
+            .into_any_element()
+        })
+    }
+}
+
 #[derive(IntoElement)]
 pub(crate) struct CardGrid {
     layout: CardLayout,
     cards: Vec<AnyElement>,
+    reveal: Option<Revealing>,
 }
 
 impl CardGrid {
@@ -46,7 +113,14 @@ impl CardGrid {
         Self {
             layout: CardLayout::new(available),
             cards: Vec::new(),
+            reveal: None,
         }
+    }
+
+    /// Crosses the cards in over the skeletons that stood in their places.
+    pub(crate) fn reveals(mut self, reveal: Revealing) -> Self {
+        self.reveal = Some(reveal);
+        self
     }
 
     pub(crate) fn layout(available: Pixels) -> CardLayout {
@@ -61,11 +135,16 @@ impl CardGrid {
 
 impl RenderOnce for CardGrid {
     fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
-        div()
-            .flex()
-            .w_full()
-            .gap_x(self.layout.gap)
-            .children(self.cards)
+        let Self {
+            layout,
+            cards,
+            reveal,
+        } = self;
+        let cards: Vec<AnyElement> = match reveal {
+            Some(reveal) => reveal.wrap(cards, layout).collect(),
+            None => cards,
+        };
+        div().flex().w_full().gap_x(layout.gap).children(cards)
     }
 }
 
@@ -75,6 +154,7 @@ pub(crate) struct AlbumGrid {
     layout: CardLayout,
     albums: Vec<(usize, Album)>,
     playback: Entity<Playback>,
+    reveal: Option<Revealing>,
 }
 
 impl AlbumGrid {
@@ -89,7 +169,14 @@ impl AlbumGrid {
             layout: CardLayout::new(available),
             albums: albums.into_iter().collect(),
             playback,
+            reveal: None,
         }
+    }
+
+    /// Crosses the cards in over the skeletons that stood in their places.
+    pub(crate) fn reveals(mut self, reveal: Revealing) -> Self {
+        self.reveal = Some(reveal);
+        self
     }
 }
 
@@ -100,10 +187,18 @@ impl RenderOnce for AlbumGrid {
             layout,
             albums,
             playback,
+            reveal,
         } = self;
-        let cards = albums.into_iter().map(|(index, album)| {
-            album_card(id, index, &album, &playback, layout.card, cx).into_any_element()
-        });
+        let cards: Vec<AnyElement> = albums
+            .into_iter()
+            .map(|(index, album)| {
+                album_card(id, index, &album, &playback, layout.card, cx).into_any_element()
+            })
+            .collect();
+        let cards: Vec<AnyElement> = match reveal {
+            Some(reveal) => reveal.wrap(cards, layout).collect(),
+            None => cards,
+        };
 
         div()
             .flex()
