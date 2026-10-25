@@ -894,9 +894,27 @@ impl SidebarLeft {
     /// its name, opening settings.
     /// The account card at the sidebar's foot under Liquid Glass, built as it is drawn so its
     /// hover fade lasts from frame to frame.
+    /// The account card: the signed-in user's picture and name over the service's name, the
+    /// way the providers page shows them. Without a profile, as a guest, offline or on local
+    /// files, it names the service over the way to the settings, with its initial for a picture.
     fn account(&self, cx: &App) -> AnyElement {
-        let name = self.session.read(cx).provider_name().unwrap_or_default();
-        Drawn::new(move |window, cx| account_card(name, window, cx)).into_any_element()
+        let session = self.session.read(cx);
+        let provider = session.provider_name().unwrap_or_default();
+        let account = match session.state() {
+            state::SessionState::SignedIn(profile) if !profile.display_name.trim().is_empty() => {
+                Account {
+                    name: SharedString::from(profile.display_name.clone()),
+                    detail: SharedString::new_static(provider),
+                    avatar: profile.avatar.clone(),
+                }
+            }
+            _ => Account {
+                name: SharedString::new_static(provider),
+                detail: i18n::lookup("nav-settings", None),
+                avatar: None,
+            },
+        };
+        Drawn::new(move |window, cx| account_card(account, window, cx)).into_any_element()
     }
 
     fn persist(&self, cx: &mut Context<Self>) {
@@ -1252,7 +1270,19 @@ mod tests {
 
 /// The account card itself: your provider's initial on a disc nested in the card's curve, its
 /// name, and a way into Settings, with a hover fill that fades in and out.
-fn account_card(name: &'static str, window: &mut Window, cx: &mut App) -> AnyElement {
+/// What the account card shows: a name, a smaller line under it and a picture if there is one.
+struct Account {
+    name: SharedString,
+    detail: SharedString,
+    avatar: Option<String>,
+}
+
+fn account_card(account: Account, window: &mut Window, cx: &mut App) -> AnyElement {
+    let Account {
+        name,
+        detail,
+        avatar,
+    } = account;
     let theme = *cx.theme();
     let initial: SharedString = name
         .chars()
@@ -1295,8 +1325,12 @@ fn account_card(name: &'static str, window: &mut Window, cx: &mut App) -> AnyEle
                     Some(glow) => glow.attach(this),
                     None => this.hover(move |style| style.bg(hover)),
                 })
-                .child(
-                    div()
+                .child(match avatar {
+                    Some(avatar) => ui::Avatar::new(Some(avatar))
+                        .size(disc)
+                        .flex_none()
+                        .into_any_element(),
+                    None => div()
                         .flex()
                         .flex_none()
                         .items_center()
@@ -1306,8 +1340,9 @@ fn account_card(name: &'static str, window: &mut Window, cx: &mut App) -> AnyEle
                         .bg(theme.primary)
                         .text_color(theme.primary_foreground)
                         .font_weight(gpui::FontWeight::BOLD)
-                        .child(initial),
-                )
+                        .child(initial)
+                        .into_any_element(),
+                })
                 .child(
                     div()
                         .flex()
@@ -1318,7 +1353,7 @@ fn account_card(name: &'static str, window: &mut Window, cx: &mut App) -> AnyEle
                                 .min_w_0()
                                 .overflow_hidden()
                                 .font_weight(gpui::FontWeight::SEMIBOLD)
-                                .child(ui::fade_line(SharedString::from(name))),
+                                .child(ui::fade_line(name)),
                         )
                         .child(
                             div()
@@ -1326,7 +1361,7 @@ fn account_card(name: &'static str, window: &mut Window, cx: &mut App) -> AnyEle
                                 .overflow_hidden()
                                 .text_size(theme.text(Text::Small))
                                 .text_color(theme.muted_foreground)
-                                .child(ui::fade_line(i18n::lookup("nav-settings", None))),
+                                .child(ui::fade_line(detail)),
                         ),
                 )
                 .on_click(|_, _, cx| open_settings(cx)),
