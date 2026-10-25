@@ -77,6 +77,9 @@ enum Phase {
     Revealing(Instant),
     /// The content shows on its own.
     Shown,
+    /// The content came, but none for this place, so its skeleton fades out on its own from
+    /// the moment given: one past the end of a list shorter than the skeletons guessed.
+    Leaving(Instant),
 }
 
 /// Marks `id` as showing its skeleton, for a place that draws the hand-over itself rather than
@@ -105,6 +108,8 @@ pub fn crossing(id: &ElementId, order: usize, window: &mut Window, cx: &App) -> 
             *phase = Phase::Revealing(now + delay);
         }
         let Phase::Revealing(start) = *phase else {
+            // Content for a place whose skeleton already left shows at once.
+            *phase = Phase::Shown;
             return None;
         };
         let elapsed = now.saturating_duration_since(start);
@@ -119,6 +124,52 @@ pub fn crossing(id: &ElementId, order: usize, window: &mut Window, cx: &App) -> 
         window.request_animation_frame();
     }
     progress
+}
+
+/// How much of `id`'s skeleton still shows, from 1 down to 0, once the content around it came
+/// but none took its place, or `None` once it has gone or if it never showed. Draw the
+/// skeleton at this opacity where it stood, so a list that turns out shorter than its
+/// skeletons lets the rest fade rather than vanish. While it fades, the next frame is asked
+/// for.
+pub fn leaving(id: &ElementId, window: &mut Window, cx: &App) -> Option<f32> {
+    if !animates(cx) {
+        return None;
+    }
+    let now = Instant::now();
+    let span = paced(SPAN).mul_f32(SKELETON_FADE);
+    let shows = PLACES.with_borrow_mut(|places| {
+        let (phase, seen) = places.phases.get_mut(id)?;
+        *seen = now;
+        if let Phase::Waiting = phase {
+            *phase = Phase::Leaving(now);
+        }
+        let Phase::Leaving(start) = *phase else {
+            return None;
+        };
+        let progress =
+            now.duration_since(start).as_secs_f32() / span.as_secs_f32().max(f32::EPSILON);
+        if progress >= 1. {
+            places.phases.remove(id);
+            return None;
+        }
+        Some(1. - ease_out_cubic(progress))
+    });
+    if shows.is_some() {
+        window.request_animation_frame();
+    }
+    shows
+}
+
+/// Every skeleton still leaving among `ids`, taken in order until the first that is not, with
+/// how much of it shows: the tail of a list or a grid past its last item.
+pub fn leavers(
+    ids: impl IntoIterator<Item = ElementId>,
+    window: &mut Window,
+    cx: &App,
+) -> Vec<(ElementId, f32)> {
+    ids.into_iter()
+        .map_while(|id| leaving(&id, window, cx).map(|shows| (id, shows)))
+        .collect()
 }
 
 /// Styles content `progress` of the way into its place: faded and a little low at 0.
