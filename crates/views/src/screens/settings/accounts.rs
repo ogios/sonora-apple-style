@@ -11,8 +11,8 @@ use music::{AccountChoice, SignIn, SignInPrompt};
 use router::{Destination, SettingsPage, navigate};
 use state::{Failure, Scan, SessionState, Sonora};
 use ui::{
-    ActiveTheme as _, Avatar, Button, HoverFade, Initials, LEADING, Modal, Radio, Skeleton, Text,
-    Theme, mix,
+    ActiveTheme as _, Avatar, Button, HoverFade, Initials, LEADING, Modal, Radio, Reveal, Skeleton,
+    Text, Theme, mix,
 };
 
 use super::rows::drill;
@@ -95,43 +95,71 @@ impl SettingsView {
             .flex()
             .items_center()
             .gap_4()
-            .child(match self.session.read(cx).state() {
-                SessionState::SignedIn(profile) => match &profile.avatar {
-                    Some(avatar) => Avatar::new(Some(avatar.clone()))
-                        .size(px(64.))
-                        .into_any_element(),
-                    None => Initials::new(profile.display_name.clone(), px(64.)).into_any_element(),
-                },
-                _ => Skeleton::new().size(px(64.)).circle().into_any_element(),
-            })
+            // Each part crosses in over its skeleton once the profile lands.
+            .child(
+                Reveal::new(
+                    "settings-profile-avatar",
+                    match self.session.read(cx).state() {
+                        SessionState::SignedIn(profile) => Some(match &profile.avatar {
+                            Some(avatar) => Avatar::new(Some(avatar.clone()))
+                                .size(px(64.))
+                                .into_any_element(),
+                            None => Initials::new(profile.display_name.clone(), px(64.))
+                                .into_any_element(),
+                        }),
+                        _ => None,
+                    },
+                    |_, _| Skeleton::new().size(px(64.)).circle().into_any_element(),
+                )
+                .flex_none()
+                .size(px(64.)),
+            )
             .child(
                 div()
                     .flex()
                     .flex_col()
                     .gap_1()
-                    .child(match self.session.read(cx).state() {
-                        SessionState::SignedIn(profile) => div()
-                            .child(profile.display_name.clone())
-                            .text_size(theme.text(Text::Large))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .into_any_element(),
-                        _ => Skeleton::new().w(px(140.)).h(px(14.)).into_any_element(),
-                    })
-                    .child(match self.session.read(cx).state() {
-                        SessionState::SignedIn(profile) => div()
-                            .child(match &provider {
-                                Some(provider) => t!(
-                                    "settings-profile-account",
-                                    provider = provider,
-                                    account = &profile.id
+                    .child(
+                        Reveal::new(
+                            "settings-profile-name",
+                            match self.session.read(cx).state() {
+                                SessionState::SignedIn(profile) => Some(
+                                    div()
+                                        .child(profile.display_name.clone())
+                                        .text_size(theme.text(Text::Large))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .into_any_element(),
                                 ),
-                                None => profile.id.clone().into(),
-                            })
-                            .text_color(muted)
-                            .text_size(theme.text(Text::Small))
-                            .into_any_element(),
-                        _ => Skeleton::new().w(px(90.)).h(px(10.)).into_any_element(),
-                    }),
+                                _ => None,
+                            },
+                            |_, _| Skeleton::new().w(px(140.)).h(px(14.)).into_any_element(),
+                        )
+                        .order(1),
+                    )
+                    .child(
+                        Reveal::new(
+                            "settings-profile-account",
+                            match self.session.read(cx).state() {
+                                SessionState::SignedIn(profile) => Some(
+                                    div()
+                                        .child(match &provider {
+                                            Some(provider) => t!(
+                                                "settings-profile-account",
+                                                provider = provider,
+                                                account = &profile.id
+                                            ),
+                                            None => profile.id.clone().into(),
+                                        })
+                                        .text_color(muted)
+                                        .text_size(theme.text(Text::Small))
+                                        .into_any_element(),
+                                ),
+                                _ => None,
+                            },
+                            |_, _| Skeleton::new().w(px(90.)).h(px(10.)).into_any_element(),
+                        )
+                        .order(2),
+                    ),
             )
     }
 
