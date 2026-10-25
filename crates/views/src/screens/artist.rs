@@ -793,6 +793,8 @@ impl ArtistView {
 
         vec![match appears {
             0 if filling => Some(Rail::pending(
+                "artist-appears",
+                0,
                 t!("artist-appears-on"),
                 card,
                 columns,

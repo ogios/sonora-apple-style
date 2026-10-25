@@ -492,6 +492,23 @@ impl Rail {
             tabs,
         } = spec;
         let tall = Card::tile_height(tile, window, cx);
+        // The cards cross in over the skeletons `pending` drew in their places.
+        let reveals = rail_reveal(tag, place);
+        let draw = move |index: usize, window: &mut Window, cx: &mut App| {
+            let shown = draw(index, window, cx);
+            Reveal::new(
+                ElementId::NamedInteger(reveals.clone(), index as u64),
+                Some(shown),
+                move |_, _| {
+                    Card::skeleton(("rail-pending", index))
+                        .tile(tile)
+                        .into_any_element()
+                },
+            )
+            .order(index)
+            .w(tile)
+            .into_any_element()
+        };
         let scrolled = self.scroll.clone();
         let glided = self.glide.clone();
         let arrows = match count > columns {
@@ -539,8 +556,11 @@ impl Rail {
             .into_any_element()
     }
 
-    /// The rail while its cards are still on their way: the heading over skeleton tiles.
+    /// The rail while its cards are still on their way: the heading over skeleton tiles, which
+    /// the cards of the rail `render` draws for the same `tag` and `place` cross in over.
     pub(crate) fn pending(
+        tag: &'static str,
+        place: usize,
         title: SharedString,
         tile: Pixels,
         columns: usize,
@@ -567,8 +587,12 @@ impl Rail {
                     .h(tall)
                     .gap(RAIL_GAP)
                     .overflow_hidden()
-                    .children((0..columns).map(|place| {
-                        Card::skeleton(("rail-pending", place))
+                    .children((0..columns).map(|index| {
+                        ui::reveal::waiting(
+                            &ElementId::NamedInteger(rail_reveal(tag, place), index as u64),
+                            cx,
+                        );
+                        Card::skeleton(("rail-pending", index))
                             .tile(tile)
                             .into_any_element()
                     })),
@@ -674,4 +698,9 @@ fn heading_skeleton(cx: &App) -> Skeleton {
         .w(HEADING)
         .h(theme.text(Text::Large))
         .rounded(theme.radius)
+}
+
+/// The name a rail's cards are remembered by as they cross in from their skeletons.
+fn rail_reveal(tag: &str, place: usize) -> SharedString {
+    SharedString::from(format!("{tag}-rail-reveal-{place}"))
 }

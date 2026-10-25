@@ -619,6 +619,8 @@ impl DetailView {
         if albums == 0 && artists == 0 {
             return match filling {
                 true => vec![Rail::pending(
+                    "detail-also-like",
+                    0,
                     t!("album-also-like"),
                     card,
                     columns,
