@@ -624,6 +624,8 @@ pub struct TableState<S: TableSource> {
     context_menu: Option<(Vec<usize>, Point<Pixels>)>,
     moving: Option<(usize, usize)>,
     sizing: Option<Sizing>,
+    /// The name this table's rows are remembered by as they cross in from their skeletons.
+    reveal_key: SharedString,
 }
 
 impl<S: TableSource> EventEmitter<TableEvent> for TableState<S> {}
@@ -645,6 +647,7 @@ impl<S: TableSource> TableState<S> {
             context_menu: None,
             moving: None,
             sizing: None,
+            reveal_key: SharedString::from(format!("table-row-{}", cx.entity_id())),
         }
     }
 
@@ -770,7 +773,8 @@ impl<S: TableSource> TableState<S> {
     }
 
     /// The skeleton rows in the virtualised window, one bar per column, laid out like the
-    /// rows that will replace them.
+    /// rows that will replace them. Each is remembered as waiting, so the row that replaces
+    /// it crosses in over it.
     fn skeletons(
         &self,
         head: Pixels,
@@ -778,56 +782,73 @@ impl<S: TableSource> TableState<S> {
         count: usize,
         cx: &App,
     ) -> Vec<AnyElement> {
-        let theme = cx.theme();
         let first = self.viewport.first(head, row_height);
         let last = (first + self.viewport.rows(row_height)).min(count);
-        let bar = row_height * SKELETON_BAR;
 
         (first..last)
             .map(|display| {
-                div()
-                    .id(("skeleton", display))
-                    .absolute()
-                    .top(head + row_height * display as f32)
-                    .left_0()
-                    .w_full()
-                    .h(row_height)
-                    .flex()
-                    .items_center()
-                    .border_b_1()
-                    .border_color(theme.table_row_border)
-                    .children(
-                        self.delegate
-                            .columns
-                            .iter()
-                            .enumerate()
-                            .map(|(ix, column)| {
-                                let inner = self.delegate.inner_width(ix);
-                                let skeleton = match column.spec.width {
-                                    Width::Thumb => Skeleton::new().size(theme.metrics.thumb),
-                                    _ => Skeleton::new()
-                                        .w(inner
-                                            * SKELETON_REACH[(display + ix) % SKELETON_REACH.len()])
-                                        .h(bar),
-                                };
-                                div()
-                                    .w(inner + PADDING * 2.)
-                                    .flex_none()
-                                    .h_full()
-                                    .px(PADDING)
-                                    .flex()
-                                    .items_center()
-                                    .map(|this| match column.spec.align {
-                                        TextAlign::Right => this.justify_end(),
-                                        TextAlign::Center => this.justify_center(),
-                                        _ => this,
-                                    })
-                                    .child(skeleton)
-                            }),
-                    )
+                crate::reveal::waiting(&self.reveal_id(display), cx);
+                self.skeleton(head, row_height, display, cx)
                     .into_any_element()
             })
             .collect()
+    }
+
+    /// Where the hand-over from a skeleton row to the row at `display` is remembered, one
+    /// place per table and row.
+    fn reveal_id(&self, display: usize) -> gpui::ElementId {
+        gpui::ElementId::NamedInteger(self.reveal_key.clone(), display as u64)
+    }
+
+    /// One skeleton row, at `display`.
+    fn skeleton(
+        &self,
+        head: Pixels,
+        row_height: Pixels,
+        display: usize,
+        cx: &App,
+    ) -> Stateful<Div> {
+        let theme = cx.theme();
+        let bar = row_height * SKELETON_BAR;
+        div()
+            .id(("skeleton", display))
+            .absolute()
+            .top(head + row_height * display as f32)
+            .left_0()
+            .w_full()
+            .h(row_height)
+            .flex()
+            .items_center()
+            .border_b_1()
+            .border_color(theme.table_row_border)
+            .children(
+                self.delegate
+                    .columns
+                    .iter()
+                    .enumerate()
+                    .map(|(ix, column)| {
+                        let inner = self.delegate.inner_width(ix);
+                        let skeleton = match column.spec.width {
+                            Width::Thumb => Skeleton::new().size(theme.metrics.thumb),
+                            _ => Skeleton::new()
+                                .w(inner * SKELETON_REACH[(display + ix) % SKELETON_REACH.len()])
+                                .h(bar),
+                        };
+                        div()
+                            .w(inner + PADDING * 2.)
+                            .flex_none()
+                            .h_full()
+                            .px(PADDING)
+                            .flex()
+                            .items_center()
+                            .map(|this| match column.spec.align {
+                                TextAlign::Right => this.justify_end(),
+                                TextAlign::Center => this.justify_center(),
+                                _ => this,
+                            })
+                            .child(skeleton)
+                    }),
+            )
     }
 
     pub fn delegate(&self) -> &TableDelegate<S> {
@@ -1114,8 +1135,19 @@ impl<S: TableSource> TableState<S> {
             false => theme.table_hover,
         };
 
+        // Rows that replace skeletons cross in over them, the ones higher up a little first.
+        let mut lingering = Vec::new();
         let mut rows: Vec<AnyElement> = (first..last)
             .map(|display| {
+                let crossing =
+                    crate::reveal::crossing(&self.reveal_id(display), display - first, window, cx);
+                if let Some(progress) = crossing {
+                    lingering.push(
+                        self.skeleton(head, row_height, display, cx)
+                            .opacity(crate::reveal::lingering(progress))
+                            .into_any_element(),
+                    );
+                }
                 let row = self.delegate.row(display);
                 let tail = display + 1 == count;
                 let selected = marked.contains(&row);
@@ -1214,9 +1246,11 @@ impl<S: TableSource> TableState<S> {
                         }),
                     )
                     .children(cells)
+                    .when_some(crossing, crate::reveal::arriving)
                     .into_any_element()
             })
             .collect();
+        rows.extend(lingering);
         rows.push(
             self.upcoming(first..last, row_height, cx)
                 .into_any_element(),
