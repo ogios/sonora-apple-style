@@ -524,7 +524,7 @@ impl SongView {
 }
 
 impl Render for SongView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if let Some(failure) = self.failure(cx) {
             return div().relative().size_full().child(failure);
         }
@@ -535,6 +535,22 @@ impl Render for SongView {
             (detail.track().cloned(), detail.is_loading())
         };
 
+        // The page crosses in over its skeleton once the song lands: the hero first, then the
+        // panels under it.
+        let pending = loading && track.is_none();
+        if pending {
+            ui::reveal::waiting(&reveal_id(0), cx);
+            ui::reveal::waiting(&reveal_id(1), cx);
+        }
+        let (hero_in, panels_in) = match track.is_some() {
+            true => (
+                ui::reveal::crossing(&reveal_id(0), 0, window, cx),
+                ui::reveal::crossing(&reveal_id(1), 1, window, cx),
+            ),
+            false => (None, None),
+        };
+        let lingering = hero_in.or(panels_in).map(ui::reveal::lingering);
+
         div()
             .relative()
             .size_full()
@@ -543,57 +559,72 @@ impl Render for SongView {
                     .bottom_inset(crate::chrome::Chrome::bottom(cx))
                     .px(theme.metrics.inset)
                     .py(theme.metrics.inset)
-                    .when(loading && track.is_none(), |this| {
-                        this.child(self.loading(cx))
-                    })
+                    .when(pending, |this| this.child(self.loading(cx)))
                     .when_some(track, |this, track| {
-                        this.child(self.hero(&track, cx))
-                            .child(
-                                div()
-                                    .flex()
-                                    .flex_wrap()
-                                    .items_stretch()
-                                    .gap_5()
-                                    .child(
-                                        div()
-                                            .min_w(PANEL)
-                                            .flex_1()
-                                            .child(self.overview(&track, cx)),
-                                    )
-                                    .child(
-                                        div()
-                                            .min_w(PANEL)
-                                            .flex_1()
-                                            .flex()
-                                            .flex_col()
-                                            .gap_5()
-                                            .child(self.credits(&track, cx))
-                                            .child(self.discovery(&track, cx)),
-                                    ),
-                            )
-                            .when_some(self.artist_profile(cx), |this, profile| {
-                                this.child(div().pt_5().child(profile))
-                            })
-                            .when_some(
-                                self.detail
-                                    .read(cx)
-                                    .album()
-                                    .and_then(|album| album.album.copyrights.first())
-                                    .cloned(),
-                                |this, copyright| {
-                                    this.child(
-                                        div()
-                                            .pt_5()
-                                            .min_w_0()
-                                            .text_size(theme.text(Text::Tiny))
-                                            .text_color(theme.muted_foreground)
-                                            .child(copyright_notice(&copyright)),
-                                    )
-                                },
-                            )
+                        this.child(
+                            div()
+                                .child(self.hero(&track, cx))
+                                .when_some(hero_in, ui::reveal::arriving),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .flex_wrap()
+                                .items_stretch()
+                                .gap_5()
+                                .child(div().min_w(PANEL).flex_1().child(self.overview(&track, cx)))
+                                .child(
+                                    div()
+                                        .min_w(PANEL)
+                                        .flex_1()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_5()
+                                        .child(self.credits(&track, cx))
+                                        .child(self.discovery(&track, cx)),
+                                )
+                                .when_some(panels_in, ui::reveal::arriving),
+                        )
+                        .when_some(self.artist_profile(cx), |this, profile| {
+                            this.child(div().pt_5().child(profile))
+                        })
+                        .when_some(
+                            self.detail
+                                .read(cx)
+                                .album()
+                                .and_then(|album| album.album.copyrights.first())
+                                .cloned(),
+                            |this, copyright| {
+                                this.child(
+                                    div()
+                                        .pt_5()
+                                        .min_w_0()
+                                        .text_size(theme.text(Text::Tiny))
+                                        .text_color(theme.muted_foreground)
+                                        .child(copyright_notice(&copyright)),
+                                )
+                            },
+                        )
                     }),
             )
+            .when_some(lingering, |this, lingering| {
+                this.child(
+                    div()
+                        .absolute()
+                        .top(theme.metrics.inset)
+                        .left(theme.metrics.inset)
+                        .right(theme.metrics.inset)
+                        .opacity(lingering)
+                        .child(self.loading(cx)),
+                )
+            })
             .children(self.menu(cx))
             .children(self.about_dialog(cx))
     }
+}
+
+/// Where a part of the song page is remembered as it crosses in from its skeleton: the hero
+/// at 0, the panels under it at 1.
+fn reveal_id(part: usize) -> gpui::ElementId {
+    gpui::ElementId::NamedInteger("song-reveal".into(), part as u64)
 }
