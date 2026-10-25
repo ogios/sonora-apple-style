@@ -551,6 +551,7 @@ settings-player-bar-surface = Superficie
 settings-player-bar-transparent = Barra del lettore trasparente
 settings-player-bar-transparent-detail = Fai scorrere pagine e barre laterali sotto una barra del lettore smerigliata
 settings-player-bar-transparent-needs-blur = Attiva Sfocatura dell'interfaccia per far scorrere le pagine sotto una barra del lettore smerigliata
+settings-player-bar-transparent-liquid = Con Liquid Glass la barra di riproduzione fluttua sempre come vetro sopra le pagine
 settings-page-now-playing = In riproduzione
 settings-page-lyrics = Testi
 settings-page-playback = Riproduzione

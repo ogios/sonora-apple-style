@@ -505,6 +505,7 @@ settings-player-bar-surface = サーフェス
 settings-player-bar-transparent = 透明なプレイヤーバー
 settings-player-bar-transparent-detail = ページやサイドバーがすりガラスのプレイヤーバーの下をスクロールする
 settings-player-bar-transparent-needs-blur = 「UI をぼかす」をオンにすると、ページがすりガラスのプレイヤーバーの下をスクロールする
+settings-player-bar-transparent-liquid = Liquid Glass では、プレーヤーバーは常にガラスとしてページの上に浮かびます
 settings-page-now-playing = 再生画面
 settings-page-lyrics = 歌詞
 settings-page-playback = 再生

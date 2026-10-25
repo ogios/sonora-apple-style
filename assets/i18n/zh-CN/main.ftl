@@ -557,6 +557,7 @@ settings-player-bar-surface = 表面
 settings-player-bar-transparent = 透明播放栏
 settings-player-bar-transparent-detail = 让页面和侧边栏在毛玻璃播放栏下方滚动
 settings-player-bar-transparent-needs-blur = 开启界面模糊，即可让页面在毛玻璃播放栏下方滚动
+settings-player-bar-transparent-liquid = 液态玻璃下播放栏始终以玻璃悬浮在页面之上
 settings-page-now-playing = 正在播放
 settings-page-lyrics = 歌词
 settings-page-playback = 播放

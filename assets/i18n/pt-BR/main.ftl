@@ -550,6 +550,7 @@ settings-player-bar-surface = Superfície
 settings-player-bar-transparent = Barra do player transparente
 settings-player-bar-transparent-detail = Deixar páginas e barras laterais rolarem por baixo de uma barra do player fosca
 settings-player-bar-transparent-needs-blur = Ative o Desfoque da interface para as páginas rolarem por baixo de uma barra do player fosca
+settings-player-bar-transparent-liquid = Com o Liquid Glass, a barra do player sempre flutua como vidro sobre as páginas
 settings-page-now-playing = Tocando agora
 settings-page-lyrics = Letras
 settings-page-playback = Reprodução

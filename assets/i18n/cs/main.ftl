@@ -580,6 +580,7 @@ settings-player-bar-surface = Plocha
 settings-player-bar-transparent = Průhledný panel přehrávače
 settings-player-bar-transparent-detail = Nech stránky a postranní panely projíždět pod rozostřeným panelem přehrávače
 settings-player-bar-transparent-needs-blur = Zapni Rozostření rozhraní, aby stránky mohly projíždět pod rozostřeným panelem přehrávače
+settings-player-bar-transparent-liquid = V Liquid Glass se lišta přehrávače vždy vznáší jako sklo nad stránkami
 settings-page-now-playing = Teď se hraje
 settings-page-lyrics = Texty písní
 settings-page-playback = Přehrávání

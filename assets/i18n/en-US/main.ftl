@@ -561,6 +561,7 @@ settings-player-bar-surface = Surface
 settings-player-bar-transparent = Transparent player bar
 settings-player-bar-transparent-detail = Let pages and sidebars scroll underneath a frosted player bar
 settings-player-bar-transparent-needs-blur = Turn on Blur UI to let pages scroll underneath a frosted player bar
+settings-player-bar-transparent-liquid = Liquid Glass always floats the player bar as glass over the pages
 settings-page-now-playing = Now playing
 settings-page-lyrics = Lyrics
 settings-page-playback = Playback

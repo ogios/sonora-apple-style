@@ -550,6 +550,7 @@ settings-player-bar-surface = Superficie
 settings-player-bar-transparent = Barra de reproducción transparente
 settings-player-bar-transparent-detail = Deja que las páginas y las barras laterales se desplacen bajo una barra de reproducción esmerilada
 settings-player-bar-transparent-needs-blur = Activa el desenfoque de la interfaz para que las páginas se desplacen bajo una barra esmerilada
+settings-player-bar-transparent-liquid = Con Liquid Glass, la barra de reproducción siempre flota como cristal sobre las páginas
 settings-page-now-playing = Sonando ahora
 settings-page-lyrics = Letra
 settings-page-playback = Reproducción

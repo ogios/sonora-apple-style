@@ -550,6 +550,7 @@ settings-player-bar-surface = Sipërfaqja
 settings-player-bar-transparent = Shirit i tejdukshëm i luajtësit
 settings-player-bar-transparent-detail = Lër faqet dhe shiritat anësorë të rrëshqasin poshtë një shiriti luajtësi të mjegulluar
 settings-player-bar-transparent-needs-blur = Aktivizo Mjegullimin që faqet të rrëshqasin poshtë një shiriti luajtësi të mjegulluar
+settings-player-bar-transparent-liquid = Me Liquid Glass, shiriti i luajtësit pluskon gjithmonë si xham mbi faqet
 settings-page-now-playing = Duke u luajtur tani
 settings-page-lyrics = Tekstet
 settings-page-playback = Luajtja

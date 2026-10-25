@@ -550,6 +550,7 @@ settings-player-bar-surface = Permukaan
 settings-player-bar-transparent = Bilah pemutar transparan
 settings-player-bar-transparent-detail = Biarkan halaman dan bilah sisi bergulir di bawah bilah pemutar kaca buram
 settings-player-bar-transparent-needs-blur = Aktifkan Buramkan antarmuka agar halaman bisa bergulir di bawah bilah pemutar kaca buram
+settings-player-bar-transparent-liquid = Dengan Liquid Glass, bilah pemutar selalu melayang sebagai kaca di atas halaman
 settings-page-now-playing = Sedang diputar
 settings-page-lyrics = Lirik
 settings-page-playback = Pemutaran

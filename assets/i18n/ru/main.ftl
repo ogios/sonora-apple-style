@@ -581,6 +581,7 @@ settings-player-bar-surface = Поверхность
 settings-player-bar-transparent = Прозрачная панель плеера
 settings-player-bar-transparent-detail = Страницы, текст песен и боковые панели прокручиваются под плеером с матовым материалом контекстных меню
 settings-player-bar-transparent-needs-blur = Включите «Размытие интерфейса», чтобы страницы прокручивались под матовой панелью плеера
+settings-player-bar-transparent-liquid = В Liquid Glass панель плеера всегда парит стеклом над страницами
 settings-page-now-playing = Сейчас играет
 settings-page-lyrics = Тексты песен
 settings-page-playback = Воспроизведение

@@ -527,6 +527,7 @@ settings-player-bar-surface = Yüzey
 settings-player-bar-transparent = Saydam oynatıcı çubuğu
 settings-player-bar-transparent-detail = Sayfalar ve kenar çubukları buzlu oynatıcı çubuğunun altından kaysın
 settings-player-bar-transparent-needs-blur = Sayfaların buzlu oynatıcı çubuğunun altından kayması için Arayüz bulanıklığını aç
+settings-player-bar-transparent-liquid = Liquid Glass ile oynatıcı çubuğu her zaman sayfaların üzerinde cam olarak süzülür
 settings-page-now-playing = Şimdi çalıyor
 settings-page-lyrics = Şarkı sözleri
 settings-page-playback = Çalma

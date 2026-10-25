@@ -554,6 +554,7 @@ settings-player-bar-surface = Surface
 settings-player-bar-transparent = Barre de lecture transparente
 settings-player-bar-transparent-detail = Laisser les pages et les barres latérales défiler sous une barre de lecture givrée
 settings-player-bar-transparent-needs-blur = Activez le flou de l'interface pour laisser les pages défiler sous une barre de lecture givrée
+settings-player-bar-transparent-liquid = Avec Liquid Glass, la barre de lecture flotte toujours en verre au-dessus des pages
 settings-page-now-playing = En cours de lecture
 settings-page-lyrics = Paroles
 settings-page-playback = Lecture

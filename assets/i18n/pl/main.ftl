@@ -581,6 +581,7 @@ settings-player-bar-surface = Powierzchnia
 settings-player-bar-transparent = Przezroczysty pasek odtwarzacza
 settings-player-bar-transparent-detail = Pozwól stronom i panelom bocznym przewijać się pod matowym paskiem odtwarzacza
 settings-player-bar-transparent-needs-blur = Włącz Rozmycie interfejsu, aby strony przewijały się pod matowym paskiem odtwarzacza
+settings-player-bar-transparent-liquid = W Liquid Glass pasek odtwarzacza zawsze unosi się jako szkło nad stronami
 settings-page-now-playing = Teraz odtwarzane
 settings-page-lyrics = Teksty utworów
 settings-page-playback = Odtwarzanie

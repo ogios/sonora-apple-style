@@ -40,15 +40,17 @@ impl SettingsView {
     }
 
     /// Explains that transparency also moves the page behind the player bar. The switch stands
-    /// off and held while Blur UI is off, since the bar cannot be see-through without it.
+    /// off and held while Blur UI is off, since the bar cannot be see-through without it, and
+    /// on and held under Liquid Glass, whose bar is always glass with the pages under it.
     pub(super) fn player_bar_transparent_row(&self, cx: &mut Context<Self>) -> AnyElement {
         let settings = self.settings.read(cx);
         let on = settings.player_bar_transparent();
         let blur = settings.blur();
+        let liquid = ui::liquid(cx);
         Row::new(
             t!("settings-player-bar-transparent"),
-            Switch::new("player-bar-transparent", on && blur)
-                .disabled(!blur)
+            Switch::new("player-bar-transparent", liquid || (on && blur))
+                .disabled(liquid || !blur)
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.settings.update(cx, |settings, cx| {
                         settings.set_player_bar_transparent(!on, cx);
@@ -56,9 +58,10 @@ impl SettingsView {
                 }))
                 .into_any_element(),
         )
-        .detail(match blur {
-            true => t!("settings-player-bar-transparent-detail"),
-            false => t!("settings-player-bar-transparent-needs-blur"),
+        .detail(match (liquid, blur) {
+            (true, _) => t!("settings-player-bar-transparent-liquid"),
+            (false, true) => t!("settings-player-bar-transparent-detail"),
+            (false, false) => t!("settings-player-bar-transparent-needs-blur"),
         })
         .into_any_element()
     }

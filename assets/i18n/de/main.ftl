@@ -550,6 +550,7 @@ settings-player-bar-surface = Fläche
 settings-player-bar-transparent = Transparente Playerleiste
 settings-player-bar-transparent-detail = Seiten und Seitenleisten unter einer mattierten Playerleiste durchscrollen lassen
 settings-player-bar-transparent-needs-blur = Schalte „Oberfläche weichzeichnen“ ein, damit Seiten unter einer mattierten Playerleiste durchscrollen
+settings-player-bar-transparent-liquid = Mit Liquid Glass schwebt die Wiedergabeleiste immer als Glas über den Seiten
 settings-page-now-playing = Läuft gerade
 settings-page-lyrics = Songtext
 settings-page-playback = Wiedergabe
