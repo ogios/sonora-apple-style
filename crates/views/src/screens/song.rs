@@ -19,6 +19,7 @@ use crate::shared::hero::{
 };
 use crate::shared::menus::ItemMenu;
 use crate::shared::pins::Pinned as _;
+use crate::shared::tracks::{PlaybackStatus, playback_status};
 use crate::shared::trouble;
 
 const PANEL: Pixels = px(300.);
@@ -30,6 +31,7 @@ const FACT_SKELETON: Pixels = px(120.);
 pub(crate) struct SongView {
     detail: Entity<SongDetail>,
     playback: Entity<Playback>,
+    playback_status: PlaybackStatus,
     scrollbar: Entity<Scrollbar>,
     about_bar: Entity<Scrollbar>,
     about_open: bool,
@@ -74,7 +76,15 @@ impl SongView {
             cx.notify();
         })
         .detach();
-        cx.observe(&playback, |_, _, cx| cx.notify()).detach();
+        let current_playback = playback_status(&playback, cx);
+        cx.observe(&playback, |this, playback, cx| {
+            let current = playback_status(&playback, cx);
+            if this.playback_status != current {
+                this.playback_status = current;
+                cx.notify();
+            }
+        })
+        .detach();
         let library = Sonora::global(cx).library.clone();
         cx.observe(&library, |_, _, cx| cx.notify()).detach();
         let me = cx.entity_id();
@@ -83,6 +93,7 @@ impl SongView {
         Self {
             detail,
             playback,
+            playback_status: current_playback,
             scrollbar: cx.new(|_| Scrollbar::new(gpui::ScrollHandle::new()).watching(me)),
             about_bar: cx.new(|_| Scrollbar::new(gpui::ScrollHandle::new()).watching(me)),
             about_open: false,

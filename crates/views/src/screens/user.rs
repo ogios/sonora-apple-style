@@ -3,14 +3,15 @@ use gpui::{
     AnyElement, Context, Entity, Pixels, Render, ScrollHandle, SharedString, Window, div, px,
 };
 use i18n::t;
-use state::{Playback, Profile};
-use ui::{ActiveTheme as _, Scrollbar, Scroller, heading, vacant};
+use state::{Origin, Playback, Profile};
+use ui::{ActiveTheme as _, Card, Deck, Scrollbar, Scroller, heading, vacant};
 
 use crate::chrome::Chrome;
 use crate::shared::album_grid::{CardGrid, Revealing};
 use crate::shared::cards;
 use crate::shared::cells;
 use crate::shared::hero::{HeroMetaStrip, PageHero};
+use crate::shared::tracks::{PlaybackStatus, playback_status};
 use crate::shared::trouble;
 
 /// The name the playlists' cards are remembered by as they cross in from skeletons.
@@ -22,6 +23,9 @@ const STEADY: Pixels = px(0.5);
 pub(crate) struct UserView {
     profile: Entity<Profile>,
     playback: Entity<Playback>,
+    playback_status: PlaybackStatus,
+    /// Playlist controls also change when the same song starts from a different collection.
+    playback_origin: Option<Origin>,
     scrollbar: Entity<Scrollbar>,
     width: Pixels,
 }
@@ -42,7 +46,18 @@ impl UserView {
             cx.notify();
         })
         .detach();
-        cx.observe(&playback, |_, _, cx| cx.notify()).detach();
+        let current_playback = playback_status(&playback, cx);
+        let current_origin = playback.read(cx).origin(cx).cloned();
+        cx.observe(&playback, |this, playback, cx| {
+            let current = playback_status(&playback, cx);
+            let origin = playback.read(cx).origin(cx);
+            if this.playback_status != current || this.playback_origin.as_ref() != origin {
+                this.playback_status = current;
+                this.playback_origin = origin.cloned();
+                cx.notify();
+            }
+        })
+        .detach();
 
         let chrome = Chrome::entity(cx);
         cx.observe(&chrome, |_, _, cx| cx.notify()).detach();
@@ -50,6 +65,8 @@ impl UserView {
         Self {
             profile,
             playback,
+            playback_status: current_playback,
+            playback_origin: current_origin,
             scrollbar: cx.new(|_| Scrollbar::new(ScrollHandle::new()).watching(id)),
             width: Pixels::ZERO,
         }
@@ -88,44 +105,63 @@ impl UserView {
         let listed = profile.playlists();
         let layout = CardGrid::layout(self.width);
 
-        let cards = match loading {
-            true => Revealing::new(PLAYLIST_REVEAL, 0).skeletons(PENDING, layout.card, cx),
-            false => listed
-                .iter()
-                .enumerate()
-                .map(|(place, playlist)| {
-                    cards::playlist_card(("user-playlist", place), playlist, &self.playback, cx)
-                        .tile(layout.card)
-                        .flat()
-                        .into_any_element()
-                })
-                .collect::<Vec<_>>(),
+        let count = match loading {
+            true => PENDING,
+            false => listed.len(),
         };
-        let cards: Vec<AnyElement> = match loading {
-            true => cards,
-            false => Revealing::new(PLAYLIST_REVEAL, 0).wrap(cards, layout, window, cx),
-        };
-        let empty = cards.is_empty();
+        let columns = layout.columns.max(1);
+        let height = Card::tile_height(layout.card, window, cx);
+        // Match the former grid's gap_y_6 while constructing only visible rows.
+        let gap = window.rem_size() * 1.5;
+        let me = cx.entity().downgrade();
+        let deck = Deck::new("user-playlist-deck")
+            .rows((0..count.div_ceil(columns)).map(|_| height))
+            .gap(gap)
+            .draw(move |row, _, cx| {
+                let Some(view) = me.upgrade() else {
+                    return div().into_any_element();
+                };
+                let this = view.read(cx);
+                let profile = this.profile.read(cx);
+                let first = row * columns;
+                let last = (first + columns).min(count);
+                let reveal = Revealing::new(PLAYLIST_REVEAL, first);
+                let cards: Vec<AnyElement> = match loading {
+                    true => reveal.skeletons(last - first, layout.card, cx),
+                    false => profile
+                        .playlists()
+                        .iter()
+                        .enumerate()
+                        .take(last)
+                        .skip(first)
+                        .map(|(place, playlist)| {
+                            cards::playlist_card(
+                                ("user-playlist", place),
+                                playlist,
+                                &this.playback,
+                                cx,
+                            )
+                            .tile(layout.card)
+                            .flat()
+                            .into_any_element()
+                        })
+                        .collect(),
+                };
+                CardGrid::new(this.width)
+                    .children(cards)
+                    .when(!loading, |grid| grid.reveals(reveal))
+                    .into_any_element()
+            });
 
         div()
             .flex()
             .flex_col()
             .gap_4()
             .child(heading(t!("user-playlists"), cx))
-            .when(empty, |this| {
+            .when(count == 0, |this| {
                 this.child(vacant(t!("user-playlists-empty"), cx))
             })
-            .when(!empty, |this| {
-                this.child(
-                    div()
-                        .flex()
-                        .flex_wrap()
-                        .w_full()
-                        .gap_x(layout.gap)
-                        .gap_y_6()
-                        .children(cards),
-                )
-            })
+            .when(count > 0, |this| this.child(deck))
     }
 }
 

@@ -106,6 +106,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The fullscreen visualizer stops requesting frames after playback pauses or fullscreen closes.
+  Profile pages build only visible playlist rows, and profile and song pages avoid refreshes
+  caused solely by playback progress.
 - Search stays responsive with large music libraries, and sorting or filtering a fully selected
   track list no longer repeatedly scans every row.
 - Saving settings and playback progress no longer performs disk writes on the UI thread.

@@ -1,76 +1,64 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use gpui::{App, EntityId, Window};
+use gpui::Window;
 use music::Spectrum;
 use ui::Levels;
 
 /// How long the drawn levels take to close 63% of the gap to the analyzer's. A time constant
-/// rather than a share per frame, so the motion is the same on a 60 Hz and a 144 Hz display
-/// and a frame that came late moves further instead of falling behind.
+/// rather than a share per frame, so the motion is the same on a 60 Hz and a 144 Hz display.
 const SETTLE: Duration = Duration::from_millis(40);
-/// The longest gap between two frames that still counts as one step: past it the levels adopt
-/// the target outright, so coming back from a stalled window snaps rather than swoops.
+/// A long gap means the view was away; adopt the new levels instead of easing from stale ones.
 const STALL: Duration = Duration::from_millis(250);
+/// Levels below this are visually silent and can stop requesting frames after a pause.
+const SILENT: f32 = 0.001;
 
+/// Smooths the spectrum while rendered. Frame demand ends when hidden or a paused tail settles.
 #[derive(Default)]
-struct State {
-    shown: Levels,
-    armed: bool,
-    visible: bool,
-    beat: Option<Instant>,
-}
-
-#[derive(Clone, Default)]
 pub struct VisualizerDrive {
-    state: Rc<RefCell<State>>,
+    shown: Levels,
+    beat: Option<Instant>,
 }
 
 impl VisualizerDrive {
     pub fn levels(&self) -> Levels {
-        self.state.borrow().shown.clone()
+        self.shown.clone()
     }
 
-    pub fn show(&self, watch: EntityId, spectrum: Spectrum, window: &mut Window) {
-        let mut state = self.state.borrow_mut();
-        state.visible = true;
-        if state.armed {
-            return;
-        }
-        state.armed = true;
-        state.beat = None;
-        drop(state);
-
-        let drive = self.clone();
-        window.on_next_frame(move |window, cx| drive.step(watch, spectrum, window, cx));
-    }
-
-    pub fn hide(&self) {
-        self.state.borrow_mut().visible = false;
-    }
-
-    fn step(&self, watch: EntityId, spectrum: Spectrum, window: &mut Window, cx: &mut App) {
-        {
-            let mut state = self.state.borrow_mut();
-            if !state.visible {
-                state.armed = false;
-                return;
+    /// Samples the current engine, or fades to silence while paused. Only a rendered view can
+    /// request another frame, so leaving fullscreen cannot leave a background callback loop.
+    pub fn show(&mut self, spectrum: Spectrum, playing: bool, window: &mut Window) {
+        let now = Instant::now();
+        let rate = match self.beat.replace(now) {
+            Some(beat) if now.duration_since(beat) < STALL => {
+                1. - (-now.duration_since(beat).as_secs_f32() / SETTLE.as_secs_f32()).exp()
             }
-            let now = Instant::now();
-            let rate = match state.beat.replace(now) {
-                Some(beat) if now.duration_since(beat) < STALL => {
-                    1. - (-now.duration_since(beat).as_secs_f32() / SETTLE.as_secs_f32()).exp()
+            _ => 1.,
+        };
+        match playing {
+            true => {
+                ease(&mut self.shown.left, spectrum.left(), rate);
+                ease(&mut self.shown.right, spectrum.right(), rate);
+                window.request_animation_frame();
+            }
+            false => {
+                let mut settling = false;
+                for level in self.shown.left.iter_mut().chain(&mut self.shown.right) {
+                    *level *= 1. - rate;
+                    match *level > SILENT {
+                        true => settling = true,
+                        false => *level = 0.,
+                    }
                 }
-                _ => 1.,
-            };
-            ease(&mut state.shown.left, spectrum.left(), rate);
-            ease(&mut state.shown.right, spectrum.right(), rate);
+                if settling {
+                    window.request_animation_frame();
+                }
+            }
         }
+    }
 
-        cx.notify(watch);
-        let drive = self.clone();
-        window.on_next_frame(move |window, cx| drive.step(watch, spectrum, window, cx));
+    pub fn hide(&mut self) {
+        self.beat = None;
+        self.shown = Levels::default();
     }
 }
 

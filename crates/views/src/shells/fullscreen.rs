@@ -12,7 +12,9 @@ use gpui::{Window, canvas, deferred, div, phi, px, relative};
 use i18n::t;
 use input::{ToggleFullscreen, ToggleWindowFullscreen, WORKSPACE_CONTEXT};
 use router::{Destination, navigate};
-use state::{AppSettings, Cover, FullscreenControlsAutohide, Playback, Queue, SideTab, Sonora};
+use state::{
+    AppSettings, Cover, FullscreenControlsAutohide, Playback, PlaybackState, Queue, SideTab, Sonora,
+};
 use ui::{
     ActiveTheme as _, Artwork, Button, ExplicitBadge, InlineLink, InlineLinks, Motion,
     Motioned as _, Popup, Room, Scrollbar, Scrubber, ScrubberState, Springs, TabBar, Text,
@@ -227,7 +229,10 @@ impl FullscreenView {
         self.last_pos = None;
         match shown {
             true => self.stir(cx),
-            false => self.rest = None,
+            false => {
+                self.rest = None;
+                self.visualizer.hide();
+            }
         }
         cx.notify();
     }
@@ -1424,7 +1429,11 @@ impl Render for FullscreenView {
             .then(|| self.playback.read(cx).spectrum(cx))
             .flatten()
         {
-            Some(spectrum) => self.visualizer.show(cx.entity_id(), spectrum, window),
+            Some(spectrum) => self.visualizer.show(
+                spectrum,
+                *self.playback.read(cx).state() == PlaybackState::Playing,
+                window,
+            ),
             None => self.visualizer.hide(),
         }
         let bottom = |bounds: Bounds<Pixels>| bounds.origin.y + bounds.size.height;
