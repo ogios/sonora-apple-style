@@ -1,0 +1,83 @@
+# Adapted from https://aur.archlinux.org/sonora.git
+# AUR commit: e70a504972140b494d2484c74a3b8af552ba183a
+# Original maintainer: Pavel Olizko <contact@nolight.dev>
+# Original contributor: Massimiliano Torromeo <mtorromeo@archlinux.org>
+# This recipe builds the surrounding working tree, including uncommitted changes.
+
+_worktree=$(cd "${startdir}/../.." && pwd -P)
+_target="${CARCH}-unknown-linux-gnu"
+export CARGO_TARGET_DIR="${startdir}/.build/target"
+
+pkgname=sonora-local
+# Compute this without pkgver(), so makepkg never rewrites the tracked recipe.
+pkgver="r$(git -C "${_worktree}" rev-list --count HEAD).g$(git -C "${_worktree}" rev-parse --short=12 HEAD)"
+if [[ -n $(git -C "${_worktree}" status --porcelain --untracked-files=normal) ]]; then
+  pkgver+='.dirty'
+fi
+pkgrel=1
+pkgdesc='Sonora local fork, built from the current working tree'
+arch=('x86_64' 'aarch64')
+url='https://github.com/sonorahq/sonora'
+license=('GPL-3.0-or-later')
+depends=('glibc' 'gcc-libs' 'alsa-lib' 'dbus' 'fontconfig' 'freetype2'
+         'hicolor-icon-theme' 'libx11' 'libxcb' 'libxcursor' 'libxi'
+         'libxkbcommon' 'libxkbcommon-x11' 'sqlite' 'vulkan-icd-loader' 'wayland')
+optdepends=('vulkan-radeon: Vulkan driver for AMD GPUs'
+            'vulkan-intel: Vulkan driver for Intel GPUs'
+            'nvidia-utils: Vulkan driver for NVIDIA GPUs'
+            'pipewire-alsa: audio output through PipeWire'
+            'pulseaudio-alsa: audio output through PulseAudio'
+            'webkit2gtk-4.1: browser sign-in for music providers')
+makedepends=('rust' 'cmake' 'pkgconf' 'git' 'mold')
+provides=("sonora=${pkgver}")
+conflicts=('sonora')
+options=('!lto')
+source=()
+sha256sums=()
+
+# Download locked dependencies without changing the working tree's lockfile.
+prepare() {
+  cd "${_worktree}"
+  cargo fetch --locked --target "${_target}"
+}
+
+# Optimise for the build machine and use mold for faster linking; retain Cargo's ThinLTO.
+build() {
+  cd "${_worktree}"
+  RUSTFLAGS='-C target-cpu=native -C link-arg=-fuse-ld=mold' \
+    cargo build --frozen --release --package sonora --target "${_target}"
+}
+
+# Install the executable, desktop integration and bundled asset licences.
+package() {
+  cd "${_worktree}"
+
+  install -Dm0755 "${CARGO_TARGET_DIR}/${_target}/release/sonora" "${pkgdir}/usr/bin/sonora"
+  install -Dm644 assets/linux/sonora.desktop \
+    "${pkgdir}/usr/share/applications/sonora.desktop"
+  install -Dm644 assets/linux/sonora.svg \
+    "${pkgdir}/usr/share/icons/hicolor/scalable/apps/sonora.svg"
+
+  local icon size licence pack
+  for icon in assets/linux/icons/hicolor/*/apps/sonora.png; do
+    size=$(basename "$(dirname "$(dirname "${icon}")")")
+    install -Dm644 "${icon}" \
+      "${pkgdir}/usr/share/icons/hicolor/${size}/apps/sonora.png"
+  done
+
+  install -Dm644 COPYING "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm644 THIRD-PARTY.md "${pkgdir}/usr/share/licenses/${pkgname}/THIRD-PARTY.md"
+  install -Dm644 assets/fonts/LICENSE.txt \
+    "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE.Inter"
+  for licence in assets/fonts/*-LICENSE.txt; do
+    pack=$(basename "${licence}" -LICENSE.txt)
+    install -Dm644 "${licence}" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE.${pack}"
+  done
+  install -Dm644 assets/icons/LICENSE \
+    "${pkgdir}/usr/share/licenses/${pkgname}/icons/LICENSE"
+  for licence in assets/icons/*/LICENSE; do
+    pack=$(basename "$(dirname "${licence}")")
+    install -Dm644 "${licence}" \
+      "${pkgdir}/usr/share/licenses/${pkgname}/icons/LICENSE.${pack}"
+  done
+}

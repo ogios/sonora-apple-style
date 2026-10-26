@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Arch Linux users can build and install the current local fork with a PKGBUILD, keeping
+  packaging and compilation output in a separate directory.
 - NetEase Cloud Music is a new provider. Sign in through music.163.com in a browser window, or
   paste your `MUSIC_U` cookie, to play your liked songs, playlists, saved albums and followed
   artists, and to search the catalogue. Songs your account cannot hear in full stay greyed out.
