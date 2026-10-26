@@ -31,7 +31,7 @@ optdepends=('vulkan-radeon: Vulkan driver for AMD GPUs'
 makedepends=('rust' 'cmake' 'pkgconf' 'git' 'mold')
 provides=("sonora=${pkgver}")
 conflicts=('sonora')
-options=('!lto')
+options=('!lto' '!debug')
 source=()
 sha256sums=()
 
