@@ -75,13 +75,15 @@ pub(super) const COLUMNS: &[ColumnSpec<PlaylistField>] =
 pub(super) enum PlaylistScope {
     Created,
     Saved,
+    Unknown,
     All,
 }
 
 impl PlaylistScope {
-    pub(super) const ALL: [(Self, &'static str); 3] = [
+    pub(super) const ALL: [(Self, &'static str); 4] = [
         (Self::Created, "library-playlists-created"),
         (Self::Saved, "library-playlists-saved"),
+        (Self::Unknown, "library-playlists-unknown"),
         (Self::All, "library-playlists-all"),
     ];
 
@@ -90,6 +92,7 @@ impl PlaylistScope {
         match self {
             Self::Created => "library-no-created-playlists",
             Self::Saved => "library-no-saved-playlists",
+            Self::Unknown => "library-no-unknown-playlists",
             Self::All => "library-no-playlists",
         }
     }
@@ -137,6 +140,31 @@ impl PlaylistSource {
         self.playlists(cx).get(row).cloned()
     }
 
+    /// Only providers with creator metadata and a saved-playlist library offer ownership tabs.
+    pub(super) fn separates_ownership(&self, cx: &App) -> bool {
+        self.shelf == Shelf::Streaming
+            && Sonora::global(cx)
+                .session
+                .read(cx)
+                .capabilities()
+                .playlist_ownership
+    }
+
+    /// Falls back to the complete library when the provider cannot classify ownership.
+    pub(super) fn scope(&self, cx: &App) -> PlaylistScope {
+        match self.separates_ownership(cx) {
+            true => self.scope,
+            false => PlaylistScope::All,
+        }
+    }
+
+    /// Missing creator metadata stays accessible without being called a saved playlist.
+    pub(super) fn has_unknown(&self, cx: &App) -> bool {
+        self.playlists(cx)
+            .iter()
+            .any(|playlist| !playlist.owned && playlist.owner_id.is_empty())
+    }
+
     /// Whether the extra download filter narrows the currently selected ownership scope.
     pub(super) fn downloaded_only(&self) -> bool {
         self.downloaded
@@ -160,9 +188,10 @@ impl TableSource for PlaylistSource {
 
     fn matches(&self, row: usize, query: &str, cx: &App) -> bool {
         self.playlists(cx).get(row).is_some_and(|playlist| {
-            (match self.scope {
+            (match self.scope(cx) {
                 PlaylistScope::Created => playlist.owned,
-                PlaylistScope::Saved => !playlist.owned,
+                PlaylistScope::Saved => !playlist.owned && !playlist.owner_id.is_empty(),
+                PlaylistScope::Unknown => !playlist.owned && playlist.owner_id.is_empty(),
                 PlaylistScope::All => true,
             }) && (!(self.downloaded || Network::downloads_only(self.shelf, cx))
                 || downloaded(&playlist.id, cx))
@@ -199,8 +228,8 @@ impl TableSource for PlaylistSource {
         }
     }
 
-    fn filtered(&self, _cx: &App) -> bool {
-        self.scope != PlaylistScope::All || self.downloaded
+    fn filtered(&self, cx: &App) -> bool {
+        self.scope(cx) != PlaylistScope::All || self.downloaded
     }
 
     fn playing(&self, row: usize, cx: &App) -> bool {

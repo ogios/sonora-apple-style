@@ -751,6 +751,9 @@ pub enum Catalog {
 /// when pressed. A provider that gains one flips a flag here and the UI follows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Capabilities {
+    /// Library playlists distinguish their creator from editing permission, and other owners
+    /// represent saved playlists. Leave off for shared server lists or editability-only metadata.
+    pub playlist_ownership: bool,
     /// The listener can follow and unfollow an artist.
     pub follow_artists: bool,
     /// A track can seed a station, which is what fills the queue behind it.
@@ -779,8 +782,10 @@ pub struct Capabilities {
 impl Capabilities {
     /// What a full streaming service offers. Pins of the provider's own are not among them,
     /// since only Spotify and Apple Music keep any. Converting on request is not either, since
-    /// only Subsonic does it.
+    /// only Subsonic does it. Playlist ownership also needs an explicit opt-in after checking
+    /// that the library distinguishes creators from editors and shared lists.
     pub const ALL: Self = Self {
+        playlist_ownership: false,
         follow_artists: true,
         radio: true,
         playcounts: true,
@@ -794,6 +799,7 @@ impl Capabilities {
 
     /// Nothing beyond listing and playing.
     pub const NONE: Self = Self {
+        playlist_ownership: false,
         follow_artists: false,
         radio: false,
         playcounts: false,

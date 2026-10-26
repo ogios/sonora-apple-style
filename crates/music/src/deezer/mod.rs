@@ -78,6 +78,7 @@ fn session(client: DeezerClient, profile: crate::UserProfile) -> ProviderSession
         shape: Shape::Saved,
         authenticated: true,
         capabilities: Capabilities {
+            playlist_ownership: true,
             playcounts: false,
             qualities: client::QUALITIES,
             ..Capabilities::ALL

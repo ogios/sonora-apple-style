@@ -187,6 +187,7 @@ async fn session(client: TidalClient) -> Result<ProviderSession> {
         shape: Shape::Saved,
         authenticated: true,
         capabilities: Capabilities {
+            playlist_ownership: true,
             playcounts: false,
             qualities: client::QUALITIES,
             ..Capabilities::ALL

@@ -76,6 +76,7 @@ fn session(client: NetEaseClient) -> ProviderSession {
         shape: Shape::Saved,
         authenticated: true,
         capabilities: Capabilities {
+            playlist_ownership: true,
             playcounts: false,
             // Songs are streamed for every play and never kept or downloaded.
             keeps: false,

@@ -593,9 +593,13 @@ impl LibraryView {
             ),
             (false, None) => {
                 let caption = match (self.shelf, self.section) {
-                    (Shelf::Streaming, Section::Playlists) => {
-                        self.playlists.read(cx).delegate().source().scope.vacancy()
-                    }
+                    (Shelf::Streaming, Section::Playlists) => self
+                        .playlists
+                        .read(cx)
+                        .delegate()
+                        .source()
+                        .scope(cx)
+                        .vacancy(),
                     _ => self.section.vacancy(self.shelf, shape),
                 };
                 Vacancy::new(i18n::lookup(caption, None)).icon(self.section.glyph(shape))
@@ -1298,7 +1302,14 @@ impl Render for LibraryView {
             },
         };
 
-        let content = match self.shelf == Shelf::Streaming && section == Section::Playlists {
+        let ownership_tabs = section == Section::Playlists
+            && self
+                .playlists
+                .read(cx)
+                .delegate()
+                .source()
+                .separates_ownership(cx);
+        let content = match ownership_tabs {
             true => div()
                 .flex()
                 .flex_col()
@@ -1355,18 +1366,27 @@ impl Searchable for LibraryView {
 impl LibraryView {
     /// Keeps playlist ownership visible without opening the filter menu.
     fn playlist_tabs(&self, cx: &Context<Self>) -> AnyElement {
-        let scope = self.playlists.read(cx).delegate().source().scope;
+        let source = self.playlists.read(cx).delegate().source();
+        let scope = source.scope(cx);
+        let unknown = source.has_unknown(cx);
         TabBar::new("library-playlist-tabs")
             .max_w_full()
-            .items(PlaylistScope::ALL.map(|(choice, key)| {
-                Button::new(key)
-                    .label(i18n::lookup(key, None))
-                    .ghost()
-                    .selected(scope == choice)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.set_playlist_scope(choice, cx);
-                    }))
-            }))
+            .items(
+                PlaylistScope::ALL
+                    .into_iter()
+                    .filter(|(choice, _)| {
+                        *choice != PlaylistScope::Unknown || unknown || scope == *choice
+                    })
+                    .map(|(choice, key)| {
+                        Button::new(key)
+                            .label(i18n::lookup(key, None))
+                            .ghost()
+                            .selected(scope == choice)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.set_playlist_scope(choice, cx);
+                            }))
+                    }),
+            )
             .into_any_element()
     }
 

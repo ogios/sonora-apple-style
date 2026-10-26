@@ -65,6 +65,7 @@ impl LocalProvider {
             // Files on disk: favorites are kept here, but nothing suggests a station and
             // nothing counts a play.
             capabilities: Capabilities {
+                playlist_ownership: false,
                 follow_artists: true,
                 radio: false,
                 playcounts: false,

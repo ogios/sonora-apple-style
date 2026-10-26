@@ -9,7 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Switch between playlists you created, playlists you saved, and all playlists in your library.
+- Switch between playlists you created, playlists you saved, and all playlists in your library
+  when the provider reports ownership. Playlists with missing ownership have their own category;
+  providers that cannot distinguish creation from editing or sharing keep the complete list.
 
 - Arch Linux users can build and install the current local fork with a PKGBUILD, keeping
   packaging and compilation output in a separate directory.
