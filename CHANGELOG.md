@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Switch between playlists you created, playlists you saved, and all playlists in your library.
+
 - Arch Linux users can build and install the current local fork with a PKGBUILD, keeping
   packaging and compilation output in a separate directory.
 - NetEase Cloud Music is a new provider. Sign in through music.163.com in a browser window, or
@@ -107,6 +109,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   turns the hand-over off.
 
 ### Fixed
+
+- Discord's provider and Sonora button choices each show their selected state with Liquid Glass,
+  including when both are enabled.
 
 - Search fields inside Liquid Glass menus now have rounded corners that follow the menu.
 - The back, forward and reload buttons no longer crowd the sidebar toggle and jump away when

@@ -54,6 +54,7 @@ pub struct TabBar {
     id: ElementId,
     items: Vec<Button>,
     blurred: bool,
+    multi_select: bool,
     reveal: Option<usize>,
 }
 
@@ -65,6 +66,7 @@ impl TabBar {
             id: id.into(),
             items: Vec::new(),
             blurred: false,
+            multi_select: false,
             reveal: None,
         }
     }
@@ -76,6 +78,13 @@ impl TabBar {
 
     pub fn blurred(mut self) -> Self {
         self.blurred = true;
+        self
+    }
+
+    /// Keeps each selected item's own highlight for choices that can be toggled independently,
+    /// instead of sliding one shared lens between mutually exclusive tabs.
+    pub fn multi_select(mut self) -> Self {
+        self.multi_select = true;
         self
     }
 
@@ -211,6 +220,7 @@ impl RenderOnce for TabBar {
             id,
             items,
             blurred,
+            multi_select,
             reveal,
         } = self;
         let theme = *cx.theme();
@@ -273,7 +283,7 @@ impl RenderOnce for TabBar {
 
         // Under Liquid Glass the chosen tab wears no pill of its own: one glass lens slides
         // under the row from tab to tab, stretching toward the new one as it goes.
-        let lens = (liquid && moving)
+        let lens = (liquid && moving && !multi_select)
             .then(|| window.use_keyed_state((id.clone(), "lens"), cx, |_, _| TabLens::default()));
         let chosen = items.iter().any(Button::is_selected);
         let drawn = lens.as_ref().and_then(|lens| {

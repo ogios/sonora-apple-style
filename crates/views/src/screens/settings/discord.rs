@@ -155,30 +155,33 @@ impl SettingsView {
         let sonora = settings.discord_sonora_button();
         let provider = settings.discord_provider_button();
 
-        let buttons = TabBar::new("discord-buttons").flex_none().items([
-            Button::new("discord-button-provider")
-                .label(t!("settings-discord-name-provider"))
-                .small()
-                .ghost()
-                .selected(provider)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.settings.update(cx, |settings, cx| {
-                        settings.set_discord_provider_button(!provider, cx)
-                    });
-                    cx.notify();
-                })),
-            Button::new("discord-button-sonora")
-                .label(t!("settings-discord-name-sonora"))
-                .small()
-                .ghost()
-                .selected(sonora)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.settings.update(cx, |settings, cx| {
-                        settings.set_discord_sonora_button(!sonora, cx)
-                    });
-                    cx.notify();
-                })),
-        ]);
+        let buttons = TabBar::new("discord-buttons")
+            .multi_select()
+            .flex_none()
+            .items([
+                Button::new("discord-button-provider")
+                    .label(t!("settings-discord-name-provider"))
+                    .small()
+                    .ghost()
+                    .selected(provider)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.settings.update(cx, |settings, cx| {
+                            settings.set_discord_provider_button(!provider, cx)
+                        });
+                        cx.notify();
+                    })),
+                Button::new("discord-button-sonora")
+                    .label(t!("settings-discord-name-sonora"))
+                    .small()
+                    .ghost()
+                    .selected(sonora)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.settings.update(cx, |settings, cx| {
+                            settings.set_discord_sonora_button(!sonora, cx)
+                        });
+                        cx.notify();
+                    })),
+            ]);
 
         self.row(t!("settings-discord-buttons"), buttons.into_any_element())
     }

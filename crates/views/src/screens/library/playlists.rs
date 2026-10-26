@@ -70,11 +70,36 @@ const MODIFIED: ColumnSpec<PlaylistField> = ColumnSpec {
 pub(super) const COLUMNS: &[ColumnSpec<PlaylistField>] =
     &[INDEX, COVER, NAME, OWNER, MODIFIED, TRACK_COUNT];
 
+/// Which relationship to the signed-in account the playlist page shows.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum PlaylistScope {
+    Created,
+    Saved,
+    All,
+}
+
+impl PlaylistScope {
+    pub(super) const ALL: [(Self, &'static str); 3] = [
+        (Self::Created, "library-playlists-created"),
+        (Self::Saved, "library-playlists-saved"),
+        (Self::All, "library-playlists-all"),
+    ];
+
+    /// The empty-state caption for this part of the streaming library.
+    pub(super) fn vacancy(self) -> &'static str {
+        match self {
+            Self::Created => "library-no-created-playlists",
+            Self::Saved => "library-no-saved-playlists",
+            Self::All => "library-no-playlists",
+        }
+    }
+}
+
 pub(super) struct PlaylistSource {
     library: Entity<Library>,
     playback: Entity<Playback>,
     shelf: Shelf,
-    owned: bool,
+    pub(super) scope: PlaylistScope,
     /// Keep only playlists that were downloaded whole.
     downloaded: bool,
 }
@@ -89,7 +114,10 @@ impl PlaylistSource {
             library,
             playback,
             shelf,
-            owned: false,
+            scope: match shelf {
+                Shelf::Streaming => PlaylistScope::Created,
+                Shelf::Local => PlaylistScope::All,
+            },
             downloaded: false,
         }
     }
@@ -107,6 +135,11 @@ impl PlaylistSource {
 
     pub(super) fn at(&self, row: usize, cx: &App) -> Option<Playlist> {
         self.playlists(cx).get(row).cloned()
+    }
+
+    /// Whether the extra download filter narrows the currently selected ownership scope.
+    pub(super) fn downloaded_only(&self) -> bool {
+        self.downloaded
     }
 
     fn playlists<'a>(&self, cx: &'a App) -> &'a [Playlist] {
@@ -127,19 +160,18 @@ impl TableSource for PlaylistSource {
 
     fn matches(&self, row: usize, query: &str, cx: &App) -> bool {
         self.playlists(cx).get(row).is_some_and(|playlist| {
-            (!self.owned || playlist.owned)
-                && (!(self.downloaded || Network::downloads_only(self.shelf, cx))
-                    || downloaded(&playlist.id, cx))
+            (match self.scope {
+                PlaylistScope::Created => playlist.owned,
+                PlaylistScope::Saved => !playlist.owned,
+                PlaylistScope::All => true,
+            }) && (!(self.downloaded || Network::downloads_only(self.shelf, cx))
+                || downloaded(&playlist.id, cx))
                 && (holds(&playlist.name, query) || holds(&playlist.owner, query))
         })
     }
 
     fn filter_axes(&self, cx: &App) -> Vec<Filter> {
-        let mut axes = vec![Filter::Flag(FlagAxis {
-            key: "filter-owned",
-            label: t!("filter-owned"),
-            on: self.owned,
-        })];
+        let mut axes = Vec::new();
         // Offline mode already keeps the shelf to its downloads, so the filter would do nothing.
         let offered = self.downloaded || !Sonora::global(cx).downloads.read(cx).is_empty();
         if offered && !Network::downloads_only(self.shelf, cx) {
@@ -154,16 +186,12 @@ impl TableSource for PlaylistSource {
 
     fn filter(&mut self, change: FilterChange, _cx: &App) -> bool {
         match change {
-            FilterChange::Flag("filter-owned", value) => {
-                self.owned = value;
-                true
-            }
             FilterChange::Flag("filter-downloaded", value) => {
                 self.downloaded = value;
                 true
             }
             FilterChange::Reset => {
-                self.owned = false;
+                self.scope = PlaylistScope::All;
                 self.downloaded = false;
                 true
             }
@@ -172,7 +200,7 @@ impl TableSource for PlaylistSource {
     }
 
     fn filtered(&self, _cx: &App) -> bool {
-        self.owned || self.downloaded
+        self.scope != PlaylistScope::All || self.downloaded
     }
 
     fn playing(&self, row: usize, cx: &App) -> bool {

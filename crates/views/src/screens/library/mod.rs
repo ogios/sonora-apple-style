@@ -24,8 +24,9 @@ use state::{
 };
 use ui::{
     ActiveTheme as _, Button, Card, Deck, FilterChange, LEADING, Mode, Pinnable, Popovers, Popup,
-    Scrollbar, Scroller, Sort, SortAxis, TableDelegate, TableEvent, TableSource, TableState, Text,
-    Toggle, Vacancy, Viewport, heading, quantize, runtime, scrolled, snapped, table,
+    Scrollbar, Scroller, Sort, SortAxis, TabBar, TableDelegate, TableEvent, TableSource,
+    TableState, Text, Toggle, Vacancy, Viewport, heading, quantize, runtime, scrolled, snapped,
+    table,
 };
 
 use crate::shared::album_grid::{AlbumGrid, CardGrid, Revealing};
@@ -37,7 +38,7 @@ use crate::shared::tracks::{
 use crate::shared::{cards, cells, local, page, trouble};
 use albums::{AlbumField, AlbumSource};
 use artists::{ArtistField, ArtistSource};
-use playlists::{PlaylistField, PlaylistSource};
+use playlists::{PlaylistField, PlaylistScope, PlaylistSource};
 
 impl From<LibraryTab> for Section {
     fn from(tab: LibraryTab) -> Self {
@@ -575,7 +576,14 @@ impl LibraryView {
         let problem = library.part_problem(self.shelf, self.section.part());
         let shape = library.shape(self.shelf);
 
-        Some(match (table.filtering(cx), problem) {
+        let filtering = match (self.shelf, self.section) {
+            (Shelf::Streaming, Section::Playlists) => {
+                let delegate = self.playlists.read(cx).delegate();
+                !delegate.query().is_empty() || delegate.source().downloaded_only()
+            }
+            _ => table.filtering(cx),
+        };
+        Some(match (filtering, problem) {
             (true, _) => Vacancy::new(t!("library-no-matches")),
             (false, Some(reason)) => self.lost(
                 "library-part-lost",
@@ -584,8 +592,13 @@ impl LibraryView {
                 cx,
             ),
             (false, None) => {
-                Vacancy::new(i18n::lookup(self.section.vacancy(self.shelf, shape), None))
-                    .icon(self.section.glyph(shape))
+                let caption = match (self.shelf, self.section) {
+                    (Shelf::Streaming, Section::Playlists) => {
+                        self.playlists.read(cx).delegate().source().scope.vacancy()
+                    }
+                    _ => self.section.vacancy(self.shelf, shape),
+                };
+                Vacancy::new(i18n::lookup(caption, None)).icon(self.section.glyph(shape))
             }
         })
     }
@@ -1285,6 +1298,25 @@ impl Render for LibraryView {
             },
         };
 
+        let content = match self.shelf == Shelf::Streaming && section == Section::Playlists {
+            true => div()
+                .flex()
+                .flex_col()
+                .size_full()
+                .child(
+                    div()
+                        .flex()
+                        .flex_none()
+                        .min_w_0()
+                        .px(inset)
+                        .pt(inset)
+                        .child(self.playlist_tabs(cx)),
+                )
+                .child(div().relative().flex_1().min_h_0().child(content))
+                .into_any_element(),
+            false => content,
+        };
+
         div()
             .relative()
             .size_full()
@@ -1321,6 +1353,45 @@ impl Searchable for LibraryView {
 }
 
 impl LibraryView {
+    /// Keeps playlist ownership visible without opening the filter menu.
+    fn playlist_tabs(&self, cx: &Context<Self>) -> AnyElement {
+        let scope = self.playlists.read(cx).delegate().source().scope;
+        TabBar::new("library-playlist-tabs")
+            .max_w_full()
+            .items(PlaylistScope::ALL.map(|(choice, key)| {
+                Button::new(key)
+                    .label(i18n::lookup(key, None))
+                    .ghost()
+                    .selected(scope == choice)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.set_playlist_scope(choice, cx);
+                    }))
+            }))
+            .into_any_element()
+    }
+
+    /// Rebuilds both playlist layouts and clears selection and scroll from the previous scope.
+    fn set_playlist_scope(&mut self, scope: PlaylistScope, cx: &mut Context<Self>) {
+        if self.playlists.read(cx).delegate().source().scope == scope {
+            return;
+        }
+        self.playlists.update(cx, |table, cx| {
+            table.delegate_mut().source_mut().scope = scope;
+            table.delegate_mut().clear_selection();
+            table.rebuild(cx);
+        });
+        self.cards_dirty = true;
+        self.scrollbar
+            .read(cx)
+            .scroll()
+            .set_offset(Point::default());
+        self.card_scrollbar
+            .read(cx)
+            .scroll()
+            .set_offset(Point::default());
+        cx.notify();
+    }
+
     fn sorts(&self, cx: &App) -> Vec<SortAxis> {
         self.table(self.section).sortables(cx)
     }
