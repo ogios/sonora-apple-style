@@ -8,7 +8,7 @@ use gpui::{
 use i18n::t;
 
 use crate::button::Button;
-use crate::glass::{blurring, glass};
+use crate::glass::{blurring, glass, liquid, liquid_radius};
 use crate::input::{
     CARET, CARET_LINES, Copy, Cut, INPUT_CONTEXT, Input, Paste, SelectAll, clamp_offset,
     clamp_range, masked_text, primary_paste,
@@ -248,9 +248,13 @@ impl Render for Input {
             true => theme.metrics.control_small,
             false => theme.metrics.field,
         };
-        let radius = match self.tucked {
-            true => crate::tucked(theme.radius, window),
-            false => theme.radius,
+        // Inset fields follow the menu's panel radius so their corners stay concentric.
+        let radius = match (self.tucked, liquid(cx)) {
+            (true, true) => {
+                crate::tucked(liquid_radius(cx), window).max(crate::tucked(theme.radius, window))
+            }
+            (true, false) => crate::tucked(theme.radius, window),
+            (false, _) => theme.radius,
         };
 
         let empty = self.selected_range.is_empty();
