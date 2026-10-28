@@ -17,7 +17,7 @@ use crate::glow::{Glow, hover_fill};
 use crate::label::upper;
 use crate::lens::nest;
 use crate::metrics::{LEADING, Text, snapped};
-use crate::motion::{HoverFade, Motion, animates, css_ease, ease_out_back, ease_out_cubic};
+use crate::motion::{HoverFade, Motion, animates};
 use crate::skeleton::Skeleton;
 use crate::theme::ActiveTheme as _;
 use crate::tooltip::{Perch, Tipped as _};
@@ -371,9 +371,9 @@ impl RenderOnce for Card {
                     HoverFade::new(Motion::Base.span())
                 })
             });
-        let (arrival, arriving) = match &fade {
-            Some(fade) => fade.update(cx, |fade, cx| (fade.progress(window, cx), fade.hovered())),
-            None => (0., false),
+        let arrival = match &fade {
+            Some(fade) => fade.update(cx, |fade, cx| fade.level(window, cx)),
+            None => 0.,
         };
         let view = window.current_view();
         let animated = fade.is_some();
@@ -381,15 +381,14 @@ impl RenderOnce for Card {
         let (glow, hovered) = match (animated, hovered) {
             (true, Some(style)) if !chosen => {
                 let (fill, rest) = hover_fill(style);
-                let lit = fill.and_then(|fill| {
-                    Glow::of(fade.clone()?, css_ease(arrival), view).fill(None, fill)
-                });
+                let lit =
+                    fill.and_then(|fill| Glow::of(fade.clone()?, arrival, view).fill(None, fill));
                 (lit, Some(rest))
             }
             (_, hovered) => (None, hovered),
         };
         let lift = match animated && liquid(cx) && tile.is_some() {
-            true => 1. + LIFT * css_ease(arrival),
+            true => 1. + LIFT * arrival,
             false => 1.,
         };
 
@@ -422,12 +421,7 @@ impl RenderOnce for Card {
                         let size =
                             px((art / px(1.) * PLAY_RATIO).round()).clamp(PLAY_MIN, PLAY_MAX);
 
-                        // Arriving, the control pops: it fades in, rises and swells past its
-                        // size before settling. Leaving, it only fades and sinks.
-                        let pop = match arriving {
-                            true => ease_out_back(arrival),
-                            false => ease_out_cubic(arrival),
-                        };
+                        // The control fades, rises and grows with the shared eased hover level.
                         div()
                             .id("card-play")
                             .absolute()
@@ -441,13 +435,14 @@ impl RenderOnce for Card {
                                 this.when(arrival <= 0., |this| this.invisible()).when(
                                     arrival < 1.,
                                     |this| {
-                                        this.opacity(css_ease(arrival))
+                                        this.opacity(arrival)
                                             .layer_scale(
-                                                (PLAY_SHRUNK + (1. - PLAY_SHRUNK) * pop).max(0.01),
+                                                (PLAY_SHRUNK + (1. - PLAY_SHRUNK) * arrival)
+                                                    .max(0.01),
                                             )
                                             .layer_translate(point(
                                                 Pixels::ZERO,
-                                                PLAY_RISE * (1. - ease_out_cubic(arrival)),
+                                                PLAY_RISE * (1. - arrival),
                                             ))
                                     },
                                 )
@@ -491,7 +486,7 @@ impl RenderOnce for Card {
                             })
                             .when(!playing && animated, |this| {
                                 this.when(arrival <= 0., |this| this.invisible())
-                                    .opacity(css_ease(arrival))
+                                    .opacity(arrival)
                             })
                             .child(
                                 div()
@@ -673,7 +668,7 @@ impl RenderOnce for Card {
                             .items_center()
                     })
                     .when(animated, |this| {
-                        this.opacity(css_ease(arrival))
+                        this.opacity(arrival)
                             .when(arrival <= 0., |this| this.invisible())
                     })
                     .when(!animated, |this| {

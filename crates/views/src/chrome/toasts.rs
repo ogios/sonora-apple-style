@@ -10,7 +10,7 @@ use gpui::{
 };
 use router::{Destination, SettingsPage, navigate};
 use state::{Outcome, Target, Toasts};
-use ui::{ActiveTheme as _, Toast, css_ease, css_ease_out, paced};
+use ui::{ActiveTheme as _, Toast, ease_out_cubic, paced};
 
 /// The toast width in multiples of the font size.
 const WIDTH: f32 = 26.;
@@ -214,8 +214,8 @@ impl ToastStack {
             match (slot.flung, expanded || slot.index == 0) {
                 (true, _) => {
                     let away = slot.sway.now(now) + width * DRIFT;
-                    slot.sway.aim_eased(away, throw, css_ease_out, now);
-                    slot.opacity.aim_eased(0., throw, css_ease_out, now);
+                    slot.sway.aim_eased(away, throw, ease_out_cubic, now);
+                    slot.opacity.aim_eased(0., throw, ease_out_cubic, now);
                 }
                 (false, true) => {
                     slot.drop.aim(height + below, settle, now);
@@ -584,7 +584,7 @@ impl Tween {
             to: at,
             start: now,
             span: Duration::ZERO,
-            ease: css_ease,
+            ease: ease_out_cubic,
         }
     }
 
@@ -600,7 +600,7 @@ impl Tween {
     /// Heads for `to` from wherever the value is right now. Aiming where it already heads
     /// changes nothing, so calling this every frame keeps one smooth run.
     fn aim(&mut self, to: f32, span: Duration, now: Instant) {
-        self.aim_eased(to, span, css_ease, now);
+        self.aim_eased(to, span, ease_out_cubic, now);
     }
 
     fn aim_eased(&mut self, to: f32, span: Duration, ease: fn(f32) -> f32, now: Instant) {

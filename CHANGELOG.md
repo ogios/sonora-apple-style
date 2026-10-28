@@ -110,6 +110,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   their own. Content that is already there when a page opens shows at once, and Reduce motion
   turns the hand-over off.
 
+### Changed
+
+- Interface transitions now use the same ease-out cubic curve as Way Edges, with a quick start
+  and a gentle finish. Hover effects ease smoothly in both directions, including when interrupted.
+
 ### Fixed
 
 - Discord's provider and Sonora button choices each show their selected state with Liquid Glass,

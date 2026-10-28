@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use gpui::prelude::*;
 use gpui::{
     AnyElement, App, Background, Div, ElementId, Hsla, Pixels, ScrollHandle, ScrollWheelEvent,
-    Stateful, StyleRefinement, Window, div, ease_in_out, linear_color_stop, linear_gradient, px,
+    Stateful, StyleRefinement, Window, div, linear_color_stop, linear_gradient, px,
 };
 
 use crate::button::Button;
@@ -447,7 +447,11 @@ fn masked(row: Stateful<Div>, washes: [Wash; 2]) -> Stateful<Div> {
 fn remaining(since: Instant, span: Duration) -> f32 {
     match span.is_zero() {
         true => 0.,
-        false => 1. - ease_in_out((since.elapsed().as_secs_f32() / span.as_secs_f32()).min(1.)),
+        false => {
+            1. - crate::motion::ease_out_cubic(
+                (since.elapsed().as_secs_f32() / span.as_secs_f32()).min(1.),
+            )
+        }
     }
 }
 

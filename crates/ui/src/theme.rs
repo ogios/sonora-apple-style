@@ -845,7 +845,7 @@ impl Theme {
                 let delta = start.elapsed().as_secs_f32() / FADE.as_secs_f32();
                 let step = match delta >= 1. {
                     true => to,
-                    false => from.mixed(&to, ease_out(delta)),
+                    false => from.mixed(&to, crate::motion::ease_out_cubic(delta)),
                 };
                 cx.update(|cx| {
                     cx.set_global(step);
@@ -888,10 +888,6 @@ fn mix(from: Hsla, to: Hsla, delta: f32) -> Hsla {
         b: channel(from.b, to.b),
         a: channel(from.a, to.a),
     })
-}
-
-fn ease_out(delta: f32) -> f32 {
-    1. - (1. - delta.clamp(0., 1.)).powi(3)
 }
 
 fn wash(base: Hsla, tint: Hsla, strength: f32) -> Hsla {

@@ -553,7 +553,9 @@ impl EqualizerSpectrum {
     fn glided(&self, cx: &App) -> f32 {
         match cx.reduce_motion() {
             true => 1.,
-            false => (self.arrived.elapsed().as_secs_f32() / SPECTRUM_GLIDE.as_secs_f32()).min(1.),
+            false => {
+                ease_out_cubic(self.arrived.elapsed().as_secs_f32() / SPECTRUM_GLIDE.as_secs_f32())
+            }
         }
     }
 

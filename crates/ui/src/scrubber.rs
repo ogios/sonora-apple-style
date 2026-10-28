@@ -1,6 +1,6 @@
 use crate::glass::liquid;
 use crate::metrics::Text;
-use crate::motion::{HoverFade, Motion, animates, ease_out_cubic};
+use crate::motion::{HoverFade, Motion, animates};
 use crate::theme::ActiveTheme as _;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -217,7 +217,7 @@ impl RenderOnce for Scrubber {
             })
         });
         let arrival = match &grow {
-            Some(grow) => ease_out_cubic(grow.update(cx, |grow, cx| grow.progress(window, cx))),
+            Some(grow) => grow.update(cx, |grow, cx| grow.level(window, cx)),
             None => 0.,
         };
         let swell = match animates(cx) {

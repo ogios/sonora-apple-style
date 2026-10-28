@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use gpui::{
     Animation, AnimationElement, AnimationExt as _, App, ElementId, Hsla, IntoElement, Pixels,
-    Rgba, SharedString, SpringConfig, SpringState, Styled, ease_in_out, ease_out_quint, point, px,
+    Rgba, SharedString, SpringConfig, SpringState, Styled, point, px,
 };
 use i18n::t;
 
@@ -64,13 +64,9 @@ impl Motion {
         }
     }
 
+    /// Builds a transition with the shared ease-out curve and this preset's duration.
     pub fn animation(self) -> Animation {
-        let animation = Animation::new(self.span());
-
-        match self {
-            Self::Control | Self::Base => animation.with_easing(ease_in_out),
-            Self::Quick | Self::Slow => animation.with_easing(ease_out_quint()),
-        }
+        Animation::new(self.span()).with_easing(ease_out_cubic)
     }
 }
 
@@ -206,7 +202,7 @@ impl Entrance {
         }
         let elapsed = self.started.elapsed().as_secs_f32();
         let progress = (elapsed / self.span.as_secs_f32()).clamp(0., 1.);
-        1. - ease_out_expo(progress)
+        1. - ease_out_cubic(progress)
     }
 
     pub fn running(self) -> bool {
@@ -215,7 +211,7 @@ impl Entrance {
 }
 
 fn entrance() -> Animation {
-    Animation::new(entrance_span()).with_easing(ease_out_expo)
+    Animation::new(entrance_span()).with_easing(ease_out_cubic)
 }
 
 pub fn veiled<E: Styled>(element: E, hidden: f32) -> E {
@@ -303,8 +299,10 @@ pub fn ease_out_quad(progress: f32) -> f32 {
     cubic_bezier(progress.clamp(0., 1.), 0.5, 1., 0.89, 1.)
 }
 
+/// The shared transition curve, matching Way Edges: fast at first, then settling gently.
+/// Progress is clamped so callers land exactly on either endpoint.
 pub fn ease_out_cubic(progress: f32) -> f32 {
-    cubic_bezier(progress.clamp(0., 1.), 0.33, 1., 0.68, 1.)
+    1. - (1. - progress.clamp(0., 1.)).powi(3)
 }
 
 pub fn ease_in_out_cubic(progress: f32) -> f32 {
@@ -441,7 +439,7 @@ pub fn animates(cx: &App) -> bool {
 /// drawing.
 pub struct HoverFade {
     hovered: bool,
-    /// Where the fade stood, unbent by easing, when the pointer last came or went.
+    /// The displayed level when the pointer last came or went.
     from: f32,
     since: Option<Instant>,
     span: Duration,
@@ -462,7 +460,7 @@ impl HoverFade {
         if hovered == self.hovered {
             return;
         }
-        self.from = self.linear();
+        self.from = self.current();
         self.hovered = hovered;
         self.since = Some(Instant::now());
     }
@@ -475,21 +473,19 @@ impl HoverFade {
             self.since = None;
             self.from = target;
         }
-        let at = self.linear();
+        let at = self.current();
         if at == target {
             self.since = None;
             self.from = target;
         } else {
             window.request_animation_frame();
         }
-        css_ease(at)
+        at
     }
 
-    /// How far the fade has come, from 0 at rest to 1 hovered, before any easing, for a caller
-    /// that bends it with a curve of its own. It asks for frames the way `level` does.
+    /// The eased hover level, from 0 at rest to 1 hovered. Like `level`, this requests frames.
     pub fn progress(&mut self, window: &mut gpui::Window, cx: &App) -> f32 {
-        self.level(window, cx);
-        self.linear()
+        self.level(window, cx)
     }
 
     /// Whether the pointer is over the element, as last told.
@@ -497,18 +493,14 @@ impl HoverFade {
         self.hovered
     }
 
-    /// Where the fade stands before easing, moving from `from` towards the target at one span
-    /// for the whole way.
-    fn linear(&self) -> f32 {
+    /// Interpolates from the displayed level to the new target with ease-out in either direction.
+    fn current(&self) -> f32 {
         let target = f32::from(u8::from(self.hovered));
         let Some(since) = self.since else {
             return self.from;
         };
         let travelled = since.elapsed().as_secs_f32() / self.span.as_secs_f32().max(f32::EPSILON);
-        match self.hovered {
-            true => (self.from + travelled).min(target),
-            false => (self.from - travelled).max(target),
-        }
+        self.from + (target - self.from) * ease_out_cubic(travelled)
     }
 }
 

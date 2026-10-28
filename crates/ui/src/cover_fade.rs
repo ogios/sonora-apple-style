@@ -3,7 +3,7 @@ use std::time::Instant;
 use gpui::prelude::*;
 use gpui::{AnyElement, App, ElementId, Window, div};
 
-use crate::motion::{Motion, animates, css_ease};
+use crate::motion::{Motion, animates, ease_out_cubic};
 
 /// The cover an element showed last and the one it is fading out from.
 struct Crossing {
@@ -53,7 +53,7 @@ pub fn crossfade(
                     div()
                         .absolute()
                         .inset_0()
-                        .opacity(1. - css_ease(progress))
+                        .opacity(1. - ease_out_cubic(progress))
                         .child(draw(Some(previous))),
                 )
                 .into_any_element()

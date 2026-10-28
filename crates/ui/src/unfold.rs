@@ -2,7 +2,7 @@ use gpui::prelude::*;
 use gpui::{App, Div, Pixels, Window, div, px};
 
 use crate::lens::{Mark, mark};
-use crate::motion::{Springs, Sprung, animates, css_ease};
+use crate::motion::{Springs, Sprung, animates, ease_out_cubic};
 
 /// How close to its target, in pixels, a folding height counts as arrived.
 const EPSILON: f32 = 0.5;
@@ -116,7 +116,7 @@ impl Unfold {
                             .top_0()
                             .left_0()
                             .right_0()
-                            .opacity(css_ease(shown)),
+                            .opacity(ease_out_cubic(shown)),
                     )
             }
         }

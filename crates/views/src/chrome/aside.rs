@@ -9,7 +9,7 @@ use gpui::{
     Animation, AnimationExt as _, App, Bounds, Context, Div, DragMoveEvent, Entity, FontWeight,
     MouseDownEvent, MouseUpEvent, Pixels, Point, Render, ScrollHandle, ScrollStrategy,
     SharedString, Size, SpringConfig, SpringState, Task, UniformListScrollHandle, Window, canvas,
-    div, ease_in_out, px, relative, size, svg, uniform_list,
+    div, px, relative, size, svg, uniform_list,
 };
 use i18n::t;
 use music::{Contributor, Shape, Track, Voice};
@@ -21,8 +21,8 @@ use state::{
 use ui::{
     ActiveTheme as _, Avatar, Button, Card, DraggedPin, Edge, Initials, Motion, Motioned as _,
     PREFETCH_REACH, Pin, Pinnable as _, Popup, Scrollbar, Scroller, Spot, Springs, Text, Type,
-    Typeset as _, Vacancy, drop_gap, drop_marker, ease_out_cubic, ease_out_expo, eyebrow,
-    fade_line, faint, mix, prefetch, snapped, text_width, vacant,
+    Typeset as _, Vacancy, drop_gap, drop_marker, ease_out_cubic, eyebrow, fade_line, faint, mix,
+    prefetch, snapped, text_width, vacant,
 };
 
 use ui::motion::HoverFade;
@@ -631,7 +631,7 @@ impl Aside {
         if progress < 1. {
             window.request_animation_frame();
         }
-        ease_in_out(progress)
+        ease_out_cubic(progress)
     }
 
     /// Samples a row's own hover fade and releases it once the pointer's warmth has gone.
@@ -1826,7 +1826,7 @@ impl Aside {
                                     .with_animation(
                                         (tag, take as usize),
                                         Animation::new(Motion::Base.span())
-                                            .with_easing(ease_in_out),
+                                            .with_easing(ease_out_cubic),
                                         move |this, t| {
                                             let shown = match arriving {
                                                 true => t,
@@ -2040,7 +2040,7 @@ impl Aside {
             true => sheet
                 .with_animation(
                     ("verse-sheet", self.verse_take as usize),
-                    Animation::new(Motion::Base.span()).with_easing(ui::ease_in_out_cubic),
+                    Animation::new(Motion::Base.span()).with_easing(ease_out_cubic),
                     move |this, t| {
                         this.blur(verse * RESOLVE_BLUR * (1. - t))
                             .opacity(1. - RESOLVE_FADE * (1. - t))
@@ -3088,7 +3088,7 @@ fn ramp(at: std::time::Instant, window: &mut Window) -> f32 {
     if progress < 1. {
         window.request_animation_frame();
     }
-    ease_out_expo(progress)
+    ease_out_cubic(progress)
 }
 
 /// Scales one line of text without touching the space between it and the next.

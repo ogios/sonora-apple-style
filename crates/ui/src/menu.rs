@@ -16,7 +16,7 @@ use crate::glass::{GLASS_BLUR, blurring, liquid, liquid_radius, liquid_rim, popo
 use crate::glow::{Glow, Hover};
 use crate::input::Input;
 use crate::metrics::snapped;
-use crate::motion::{Fading as _, Motion, Motioned as _, Rising as _, animates, ease_out_back};
+use crate::motion::{Fading as _, Motion, Motioned as _, Rising as _, animates};
 use crate::scrollbar::Scrollbar;
 use crate::scroller::middle_scroll;
 use crate::separator::Separator;
@@ -1162,11 +1162,7 @@ impl RenderOnce for Menu {
             true => panel_looks.layer_scale_origin(origin).motion(
                 "menu-pop",
                 Motion::Base,
-                |panel, t| {
-                    panel
-                        .layer_scale(POP + (1. - POP) * ease_out_back(t))
-                        .opacity(t)
-                },
+                |panel, t| panel.layer_scale(POP + (1. - POP) * t).opacity(t),
             ),
             false => panel_looks.rising("menu-rise"),
         };

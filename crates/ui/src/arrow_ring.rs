@@ -3,8 +3,7 @@ use std::time::{Duration, Instant};
 
 use gpui::prelude::*;
 use gpui::{
-    AnyElement, App, Bounds, ElementId, Hsla, PathBuilder, Pixels, Point, Window, canvas,
-    ease_in_out, point, px,
+    AnyElement, App, Bounds, ElementId, Hsla, PathBuilder, Pixels, Point, Window, canvas, point, px,
 };
 
 use crate::motion;
@@ -103,7 +102,7 @@ impl RenderOnce for ArrowRing {
             window.request_animation_frame();
         }
         let shown = match fades {
-            true => ease_in_out(frame.shown),
+            true => 1. - motion::ease_out_cubic(1. - frame.shown),
             false => 1.,
         };
         mark(frame.arc, look.fade(shown))
