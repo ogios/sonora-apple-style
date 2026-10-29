@@ -252,7 +252,11 @@ impl SidebarLeft {
         if self.at == *current {
             return;
         }
-        self.lens_entry.clear();
+        // Settings tabs all light this same sidebar row. Keep its measured bounds so the
+        // lens never hides for a frame while a different settings destination is laid out.
+        if !(self.at.in_settings() && current.in_settings()) {
+            self.lens_entry.clear();
+        }
         self.at = current.clone();
         let (library, local) = expanded(current);
         self.library_open |= library;

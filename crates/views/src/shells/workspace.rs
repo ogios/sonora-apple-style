@@ -56,12 +56,19 @@ pub(crate) struct Workspace {
     /// own parts instead.
     cached: bool,
     /// Only the current page's entrance; departing pages each retain their own clock.
-    transition: Option<Entrance>,
+    transition: Option<PageEntrance>,
     departing: Vec<DepartingPage>,
     /// The left and right sidebars' widths sliding as they open and close.
     left_drawer: ui::Drawer,
     right_drawer: ui::Drawer,
     focus: FocusHandle,
+}
+
+/// The current page's entrance clock and side, positive from the right and negative from the left.
+#[derive(Clone, Copy)]
+struct PageEntrance {
+    clock: Entrance,
+    side: f32,
 }
 
 /// A page kept above its predecessor until its own departure finishes.
@@ -70,6 +77,8 @@ struct DepartingPage {
     entrance: Entrance,
     /// Continue from a partially entered page without jumping it back to full opacity.
     from: f32,
+    offset_from: f32,
+    side: f32,
 }
 
 /// The shared geometry for the current page and every departing layer.
@@ -87,6 +96,11 @@ struct PassivePage {
 impl DepartingPage {
     fn hidden(&self) -> f32 {
         self.from + (1. - self.from) * (1. - self.entrance.hidden())
+    }
+
+    /// Continues from the displayed offset, even if a tab changes direction mid-entrance.
+    fn offset(&self) -> f32 {
+        self.offset_from + (self.side - self.offset_from) * (1. - self.entrance.hidden())
     }
 }
 
@@ -195,25 +209,47 @@ impl Workspace {
 
     /// Keeps the departing page above the new current page. Existing departures keep their
     /// clocks and order when another Back arrives before any of them has finished.
-    pub fn leave_content(&mut self, direction: NavigationDirection, cx: &mut Context<Self>) {
+    pub fn leave_content(
+        &mut self,
+        direction: NavigationDirection,
+        tab_side: Option<f32>,
+        cx: &mut Context<Self>,
+    ) {
         if cx.reduce_motion() {
             self.finish_transition(cx);
             return;
         }
-        if direction == NavigationDirection::Backward {
+        if direction == NavigationDirection::Backward || tab_side.is_some() {
             self.departing.push(DepartingPage {
                 content: self.content.clone(),
                 entrance: Entrance::start().with_span(ui::paced(PAGE_TRANSITION)),
-                from: self.transition.map_or(0., Entrance::hidden),
+                from: self
+                    .transition
+                    .map_or(0., |entrance| entrance.clock.hidden()),
+                offset_from: self
+                    .transition
+                    .map_or(0., |entrance| entrance.side * entrance.clock.hidden()),
+                side: tab_side.map_or(1., |side| -side),
             });
         }
         self.transition = None;
     }
 
-    /// Starts the new page's entrance on forward; Back reveals its predecessor immediately.
-    pub fn reveal_content(&mut self, direction: NavigationDirection, cx: &mut Context<Self>) {
-        self.transition = match direction == NavigationDirection::Forward && !cx.reduce_motion() {
-            true => Some(Entrance::start().with_span(ui::paced(PAGE_TRANSITION))),
+    /// Forward enters from the right; peer tabs enter from their side in the tab order.
+    /// Back reveals its predecessor underneath the outgoing stack immediately.
+    pub fn reveal_content(
+        &mut self,
+        direction: NavigationDirection,
+        tab_side: Option<f32>,
+        cx: &mut Context<Self>,
+    ) {
+        self.transition = match (direction == NavigationDirection::Forward || tab_side.is_some())
+            && !cx.reduce_motion()
+        {
+            true => Some(PageEntrance {
+                clock: Entrance::start().with_span(ui::paced(PAGE_TRANSITION)),
+                side: tab_side.unwrap_or(1.),
+            }),
             false => None,
         };
         cx.notify();
@@ -236,13 +272,17 @@ impl Workspace {
             return 0.;
         }
         self.departing.retain(|page| page.entrance.running());
-        if self.transition.is_some_and(|entrance| !entrance.running()) {
+        if self
+            .transition
+            .is_some_and(|entrance| !entrance.clock.running())
+        {
             self.transition = None;
         }
         if self.transition.is_some() || !self.departing.is_empty() {
             window.request_animation_frame();
         }
-        self.transition.map_or(0., Entrance::hidden)
+        self.transition
+            .map_or(0., |entrance| entrance.clock.hidden())
     }
 
     #[allow(dead_code)]
@@ -413,6 +453,8 @@ impl Render for Workspace {
             &self.content,
             self.cached && !sliding,
             hidden,
+            self.transition
+                .map_or(0., |entrance| entrance.side * hidden),
             false,
             frame,
             cx,
@@ -431,7 +473,17 @@ impl Render for Workspace {
             .departing
             .iter()
             .rev()
-            .map(|page| page_layer(&page.content, false, page.hidden(), true, frame, cx))
+            .map(|page| {
+                page_layer(
+                    &page.content,
+                    false,
+                    page.hidden(),
+                    page.offset(),
+                    true,
+                    frame,
+                    cx,
+                )
+            })
             .collect();
 
         div()
@@ -604,11 +656,12 @@ fn page_layer(
     content: &AnyView,
     cached: bool,
     hidden: f32,
+    offset: f32,
     departing: bool,
     frame: PageFrame,
     cx: &App,
 ) -> AnyElement {
-    let offset = cx.theme().metrics.inset * hidden;
+    let offset = cx.theme().metrics.inset * offset;
     let liquid = ui::liquid(cx);
     let id = content.entity_id();
     let content = match cached {

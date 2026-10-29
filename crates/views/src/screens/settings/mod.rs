@@ -428,7 +428,7 @@ impl SettingsView {
     }
 
     /// The destination owned by this view, including while another visit slides over it.
-    pub(super) fn page(&self) -> SettingsPage {
+    pub(crate) fn page(&self) -> SettingsPage {
         self.page
     }
 

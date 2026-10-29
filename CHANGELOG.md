@@ -120,9 +120,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Switch settings content immediately without a page slide, blur or fade while the selection
-  capsule continues sliding between tabs. Light themes give buttons and selected segments
-  clearer outlines, and keep unavailable window controls legible.
+- Settings tab content slides left or right with a blur as the selection capsule moves,
+  while the header and sidebar stay still. The sidebar's Settings highlight no longer flashes
+  between tabs. Light themes give buttons and selected segments clearer outlines, and keep
+  unavailable window controls legible.
 
 - Rapidly go back through several pages with overlapping slide, blur and fade transitions.
   Each history visit keeps its own content and animation instead of restarting the current page.

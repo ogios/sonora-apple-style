@@ -1,6 +1,6 @@
 use gpui::prelude::*;
 use gpui::{Context, Entity, Pixels, Render, Subscription, Window, div, px};
-use router::{Destination, SettingsTab, navigate_immediate};
+use router::{Destination, SettingsTab, navigate_tab};
 use ui::{ActiveTheme as _, Button, Room, TabBar, VeilEdge, effects, veil};
 
 use super::{Layout, SettingsView};
@@ -98,7 +98,7 @@ impl Render for SettingsHeader {
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.calm = Some(tab);
                         this.view.update(cx, |view, cx| view.clear_search(cx));
-                        navigate_immediate(Destination::Settings(tab.lead()), cx);
+                        navigate_tab(Destination::Settings(tab.lead()), cx);
                     }))
             }));
 
