@@ -775,6 +775,13 @@ impl Root {
             Some(screens) => self.screens = screens,
             None => self.fresh_screen(destination, window, cx),
         }
+        if destination.in_settings() {
+            let settings = self.screens.settings.clone();
+            let equalizer = self.screens.equalizer.clone();
+            self.screens
+                .settings_header
+                .update(cx, |header, cx| header.bind(settings, equalizer, cx));
+        }
         self.shown_entry = entry;
         let navigation = router::trail(cx).read(cx);
         self.page_screens
@@ -851,8 +858,6 @@ impl Root {
                 }
                 let equalizer = Sonora::global(cx).equalizer.clone();
                 let equalizer = cx.new(|cx| EqualizerView::new(equalizer, window, cx));
-                self.screens.settings_header =
-                    cx.new(|cx| SettingsHeader::new(settings.clone(), equalizer.clone(), cx));
                 self.screens.settings = settings;
                 self.screens.equalizer = equalizer;
             }

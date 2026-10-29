@@ -48,7 +48,7 @@ pub(crate) struct Workspace {
     toasts: Entity<ToastStack>,
     notice: Entity<AppNotice>,
     content: AnyView,
-    /// A screen's own header, floated over the page and following its navigation transition.
+    /// A stable header above the page stack, so its selection lens survives tab switches.
     /// The page pads itself to start beneath it.
     header: Option<AnyView>,
     /// Whether the page is laid out cached. A page that redraws part of itself every frame is
@@ -67,7 +67,6 @@ pub(crate) struct Workspace {
 /// A page kept above its predecessor until its own departure finishes.
 struct DepartingPage {
     content: AnyView,
-    header: Option<AnyView>,
     entrance: Entrance,
     /// Continue from a partially entered page without jumping it back to full opacity.
     from: f32,
@@ -78,7 +77,6 @@ struct DepartingPage {
 struct PageFrame {
     overlay_width: Pixels,
     reach: Pixels,
-    header: crate::screens::settings::Layout,
 }
 
 /// An outgoing visual layer cannot take keyboard selection away from the active page.
@@ -205,7 +203,6 @@ impl Workspace {
         if direction == NavigationDirection::Backward {
             self.departing.push(DepartingPage {
                 content: self.content.clone(),
-                header: self.header.clone(),
                 entrance: Entrance::start().with_span(ui::paced(PAGE_TRANSITION)),
                 from: self.transition.map_or(0., Entrance::hidden),
             });
@@ -411,34 +408,30 @@ impl Render for Workspace {
         let frame = PageFrame {
             overlay_width,
             reach,
-            header: crate::screens::settings::Layout::of(window, cx),
         };
         let content = page_layer(
             &self.content,
-            self.header.as_ref(),
             self.cached && !sliding,
             hidden,
             false,
             frame,
             cx,
         );
+        let layout = crate::screens::settings::Layout::of(window, cx);
+        let header = self.header.as_ref().map(|header| match layout.measured {
+            true => header
+                .clone()
+                .cached(StyleRefinement::default().w_full().h(layout.top))
+                .into_any_element(),
+            false => header.clone().into_any_element(),
+        });
         // The first page to leave stays in front. A second Back adds its own page underneath
         // it, so C → B → A shows both C and B sliding away over A, without restarting C.
         let departing: Vec<_> = self
             .departing
             .iter()
             .rev()
-            .map(|page| {
-                page_layer(
-                    &page.content,
-                    page.header.as_ref(),
-                    false,
-                    page.hidden(),
-                    true,
-                    frame,
-                    cx,
-                )
-            })
+            .map(|page| page_layer(&page.content, false, page.hidden(), true, frame, cx))
             .collect();
 
         div()
@@ -526,7 +519,17 @@ impl Render for Workspace {
                                     // Only the outer sheet may clip that background.
                                     .when(hidden > 0. && !liquid, |this| this.overflow_hidden())
                                     .child(content)
-                                    .children(departing),
+                                    .children(departing)
+                                    .when_some(header, |this, header| {
+                                        this.child(
+                                            div()
+                                                .absolute()
+                                                .left(-overlay_width)
+                                                .right_0()
+                                                .top_0()
+                                                .child(header),
+                                        )
+                                    }),
                             ),
                     )
                     .map(|this| match right_sliding {
@@ -596,10 +599,9 @@ fn slot(panel: gpui::AnyElement, width: Pixels, full: Pixels, right: bool) -> gp
         .into_any_element()
 }
 
-/// Builds one visit in place, retaining its own view, header, opacity and focus progression.
+/// Builds one visit in place, retaining its own view, opacity and focus progression.
 fn page_layer(
     content: &AnyView,
-    header: Option<&AnyView>,
     cached: bool,
     hidden: f32,
     departing: bool,
@@ -616,15 +618,6 @@ fn page_layer(
             .into_any_element(),
         false => content.clone().into_any_element(),
     };
-    let header = header.map(
-        |header| match !departing && hidden == 0. && frame.header.measured {
-            true => header
-                .clone()
-                .cached(StyleRefinement::default().w_full().h(frame.header.top))
-                .into_any_element(),
-            false => header.clone().into_any_element(),
-        },
-    );
     let layer = div()
         .id(gpui::ElementId::View(id))
         .absolute()
@@ -642,19 +635,6 @@ fn page_layer(
         .when(hidden > 0., |this| this.blur(PAGE_BLUR * hidden))
         .opacity(1. - hidden)
         .child(content)
-        .when_some(header, |this, header| {
-            this.child(
-                div()
-                    .absolute()
-                    .left_0()
-                    .right_0()
-                    .top(match liquid {
-                        true => frame.reach,
-                        false => Pixels::ZERO,
-                    })
-                    .child(header),
-            )
-        })
         .when(departing, |this| {
             this.child(
                 ui::Shield::new("departing-page-shield")

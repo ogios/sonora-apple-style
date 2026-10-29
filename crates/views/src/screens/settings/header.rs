@@ -1,5 +1,5 @@
 use gpui::prelude::*;
-use gpui::{Context, Entity, Pixels, Render, Window, div, px};
+use gpui::{Context, Entity, Pixels, Render, Subscription, Window, div, px};
 use router::{Destination, SettingsTab, navigate_immediate};
 use ui::{ActiveTheme as _, Button, Room, TabBar, VeilEdge, effects, veil};
 
@@ -11,8 +11,8 @@ use crate::screens::equalizer::EqualizerView;
 const BLUR: Pixels = px(1.);
 
 /// The search field and the pill bar of tabs that float over every settings page in the
-/// workspace. It follows its own settings visit through navigation transitions and measures
-/// itself so the pages start below it.
+/// workspace. Its selection lens survives tab changes while each tab owns its content.
+/// It measures itself so the pages start below it.
 pub struct SettingsHeader {
     view: Entity<SettingsView>,
     /// The equalizer page, which starts below the header too and has to hear when it moves.
@@ -20,6 +20,7 @@ pub struct SettingsHeader {
     /// The tab clicked last, kept free of the hover shade until the pointer leaves it, so the
     /// change of selection never flashes.
     calm: Option<SettingsTab>,
+    view_subscription: Subscription,
 }
 
 impl SettingsHeader {
@@ -28,12 +29,31 @@ impl SettingsHeader {
         equalizer: Entity<EqualizerView>,
         cx: &mut Context<Self>,
     ) -> Self {
-        cx.observe(&view, |_, _, cx| cx.notify()).detach();
+        let view_subscription = cx.observe(&view, |_, _, cx| cx.notify());
         Self {
             view,
             equalizer,
             calm: None,
+            view_subscription,
         }
+    }
+
+    /// Follows the active visit without replacing the header or resetting its moving lens.
+    pub(crate) fn bind(
+        &mut self,
+        view: Entity<SettingsView>,
+        equalizer: Entity<EqualizerView>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.view.entity_id() == view.entity_id()
+            && self.equalizer.entity_id() == equalizer.entity_id()
+        {
+            return;
+        }
+        self.view_subscription = cx.observe(&view, |_, _, cx| cx.notify());
+        self.view = view;
+        self.equalizer = equalizer;
+        cx.notify();
     }
 }
 
