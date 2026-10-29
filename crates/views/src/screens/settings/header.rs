@@ -1,6 +1,6 @@
 use gpui::prelude::*;
 use gpui::{Context, Entity, Pixels, Render, Window, div, px};
-use router::{Destination, SettingsPage, SettingsTab, navigate};
+use router::{Destination, SettingsTab, navigate};
 use ui::{ActiveTheme as _, Button, Room, TabBar, VeilEdge, effects, veil};
 
 use super::{Layout, SettingsView};
@@ -11,8 +11,8 @@ use crate::screens::equalizer::EqualizerView;
 const BLUR: Pixels = px(1.);
 
 /// The search field and the pill bar of tabs that float over every settings page in the
-/// workspace. The workspace lays it over the content outside the page's transition, so a page
-/// change fades the rows and nothing else. It measures itself so the pages start below it.
+/// workspace. It follows its own settings visit through navigation transitions and measures
+/// itself so the pages start below it.
 pub struct SettingsHeader {
     view: Entity<SettingsView>,
     /// The equalizer page, which starts below the header too and has to hear when it moves.
@@ -29,8 +29,6 @@ impl SettingsHeader {
         cx: &mut Context<Self>,
     ) -> Self {
         cx.observe(&view, |_, _, cx| cx.notify()).detach();
-        cx.observe(&router::trail(cx), |_, _, cx| cx.notify())
-            .detach();
         Self {
             view,
             equalizer,
@@ -48,11 +46,7 @@ impl Render for SettingsHeader {
         // a search lights no tab, since its results come from all of them
         let chosen = match view.searching() {
             true => None,
-            false => router::trail(cx)
-                .read(cx)
-                .current()
-                .settings_page()
-                .map(SettingsPage::tab),
+            false => Some(view.page().tab()),
         };
         let calm = self.calm;
         // a narrow column keeps the icons and leaves the names to the tooltips

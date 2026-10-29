@@ -14,11 +14,13 @@ pub enum NavigationEvent {
     Moved {
         destination: Destination,
         direction: NavigationDirection,
+        entry: u64,
     },
 }
 
 pub struct Navigation {
-    trail: Vec<Destination>,
+    trail: Vec<(u64, Destination)>,
+    next_entry: u64,
     at: usize,
     /// The settings destination last on show, which opening settings again returns to.
     last_settings: Option<Destination>,
@@ -29,14 +31,25 @@ impl EventEmitter<NavigationEvent> for Navigation {}
 impl Navigation {
     pub fn new(start: Destination) -> Self {
         Self {
-            trail: vec![start],
+            trail: vec![(0, start)],
+            next_entry: 1,
             at: 0,
             last_settings: None,
         }
     }
 
     pub fn current(&self) -> Destination {
-        self.trail[self.at].clone()
+        self.trail[self.at].1.clone()
+    }
+
+    /// The identity of the current history visit, retained when moving back or forward.
+    pub fn current_entry(&self) -> u64 {
+        self.trail[self.at].0
+    }
+
+    /// Whether a visit still belongs to history after a new branch or replacement.
+    pub fn has_entry(&self, entry: u64) -> bool {
+        self.trail.iter().any(|(id, _)| *id == entry)
     }
 
     pub fn can_go_back(&self) -> bool {
@@ -54,10 +67,12 @@ impl Navigation {
 
         let replacing = self.current() == Destination::Fullscreen;
         self.trail.truncate(self.at + 1);
+        let entry = (self.next_entry, destination);
+        self.next_entry += 1;
         match replacing {
-            true => self.trail[self.at] = destination,
+            true => self.trail[self.at] = entry,
             false => {
-                self.trail.push(destination);
+                self.trail.push(entry);
                 self.at = self.trail.len() - 1;
             }
         }
@@ -77,7 +92,8 @@ impl Navigation {
         if self.current() == destination {
             return;
         }
-        self.trail[self.at] = destination;
+        self.trail[self.at] = (self.next_entry, destination);
+        self.next_entry += 1;
         self.arrive(NavigationDirection::Forward, cx);
     }
 
@@ -87,7 +103,7 @@ impl Navigation {
     /// does not reopen it.
     pub fn up(&mut self, parent: Destination, cx: &mut Context<Self>) {
         let tab = |destination: &Destination| destination.settings_page().map(SettingsPage::tab);
-        let before = self.at.checked_sub(1).map(|at| &self.trail[at]);
+        let before = self.at.checked_sub(1).map(|at| &self.trail[at].1);
         match before.is_some_and(|before| {
             *before == parent || (tab(before).is_some() && tab(before) == tab(&parent))
         }) {
@@ -96,7 +112,8 @@ impl Navigation {
                 if self.current() == parent {
                     return;
                 }
-                self.trail[self.at] = parent;
+                self.trail[self.at] = (self.next_entry, parent);
+                self.next_entry += 1;
                 self.arrive(NavigationDirection::Backward, cx);
             }
         }
@@ -126,6 +143,7 @@ impl Navigation {
         cx.emit(NavigationEvent::Moved {
             destination: self.current(),
             direction,
+            entry: self.current_entry(),
         });
         cx.notify();
     }

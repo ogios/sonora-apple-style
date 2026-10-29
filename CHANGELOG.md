@@ -120,6 +120,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Rapidly go back through several pages with overlapping slide, blur and fade transitions.
+  Each history visit keeps its own content and animation instead of restarting the current page.
+
 - Artist header pictures and their softened colour extensions fade in together when they
   finish loading instead of appearing abruptly. The picture keeps its full reach while
   replacing the loading placeholder, without jumping at the end of the reveal.

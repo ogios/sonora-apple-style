@@ -427,6 +427,11 @@ impl SettingsView {
         }
     }
 
+    /// The destination owned by this view, including while another visit slides over it.
+    pub(super) fn page(&self) -> SettingsPage {
+        self.page
+    }
+
     /// Shows the tab a page belongs to and ends any search, so a route always lands on a plain
     /// tab. A new route starts at the top of its tab, or at its section when that lies further
     /// down, and a route to the page already on show keeps the tab where it was scrolled.

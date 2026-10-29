@@ -1,7 +1,10 @@
 use std::time::Duration;
 
 use gpui::prelude::*;
-use gpui::{AnyView, App, Context, Entity, FocusHandle, Pixels, Render, StyleRefinement};
+use gpui::{
+    AnyElement, AnyView, App, Bounds, Context, Element, Entity, FocusHandle, GlobalElementId,
+    InspectorElementId, LayoutId, Pixels, Render, StyleRefinement,
+};
 use gpui::{Window, deferred, div, px};
 use input::WORKSPACE_CONTEXT;
 use router::NavigationDirection;
@@ -52,12 +55,41 @@ pub(crate) struct Workspace {
     /// not, since a cached view that redraws builds every view in it again, and it caches its
     /// own parts instead.
     cached: bool,
-    /// The page clock and history direction; backward keeps the departing page until it fades.
-    transition: Option<(Entrance, NavigationDirection)>,
+    /// Only the current page's entrance; departing pages each retain their own clock.
+    transition: Option<Entrance>,
+    departing: Vec<DepartingPage>,
     /// The left and right sidebars' widths sliding as they open and close.
     left_drawer: ui::Drawer,
     right_drawer: ui::Drawer,
     focus: FocusHandle,
+}
+
+/// A page kept above its predecessor until its own departure finishes.
+struct DepartingPage {
+    content: AnyView,
+    header: Option<AnyView>,
+    entrance: Entrance,
+    /// Continue from a partially entered page without jumping it back to full opacity.
+    from: f32,
+}
+
+/// The shared geometry for the current page and every departing layer.
+#[derive(Clone, Copy)]
+struct PageFrame {
+    overlay_width: Pixels,
+    reach: Pixels,
+    header: crate::screens::settings::Layout,
+}
+
+/// An outgoing visual layer cannot take keyboard selection away from the active page.
+struct PassivePage {
+    child: AnyElement,
+}
+
+impl DepartingPage {
+    fn hidden(&self) -> f32 {
+        self.from + (1. - self.from) * (1. - self.entrance.hidden())
+    }
 }
 
 impl Workspace {
@@ -98,6 +130,7 @@ impl Workspace {
             header: None,
             cached: true,
             transition: None,
+            departing: Vec::new(),
             left_drawer: ui::Drawer::new(),
             right_drawer: ui::Drawer::new(),
             focus: cx.focus_handle(),
@@ -153,55 +186,131 @@ impl Workspace {
         cached: bool,
         cx: &mut Context<Self>,
     ) {
+        // Reopening a page already leaving reclaims its view instead of drawing it twice.
+        self.departing
+            .retain(|page| page.content.entity_id() != content.entity_id());
         self.content = content;
         self.header = header;
         self.cached = cached;
         cx.notify();
     }
 
-    /// Starts a quick ease-out cubic slide, fade and focus transition in the history direction.
-    pub fn reveal_content(
-        &mut self,
-        direction: NavigationDirection,
-        cx: &mut Context<Self>,
-    ) -> Duration {
+    /// Keeps the departing page above the new current page. Existing departures keep their
+    /// clocks and order when another Back arrives before any of them has finished.
+    pub fn leave_content(&mut self, direction: NavigationDirection, cx: &mut Context<Self>) {
         if cx.reduce_motion() {
-            self.transition = None;
-            return Duration::ZERO;
+            self.finish_transition(cx);
+            return;
         }
-
-        let entrance = Entrance::start().with_span(ui::paced(PAGE_TRANSITION));
-        self.transition = Some((entrance, direction));
-        cx.notify();
-        entrance.span()
+        if direction == NavigationDirection::Backward {
+            self.departing.push(DepartingPage {
+                content: self.content.clone(),
+                header: self.header.clone(),
+                entrance: Entrance::start().with_span(ui::paced(PAGE_TRANSITION)),
+                from: self.transition.map_or(0., Entrance::hidden),
+            });
+        }
+        self.transition = None;
     }
 
+    /// Starts the new page's entrance on forward; Back reveals its predecessor immediately.
+    pub fn reveal_content(&mut self, direction: NavigationDirection, cx: &mut Context<Self>) {
+        self.transition = match direction == NavigationDirection::Forward && !cx.reduce_motion() {
+            true => Some(Entrance::start().with_span(ui::paced(PAGE_TRANSITION))),
+            false => None,
+        };
+        cx.notify();
+    }
+
+    /// Clears every page animation when changing shells, signing out or reducing motion.
     pub fn finish_transition(&mut self, cx: &mut Context<Self>) {
-        if self.transition.take().is_some() {
+        let changed = self.transition.take().is_some() || !self.departing.is_empty();
+        self.departing.clear();
+        if changed {
             cx.notify();
         }
     }
 
+    /// Advances each page independently and releases finished layers on their last frame.
     fn hidden(&mut self, window: &mut Window, cx: &Context<Self>) -> f32 {
         if cx.reduce_motion() {
             self.transition = None;
+            self.departing.clear();
             return 0.;
         }
-        let Some((transition, direction)) = self.transition else {
-            return 0.;
-        };
-        if transition.running() {
+        self.departing.retain(|page| page.entrance.running());
+        if self.transition.is_some_and(|entrance| !entrance.running()) {
+            self.transition = None;
+        }
+        if self.transition.is_some() || !self.departing.is_empty() {
             window.request_animation_frame();
         }
-        match direction {
-            NavigationDirection::Forward => transition.hidden(),
-            NavigationDirection::Backward => 1. - transition.hidden(),
-        }
+        self.transition.map_or(0., Entrance::hidden)
     }
 
     #[allow(dead_code)]
     pub fn player_bar(&self) -> &Entity<PlayerBar> {
         &self.player_bar
+    }
+}
+
+impl IntoElement for PassivePage {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for PassivePage {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<gpui::ElementId> {
+        None
+    }
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, ()) {
+        let listing = shown_listing(cx);
+        let layout = self.child.request_layout(window, cx);
+        restore_listing(listing, cx);
+        (layout, ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _layout: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let listing = shown_listing(cx);
+        self.child.prepaint(window, cx);
+        restore_listing(listing, cx);
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _layout: &mut (),
+        _prepaint: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.child.paint(window, cx);
     }
 }
 
@@ -299,28 +408,38 @@ impl Render for Workspace {
         };
         let hidden = self.hidden(window, cx);
         let sliding = self.transition.is_some();
-        let offset = cx.theme().metrics.inset * hidden;
-        let blur = PAGE_BLUR * hidden;
-        // Opacity is baked into cached primitives, so the page and header render uncached
-        // during the fade. Moving the slot's edges preserves the hero's bleed above the toolbar.
-        let top = crate::screens::settings::Layout::of(window, cx);
-        let header = self
-            .header
-            .clone()
-            .map(|header| match top.measured && !sliding {
-                true => header
-                    .cached(StyleRefinement::default().w_full().h(top.top))
-                    .into_any_element(),
-                false => header.into_any_element(),
-            });
-        let content = match sliding || !self.cached {
-            true => self.content.clone().into_any_element(),
-            false => self
-                .content
-                .clone()
-                .cached(StyleRefinement::default().size_full())
-                .into_any_element(),
+        let frame = PageFrame {
+            overlay_width,
+            reach,
+            header: crate::screens::settings::Layout::of(window, cx),
         };
+        let content = page_layer(
+            &self.content,
+            self.header.as_ref(),
+            self.cached && !sliding,
+            hidden,
+            false,
+            frame,
+            cx,
+        );
+        // The first page to leave stays in front. A second Back adds its own page underneath
+        // it, so C → B → A shows both C and B sliding away over A, without restarting C.
+        let departing: Vec<_> = self
+            .departing
+            .iter()
+            .rev()
+            .map(|page| {
+                page_layer(
+                    &page.content,
+                    page.header.as_ref(),
+                    false,
+                    page.hidden(),
+                    true,
+                    frame,
+                    cx,
+                )
+            })
+            .collect();
 
         div()
             .relative()
@@ -406,36 +525,8 @@ impl Render for Workspace {
                                     // Liquid pages extend above this slot behind the toolbar.
                                     // Only the outer sheet may clip that background.
                                     .when(hidden > 0. && !liquid, |this| this.overflow_hidden())
-                                    .child(
-                                        div()
-                                            .absolute()
-                                            .left(-overlay_width + offset)
-                                            .right(-offset)
-                                            .top_0()
-                                            .bottom_0()
-                                            .flex()
-                                            .flex_col()
-                                            // Include the hero's bleed in the filter bounds,
-                                            // keeping its picture behind the toolbar mid-fade.
-                                            .when(liquid, |this| this.top(-reach).pt(reach))
-                                            .when(hidden > 0., |this| this.blur(blur))
-                                            .opacity(1. - hidden)
-                                            .child(content),
-                                    )
-                                    // The header paints over the page and follows the same
-                                    // direction and opacity as the content beneath it.
-                                    .when_some(header, |this, header| {
-                                        this.child(
-                                            div()
-                                                .absolute()
-                                                .left(-overlay_width + offset)
-                                                .right(-offset)
-                                                .top_0()
-                                                .when(hidden > 0., |this| this.blur(blur))
-                                                .opacity(1. - hidden)
-                                                .child(header),
-                                        )
-                                    }),
+                                    .child(content)
+                                    .children(departing),
                             ),
                     )
                     .map(|this| match right_sliding {
@@ -503,4 +594,85 @@ fn slot(panel: gpui::AnyElement, width: Pixels, full: Pixels, right: bool) -> gp
                 .child(panel),
         )
         .into_any_element()
+}
+
+/// Builds one visit in place, retaining its own view, header, opacity and focus progression.
+fn page_layer(
+    content: &AnyView,
+    header: Option<&AnyView>,
+    cached: bool,
+    hidden: f32,
+    departing: bool,
+    frame: PageFrame,
+    cx: &App,
+) -> AnyElement {
+    let offset = cx.theme().metrics.inset * hidden;
+    let liquid = ui::liquid(cx);
+    let id = content.entity_id();
+    let content = match cached {
+        true => content
+            .clone()
+            .cached(StyleRefinement::default().size_full())
+            .into_any_element(),
+        false => content.clone().into_any_element(),
+    };
+    let header = header.map(
+        |header| match !departing && hidden == 0. && frame.header.measured {
+            true => header
+                .clone()
+                .cached(StyleRefinement::default().w_full().h(frame.header.top))
+                .into_any_element(),
+            false => header.clone().into_any_element(),
+        },
+    );
+    let layer = div()
+        .id(gpui::ElementId::View(id))
+        .absolute()
+        .left(-frame.overlay_width + offset)
+        .right(-offset)
+        .top_0()
+        .bottom_0()
+        .flex()
+        .flex_col()
+        .when(liquid, |this| this.top(-frame.reach).pt(frame.reach))
+        .when(departing, |this| {
+            this.bg(cx.theme().background)
+                .when(liquid, |this| this.rounded(ui::liquid_radius(cx)))
+        })
+        .when(hidden > 0., |this| this.blur(PAGE_BLUR * hidden))
+        .opacity(1. - hidden)
+        .child(content)
+        .when_some(header, |this, header| {
+            this.child(
+                div()
+                    .absolute()
+                    .left_0()
+                    .right_0()
+                    .top(match liquid {
+                        true => frame.reach,
+                        false => Pixels::ZERO,
+                    })
+                    .child(header),
+            )
+        })
+        .when(departing, |this| {
+            this.child(
+                ui::Shield::new("departing-page-shield")
+                    .absolute()
+                    .inset_0(),
+            )
+        })
+        .into_any_element();
+    match departing {
+        true => PassivePage { child: layer }.into_any_element(),
+        false => layer,
+    }
+}
+
+/// Restores the active table after a departing page has laid out its own rows.
+fn restore_listing(listing: Option<Box<dyn ui::Listing>>, cx: &mut App) {
+    match listing {
+        Some(listing) => ui::show_listing(listing, cx),
+        None => ui::clear_listing(cx),
+    }
 }

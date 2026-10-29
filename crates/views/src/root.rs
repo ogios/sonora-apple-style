@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use gpui::{
     AnyView, Context, Entity, MouseButton, NavigationDirection as MouseNavigationDirection, Render,
     Task,
@@ -32,6 +34,8 @@ use crate::{
     HomeView, LibraryView, LoginView, SettingsView, SongView, UserView,
 };
 
+/// The view and model handles for one history visit, retained while that visit can be reopened.
+#[derive(Clone)]
 struct Screens {
     home: Entity<HomeView>,
     history: Entity<HistoryView>,
@@ -105,6 +109,9 @@ pub struct Root {
     toolbar: Option<Entity<Toolbar>>,
     pending: Option<Focus>,
     navigation_transition: Option<Task<()>>,
+    /// Independent view handles for visits still in navigation history.
+    page_screens: HashMap<u64, Screens>,
+    shown_entry: u64,
     /// The entrance the shell plays as the window moves from one shell to another.
     shell_entrance: Option<Entrance>,
     /// The OS fullscreen move the next render owes the fullscreen view, true as it opens and
@@ -142,6 +149,7 @@ impl Root {
         cx.observe(&session, |this, session, cx| {
             if matches!(session.read(cx).state(), SessionState::SignedOut) {
                 this.navigation_transition = None;
+                this.page_screens.clear();
                 this.shell_entrance = None;
                 this.shells
                     .workspace
@@ -180,12 +188,13 @@ impl Root {
 
         let navigation = router::trail(cx);
 
-        cx.subscribe(&navigation, |this, _, event, cx| {
+        cx.subscribe_in(&navigation, window, |this, _, event, window, cx| {
             let NavigationEvent::Moved {
                 destination,
                 direction,
+                entry,
             } = event;
-            this.transition_to(destination.clone(), *direction, cx);
+            this.transition_to(destination.clone(), *direction, *entry, window, cx);
         })
         .detach();
 
@@ -329,6 +338,8 @@ impl Root {
             toolbar: None,
             pending: None,
             navigation_transition: None,
+            page_screens: HashMap::new(),
+            shown_entry: navigation.read(cx).current_entry(),
             shell_entrance: None,
             os_follow: None,
             os_entered: false,
@@ -696,6 +707,8 @@ impl Root {
         &mut self,
         destination: Destination,
         direction: NavigationDirection,
+        entry: u64,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         self.navigation_transition = None;
@@ -707,6 +720,7 @@ impl Root {
             self.shells
                 .workspace
                 .update(cx, |workspace, cx| workspace.finish_transition(cx));
+            self.select_visit(entry, &destination, window, cx);
             self.show(destination, cx);
             if moving && !cx.reduce_motion() {
                 self.reveal_shell(cx);
@@ -714,26 +728,127 @@ impl Root {
             return;
         }
 
-        if direction == NavigationDirection::Forward {
-            self.show(destination.clone(), cx);
-        }
-        let enter = self
-            .shells
+        self.shells
+            .workspace
+            .update(cx, |workspace, cx| workspace.leave_content(direction, cx));
+        self.select_visit(entry, &destination, window, cx);
+        self.show(destination, cx);
+        self.shells
             .workspace
             .update(cx, |workspace, cx| workspace.reveal_content(direction, cx));
-        self.navigation_transition = Some(cx.spawn(async move |this, cx| {
-            cx.background_executor().timer(enter).await;
-            this.update(cx, |this, cx| {
-                this.navigation_transition = None;
-                this.shells
-                    .workspace
-                    .update(cx, |workspace, cx| workspace.finish_transition(cx));
-                if direction == NavigationDirection::Backward {
-                    this.show(destination, cx);
+    }
+
+    /// Restores a visit's own views, or creates just the screen a new visit needs. Pages still
+    /// sliding out retain their original entities, so opening another artist or tab cannot rewrite them.
+    fn select_visit(
+        &mut self,
+        entry: u64,
+        destination: &Destination,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.shown_entry == entry {
+            return;
+        }
+        self.screens
+            .home
+            .update(cx, |view, cx| view.set_visible(false, cx));
+        self.screens
+            .equalizer
+            .update(cx, |view, cx| view.set_visible(false, cx));
+        self.screens
+            .settings
+            .update(cx, |view, _| view.set_open(false));
+        self.screens.settings_open = false;
+        self.page_screens
+            .insert(self.shown_entry, self.screens.clone());
+        match self.page_screens.remove(&entry) {
+            Some(screens) => self.screens = screens,
+            None => self.fresh_screen(destination, window, cx),
+        }
+        self.shown_entry = entry;
+        let navigation = router::trail(cx).read(cx);
+        self.page_screens
+            .retain(|entry, _| navigation.has_entry(*entry));
+    }
+
+    /// Gives a new history visit its own screen and mutable data rather than reusing a live page.
+    fn fresh_screen(
+        &mut self,
+        destination: &Destination,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let library = Sonora::global(cx).library.clone();
+        let playback = self.playback.clone();
+        match destination {
+            Destination::Home => {
+                let home =
+                    cx.new(|cx| Home::new(library, self.session.clone(), self.io.clone(), cx));
+                self.screens.home = cx.new(|cx| HomeView::new(home, playback, cx));
+            }
+            Destination::History => {
+                let history = Sonora::global(cx).history.clone();
+                self.screens.history = cx.new(|cx| HistoryView::new(history, playback, window, cx));
+            }
+            Destination::Library(_) | Destination::Local(_) => {
+                let shelf = match destination {
+                    Destination::Local(_) => Shelf::Local,
+                    _ => Shelf::Streaming,
+                };
+                let view = cx.new(|cx| LibraryView::new(shelf, library, playback, window, cx));
+                match shelf {
+                    Shelf::Local => self.screens.local = view,
+                    Shelf::Streaming => self.screens.library = view,
                 }
-            })
-            .ok();
-        }));
+            }
+            Destination::Artist(_) => {
+                self.screens.artist = None;
+                self.screens.artist_detail = None;
+            }
+            Destination::Album(_) => {
+                self.screens.album = None;
+                self.screens.album_detail = None;
+            }
+            Destination::Playlist(_) => {
+                self.screens.playlist = None;
+                self.screens.playlist_detail = None;
+            }
+            Destination::Genre(_) => {
+                self.screens.genre = None;
+                self.screens.genre_detail = None;
+            }
+            Destination::Song(_) => {
+                let detail =
+                    cx.new(|cx| SongDetail::new(self.session.clone(), self.io.clone(), cx));
+                self.screens.song = cx.new(|cx| SongView::new(detail.clone(), playback, cx));
+                self.screens.song_detail = detail;
+            }
+            Destination::User(_) => {
+                let profile = cx.new(|cx| Profile::new(self.session.clone(), self.io.clone(), cx));
+                self.screens.user = cx.new(|cx| UserView::new(profile.clone(), playback, cx));
+                self.screens.user_profile = profile;
+            }
+            Destination::Search => {
+                let queries =
+                    cx.new(|cx| Search::new(self.session.clone(), library, self.io.clone(), cx));
+                let genres = self.screens.genres.clone();
+                self.screens.search = cx.new(|cx| SearchView::new(queries, genres, playback, cx));
+            }
+            Destination::Settings(_) | Destination::Equalizer => {
+                let settings = cx.new(|cx| SettingsView::new(self.session.clone(), playback, cx));
+                if matches!(destination, Destination::Equalizer) {
+                    settings.update(cx, |view, cx| view.select(router::SettingsPage::Sound, cx));
+                }
+                let equalizer = Sonora::global(cx).equalizer.clone();
+                let equalizer = cx.new(|cx| EqualizerView::new(equalizer, window, cx));
+                self.screens.settings_header =
+                    cx.new(|cx| SettingsHeader::new(settings.clone(), equalizer.clone(), cx));
+                self.screens.settings = settings;
+                self.screens.equalizer = equalizer;
+            }
+            Destination::Fullscreen => {}
+        }
     }
 
     /// Plays the page entrance over the whole shell, for a move from one shell to another.
