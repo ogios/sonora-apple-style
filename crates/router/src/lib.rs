@@ -2,7 +2,7 @@ mod link;
 mod navigation;
 
 pub use link::Link;
-pub use navigation::{Navigation, NavigationEvent};
+pub use navigation::{Navigation, NavigationDirection, NavigationEvent};
 
 use gpui::{App, AppContext as _, Entity, Global, SharedString};
 

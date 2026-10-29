@@ -1,4 +1,7 @@
-use gpui::{AnyView, Context, Entity, MouseButton, NavigationDirection, Render, Task};
+use gpui::{
+    AnyView, Context, Entity, MouseButton, NavigationDirection as MouseNavigationDirection, Render,
+    Task,
+};
 use gpui::{App, Font, FontFallbacks, SharedString, StyleRefinement, font, prelude::*};
 use gpui::{Window, div};
 use i18n::Language;
@@ -7,7 +10,7 @@ use input::{
     OpenSettings, Refresh, ToggleFullscreen, ToggleLyrics, ToggleQueue, ToggleWindowFullscreen,
     ZoomWindow,
 };
-use router::{Destination, NavigationEvent, Screen, back, forward, navigate};
+use router::{Destination, NavigationDirection, NavigationEvent, Screen, back, forward, navigate};
 use state::{
     ArtistDetail, Detail, GenreDetails, Genres, HistoryState, Home, Io, Library, LibraryState,
     Network, Playback, Profile, Queue, Reconnected, SYSTEM_FONT, Scan, Search, Session,
@@ -178,8 +181,11 @@ impl Root {
         let navigation = router::trail(cx);
 
         cx.subscribe(&navigation, |this, _, event, cx| {
-            let NavigationEvent::Moved(destination) = event;
-            this.transition_to(destination.clone(), cx);
+            let NavigationEvent::Moved {
+                destination,
+                direction,
+            } = event;
+            this.transition_to(destination.clone(), *direction, cx);
         })
         .detach();
 
@@ -684,9 +690,14 @@ impl Root {
     }
 
     /// Moves to `destination`. A move to another shell plays the entrance over the whole
-    /// window, a move within the workspace plays it over the page, and reduced motion skips
-    /// both.
-    fn transition_to(&mut self, destination: Destination, cx: &mut Context<Self>) {
+    /// window. Within the workspace, forward reveals the new page from the right and back
+    /// dismisses the current page to the right. Reduced motion skips both.
+    fn transition_to(
+        &mut self,
+        destination: Destination,
+        direction: NavigationDirection,
+        cx: &mut Context<Self>,
+    ) {
         self.navigation_transition = None;
         self.shell_entrance = None;
 
@@ -703,11 +714,13 @@ impl Root {
             return;
         }
 
-        self.show(destination, cx);
+        if direction == NavigationDirection::Forward {
+            self.show(destination.clone(), cx);
+        }
         let enter = self
             .shells
             .workspace
-            .update(cx, |workspace, cx| workspace.reveal_content(cx));
+            .update(cx, |workspace, cx| workspace.reveal_content(direction, cx));
         self.navigation_transition = Some(cx.spawn(async move |this, cx| {
             cx.background_executor().timer(enter).await;
             this.update(cx, |this, cx| {
@@ -715,6 +728,9 @@ impl Root {
                 this.shells
                     .workspace
                     .update(cx, |workspace, cx| workspace.finish_transition(cx));
+                if direction == NavigationDirection::Backward {
+                    this.show(destination, cx);
+                }
             })
             .ok();
         }));
@@ -1207,11 +1223,11 @@ impl Render for Root {
                 ui::update_middle_scroll(event.position, window, cx);
             })
             .on_mouse_down(
-                MouseButton::Navigate(NavigationDirection::Back),
+                MouseButton::Navigate(MouseNavigationDirection::Back),
                 |_, _, cx| back(cx),
             )
             .on_mouse_down(
-                MouseButton::Navigate(NavigationDirection::Forward),
+                MouseButton::Navigate(MouseNavigationDirection::Forward),
                 |_, _, cx| forward(cx),
             )
             .on_action(cx.listener(|_, _: &NavigateBack, _, cx| back(cx)))

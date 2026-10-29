@@ -112,10 +112,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Navigate forward with a quick ease-out cubic slide from the right, fading from soft to sharp.
+  Going back slides the current page to the right as it blurs and fades out.
+
 - Interface transitions now use the same ease-out cubic curve as Way Edges, with a quick start
   and a gentle finish. Hover effects ease smoothly in both directions, including when interrupted.
 
 ### Fixed
+
+- Artist header pictures and their softened colour extensions fade in together when they
+  finish loading instead of appearing abruptly. The picture keeps its full reach while
+  replacing the loading placeholder, without jumping at the end of the reveal.
+
+- Artist pictures stay sharp further down, then blend smoothly into a longer colour extension
+  without a horizontal seam where the picture ends.
+
+- Artist header pictures and their softened backgrounds now follow the content sheet's
+  rounded corners, including while scrolling.
 
 - Next remains available at the end of a repeating queue and returns to its beginning.
   Repeat-all loops the queue before playing any automatically suggested similar songs.

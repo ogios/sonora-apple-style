@@ -2,12 +2,13 @@ use std::time::Duration;
 
 use gpui::prelude::*;
 use gpui::{AnyView, App, Context, Entity, FocusHandle, Pixels, Render, StyleRefinement};
-use gpui::{Window, deferred, div};
+use gpui::{Window, deferred, div, px};
 use input::WORKSPACE_CONTEXT;
+use router::NavigationDirection;
 use state::{AppSettings, Playback, Queue, SideTab, Sonora};
 use ui::{
-    Activate, ActiveTheme as _, Deselect, Entrance, Remove, SelectNext, SelectPrevious, entering,
-    shown_listing, veiled,
+    Activate, ActiveTheme as _, Deselect, Entrance, Remove, SelectNext, SelectPrevious,
+    shown_listing,
 };
 
 use crate::chrome::{
@@ -21,8 +22,10 @@ use crate::shared::tag_editor::TagEditor;
 use crate::shared::widevine::WidevinePrompt;
 use crate::shells::Shell;
 
-/// How much of the page is still hidden on the first frame of a page switch under Liquid Glass.
-const LIQUID_FADE_DEPTH: f32 = 0.35;
+/// The soft focus at the hidden end of a page transition, clearing as the page arrives.
+const PAGE_BLUR: Pixels = px(6.);
+/// A page changes briskly while still following the user's animation pace setting.
+const PAGE_TRANSITION: Duration = Duration::from_millis(180);
 
 pub(crate) struct Workspace {
     sidebar: Entity<SidebarLeft>,
@@ -42,14 +45,15 @@ pub(crate) struct Workspace {
     toasts: Entity<ToastStack>,
     notice: Entity<AppNotice>,
     content: AnyView,
-    /// A screen's own header, floated over the top of the page and outside its transition.
+    /// A screen's own header, floated over the page and following its navigation transition.
     /// The page pads itself to start beneath it.
     header: Option<AnyView>,
     /// Whether the page is laid out cached. A page that redraws part of itself every frame is
     /// not, since a cached view that redraws builds every view in it again, and it caches its
     /// own parts instead.
     cached: bool,
-    transition: Option<Entrance>,
+    /// The page clock and history direction; backward keeps the departing page until it fades.
+    transition: Option<(Entrance, NavigationDirection)>,
     /// The left and right sidebars' widths sliding as they open and close.
     left_drawer: ui::Drawer,
     right_drawer: ui::Drawer,
@@ -155,14 +159,19 @@ impl Workspace {
         cx.notify();
     }
 
-    pub fn reveal_content(&mut self, cx: &mut Context<Self>) -> Duration {
+    /// Starts a quick ease-out cubic slide, fade and focus transition in the history direction.
+    pub fn reveal_content(
+        &mut self,
+        direction: NavigationDirection,
+        cx: &mut Context<Self>,
+    ) -> Duration {
         if cx.reduce_motion() {
             self.transition = None;
             return Duration::ZERO;
         }
 
-        let entrance = Entrance::start();
-        self.transition = Some(entrance);
+        let entrance = Entrance::start().with_span(ui::paced(PAGE_TRANSITION));
+        self.transition = Some((entrance, direction));
         cx.notify();
         entrance.span()
     }
@@ -178,18 +187,15 @@ impl Workspace {
             self.transition = None;
             return 0.;
         }
-        let Some(transition) = self.transition else {
+        let Some((transition, direction)) = self.transition else {
             return 0.;
         };
         if transition.running() {
             window.request_animation_frame();
         }
-        // Under Liquid Glass the page starts most of the way in: the first frame of a heavy
-        // page like settings can take a while to build, and a fade from nothing would hold it
-        // as an empty sheet for that long.
-        match ui::liquid(cx) {
-            true => transition.hidden() * LIQUID_FADE_DEPTH,
-            false => transition.hidden(),
+        match direction {
+            NavigationDirection::Forward => transition.hidden(),
+            NavigationDirection::Backward => 1. - transition.hidden(),
         }
     }
 
@@ -291,43 +297,23 @@ impl Render for Workspace {
                 .cached(StyleRefinement::default().w(sidebar_width).h_full())
                 .into_any_element(),
         };
-        // The header is cached at the height it last measured, so a page that redraws every
-        // frame leaves it be. Until it has measured itself it is laid out as it is.
-        let top = crate::screens::settings::Layout::of(window, cx);
-        let header = self.header.clone().map(|header| match top.measured {
-            true => header
-                .cached(StyleRefinement::default().w_full().h(top.top))
-                .into_any_element(),
-            false => header.into_any_element(),
-        });
         let hidden = self.hidden(window, cx);
-        // The scrim is what fades the outgoing page: it is the page's own colour at
-        // full strength, so covering the content with it costs no layout and the
-        // content view keeps its cache. A see-through window has no such colour. The
-        // scrim would be one more translucent layer over the one the root already
-        // paints, and the content area would sit visibly darker than the chrome
-        // around it for the length of the transition — a quad can only add coverage,
-        // never replace it. There the content carries the fade itself, which is the
-        // same curve at the price of leaving the cached layout path while it runs.
-        //
-        // Liquid Glass is the same case: the page floats over the colour field rather than over
-        // the theme's background, so a scrim of the background would cover the field and the
-        // page with a flat dark sheet at the start of every switch, a black flash.
-        let dissolving = cx.theme().transparent || liquid;
-        let scrim = match dissolving {
-            true => 0.,
-            false => hidden,
-        };
-        let backdrop = cx.theme().background;
-        // That price has to be paid for real, not merely accepted: opacity is baked
-        // into a primitive as it is painted, and a cached view replays its primitives
-        // until something notifies it, so a fading page that stayed cached would be
-        // recorded on the first frame, nearly clear, and replayed that way long after
-        // the transition had ended. While it carries its own fade the content is
-        // rendered uncached. Every screen sizes its root `size_full`, so the layout
-        // is the one the cache would have used, and only the frames of the
-        // transition pay for the render.
-        let content = match (dissolving && hidden > 0.) || !self.cached {
+        let sliding = self.transition.is_some();
+        let offset = cx.theme().metrics.inset * hidden;
+        let blur = PAGE_BLUR * hidden;
+        // Opacity is baked into cached primitives, so the page and header render uncached
+        // during the fade. Moving the slot's edges preserves the hero's bleed above the toolbar.
+        let top = crate::screens::settings::Layout::of(window, cx);
+        let header = self
+            .header
+            .clone()
+            .map(|header| match top.measured && !sliding {
+                true => header
+                    .cached(StyleRefinement::default().w_full().h(top.top))
+                    .into_any_element(),
+                false => header.into_any_element(),
+            });
+        let content = match sliding || !self.cached {
             true => self.content.clone().into_any_element(),
             false => self
                 .content
@@ -423,43 +409,30 @@ impl Render for Workspace {
                                     .child(
                                         div()
                                             .absolute()
-                                            .left(-overlay_width)
-                                            .right_0()
+                                            .left(-overlay_width + offset)
+                                            .right(-offset)
                                             .top_0()
                                             .bottom_0()
                                             .flex()
                                             .flex_col()
-                                            .map(|this| match (liquid, dissolving) {
-                                                // Filtering this slot captures only the area
-                                                // below the toolbar, losing the page's bleed.
-                                                (true, _) => this.opacity(1. - hidden),
-                                                (false, true) => entering(this, hidden),
-                                                (false, false) => veiled(this, hidden),
-                                            })
+                                            // Include the hero's bleed in the filter bounds,
+                                            // keeping its picture behind the toolbar mid-fade.
+                                            .when(liquid, |this| this.top(-reach).pt(reach))
+                                            .when(hidden > 0., |this| this.blur(blur))
+                                            .opacity(1. - hidden)
                                             .child(content),
                                     )
-                                    .when(scrim > 0., |this| {
-                                        this.child(
-                                            div()
-                                                .absolute()
-                                                .left_0()
-                                                .right_0()
-                                                .top_0()
-                                                .bottom_0()
-                                                .bg(backdrop)
-                                                .opacity(scrim),
-                                        )
-                                    })
-                                    // The header comes last, so it paints over the page and
-                                    // the scrim, and spans the same width the page does
-                                    // beneath an overlaid sidebar.
+                                    // The header paints over the page and follows the same
+                                    // direction and opacity as the content beneath it.
                                     .when_some(header, |this, header| {
                                         this.child(
                                             div()
                                                 .absolute()
-                                                .left(-overlay_width)
-                                                .right_0()
+                                                .left(-overlay_width + offset)
+                                                .right(-offset)
                                                 .top_0()
+                                                .when(hidden > 0., |this| this.blur(blur))
+                                                .opacity(1. - hidden)
                                                 .child(header),
                                         )
                                     }),

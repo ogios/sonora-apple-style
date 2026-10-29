@@ -2,8 +2,19 @@ use gpui::{Context, EventEmitter};
 
 use crate::{Destination, SettingsPage};
 
+/// The history direction of a page change, so shells can animate arrivals and departures.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NavigationDirection {
+    Forward,
+    Backward,
+}
+
+/// A destination change together with the direction it takes through history.
 pub enum NavigationEvent {
-    Moved(Destination),
+    Moved {
+        destination: Destination,
+        direction: NavigationDirection,
+    },
 }
 
 pub struct Navigation {
@@ -50,7 +61,7 @@ impl Navigation {
                 self.at = self.trail.len() - 1;
             }
         }
-        self.arrive(cx);
+        self.arrive(NavigationDirection::Forward, cx);
     }
 
     pub fn back(&mut self, cx: &mut Context<Self>) {
@@ -58,7 +69,7 @@ impl Navigation {
             return;
         }
         self.at -= 1;
-        self.arrive(cx);
+        self.arrive(NavigationDirection::Backward, cx);
     }
 
     /// Replaces the current page without leaving its stale destination in navigation history.
@@ -67,7 +78,7 @@ impl Navigation {
             return;
         }
         self.trail[self.at] = destination;
-        self.arrive(cx);
+        self.arrive(NavigationDirection::Forward, cx);
     }
 
     /// Returns from a drill-in to `parent`. Stepping back keeps the trail free of a parent,
@@ -81,7 +92,13 @@ impl Navigation {
             *before == parent || (tab(before).is_some() && tab(before) == tab(&parent))
         }) {
             true => self.back(cx),
-            false => self.replace(parent, cx),
+            false => {
+                if self.current() == parent {
+                    return;
+                }
+                self.trail[self.at] = parent;
+                self.arrive(NavigationDirection::Backward, cx);
+            }
         }
     }
 
@@ -99,14 +116,17 @@ impl Navigation {
             return;
         }
         self.at += 1;
-        self.arrive(cx);
+        self.arrive(NavigationDirection::Forward, cx);
     }
 
-    fn arrive(&mut self, cx: &mut Context<Self>) {
+    fn arrive(&mut self, direction: NavigationDirection, cx: &mut Context<Self>) {
         if self.current().in_settings() {
             self.last_settings = Some(self.current());
         }
-        cx.emit(NavigationEvent::Moved(self.current()));
+        cx.emit(NavigationEvent::Moved {
+            destination: self.current(),
+            direction,
+        });
         cx.notify();
     }
 }

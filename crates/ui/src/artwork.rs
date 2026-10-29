@@ -7,10 +7,11 @@ use futures::AsyncReadExt as _;
 use futures::channel::oneshot;
 use gpui::prelude::*;
 use gpui::{
-    AnyElement, App, Asset, AssetLogger, Bounds, Context, Div, ElementId, Entity, Global,
+    AnyElement, App, Asset, AssetLogger, Bounds, Context, Corners, Div, ElementId, Entity, Global,
     GlobalElementId, Hsla, ImageCache, ImageCacheError, ImageSource, InspectorElementId,
     Interactivity, LayoutId, ObjectFit, Pixels, Position, RenderImage, Resource, SharedString,
-    SharedUri, Style, StyleRefinement, Styled, Task, Window, div, img, px, svg,
+    SharedUri, Style, StyleRefinement, Styled, Task, Window, canvas, div, img, point, px, size,
+    svg,
 };
 use image::{
     AnimationDecoder, DynamicImage, Frame, ImageDecoder, ImageFormat, RgbaImage,
@@ -56,6 +57,10 @@ const SWEEP: Duration = Duration::from_secs(30);
 /// soft, so two cover the current track and a skip back.
 const SOFT_ITEMS: usize = 2;
 const SOFT_SIGMA: f32 = 1.6;
+/// A softened banner keeps its aspect ratio at this sample width. Resizing before blurring
+/// keeps the cached frost small and avoids a paint filter spreading beyond rounded corners.
+const SOFT_BANNER_EDGE: u32 = 128;
+const BANNER_FRAME_DELAY: Duration = Duration::from_millis(100);
 const SMALL_BYTES: usize = 64 * 1024;
 const BIG_BYTES: usize = 256 * 1024;
 const MAX_PENDING: usize = 8;
@@ -337,9 +342,10 @@ struct ArtworkCache {
     /// The size in bytes of the largest window a cover was drawn in, which sets the budget.
     screen: usize,
     /// Covers drawn before their image was ready, which fade in once it lands, and when each
-    /// of those landed. A cover that was ready when first drawn never fades.
-    awaited: HashSet<Resource>,
-    landed: HashMap<Resource, Instant>,
+    /// of those landed, per decode size so a thumbnail cannot consume a banner's fade.
+    /// A cover that was ready when first drawn never fades.
+    awaited: HashSet<ArtworkKey>,
+    landed: HashMap<ArtworkKey, Instant>,
     _sweep: Task<()>,
 }
 
@@ -506,7 +512,7 @@ impl ArtworkCache {
             self.condemned_at = Some(Instant::now());
             cx.refresh_windows();
         }
-        let Some(softened) = blurred(&image) else {
+        let Some(softened) = blurred(&image, edge == 0) else {
             return image;
         };
         self.soft.insert(key, softened.clone());
@@ -691,32 +697,21 @@ impl ArtworkCache {
         Some(image)
     }
 
-    /// The pixel size of a picture decoded at its own size, once it has loaded.
-    fn natural_size(&self, resource: &Resource) -> Option<(f32, f32)> {
-        let cached = self.items.get(&(resource.clone(), 0))?;
-        let size = cached.value.as_ref().ok()?.size(0);
-        (size.width.0 > 0 && size.height.0 > 0)
-            .then_some((size.width.0 as f32, size.height.0 as f32))
-    }
-
-    /// Whether a cover at `edge` can be drawn without waiting on a load, counting a failed load,
-    /// which draws the placeholder, and a stand-in at a nearby edge.
     /// Notes that a cover is on screen ahead of its image, so it fades in once it lands.
-    fn await_cover(&mut self, resource: &Resource) {
-        if !self.awaited.contains(resource) {
-            self.awaited.insert(resource.clone());
-        }
+    fn await_cover(&mut self, resource: &Resource, edge: u32) {
+        self.awaited.insert((resource.clone(), edge));
     }
 
     /// When an awaited cover landed, while its fade of `span` still runs. The first draw after
     /// it lands starts the clock, and the entry goes once the fade is over.
-    fn landing(&mut self, resource: &Resource, span: Duration) -> Option<Instant> {
-        if self.awaited.remove(resource) {
-            self.landed.insert(resource.clone(), Instant::now());
+    fn landing(&mut self, resource: &Resource, edge: u32, span: Duration) -> Option<Instant> {
+        let key = (resource.clone(), edge);
+        if self.awaited.remove(&key) {
+            self.landed.insert(key.clone(), Instant::now());
         }
-        let at = *self.landed.get(resource)?;
+        let at = *self.landed.get(&key)?;
         if at.elapsed() >= span {
-            self.landed.remove(resource);
+            self.landed.remove(&key);
             return None;
         }
         Some(at)
@@ -751,7 +746,7 @@ impl ArtworkCache {
     }
 }
 
-fn blurred(image: &RenderImage) -> Option<Arc<RenderImage>> {
+fn blurred(image: &RenderImage, banner: bool) -> Option<Arc<RenderImage>> {
     let frames: Vec<Frame> = (0..image.frame_count())
         .filter_map(|index| {
             let size = image.size(index);
@@ -759,6 +754,17 @@ fn blurred(image: &RenderImage) -> Option<Arc<RenderImage>> {
             let height = size.height.0.max(0) as u32;
             let bytes = image.as_bytes(index)?.to_vec();
             let whole = RgbaImage::from_raw(width, height, bytes)?;
+            let whole = match banner && width > SOFT_BANNER_EDGE {
+                true => imageops::resize(
+                    &whole,
+                    SOFT_BANNER_EDGE,
+                    (height as f32 * SOFT_BANNER_EDGE as f32 / width as f32)
+                        .round()
+                        .max(1.) as u32,
+                    imageops::FilterType::Triangle,
+                ),
+                false => whole,
+            };
 
             Some(Frame::from_parts(
                 imageops::fast_blur(&whole, SOFT_SIGMA),
@@ -1089,10 +1095,12 @@ impl RenderOnce for Artwork {
                 let span = Motion::Slow.span();
                 let landed = match (waiting, animates(cx) && !overlay) {
                     (true, true) => {
-                        cache.update(cx, |cache, _| cache.await_cover(&resource));
+                        cache.update(cx, |cache, _| cache.await_cover(&resource, edge));
                         None
                     }
-                    (false, true) => cache.update(cx, |cache, _| cache.landing(&resource, span)),
+                    (false, true) => {
+                        cache.update(cx, |cache, _| cache.landing(&resource, edge, span))
+                    }
                     (_, false) => None,
                 };
                 let shown = landed.map(|at| {
@@ -1174,6 +1182,8 @@ pub struct Banner {
     height: Pixels,
     focus: f32,
     smear: Option<(Pixels, Pixels)>,
+    sheet: bool,
+    soft: bool,
 }
 
 impl Banner {
@@ -1184,7 +1194,21 @@ impl Banner {
             height,
             focus: 0.5,
             smear: None,
+            sheet: false,
+            soft: false,
         }
+    }
+
+    /// Clips the visible picture to the Liquid Glass sheet, keeping corners fixed on scroll.
+    pub fn sheet(mut self) -> Self {
+        self.sheet = true;
+        self
+    }
+
+    /// Uses the artwork cache's softened picture instead of a blur filter around the element.
+    pub fn soft(mut self) -> Self {
+        self.soft = true;
+        self
     }
 
     /// Draws only the bottom `strip` of the picture as it would be laid in its box, stretched
@@ -1202,55 +1226,126 @@ impl Banner {
 }
 
 impl RenderOnce for Banner {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let Self {
             url,
             width,
             height,
             focus,
             smear,
+            sheet,
+            soft,
         } = self;
         let shown = smear.map_or(height, |(_, reach)| reach);
-        let frame = div().flex_none().w(width).h(shown).overflow_hidden();
+        let frame = div().flex_none().w(width).h(shown);
         let Some(url) = url else {
             return frame;
         };
         let cache = ArtworkCache::entity(cx);
+        let started = *window
+            .use_keyed_state(
+                (ElementId::Name("banner".into()), url.clone()),
+                cx,
+                |_, _| Instant::now(),
+            )
+            .read(cx);
         let resource = resource(url);
-        let natural = cache.read(cx).natural_size(&resource);
-        let picture = img(ImageSource::Resource(resource)).image_cache(&cache);
-
-        // Until the picture's own size is known it is drawn centred by the image itself.
-        let Some((wide, high)) = natural else {
-            return frame.child(picture.size_full().object_fit(ObjectFit::Cover));
+        let radius = crate::glass::sheet_radius(cx);
+        let image = cache
+            .update(cx, |cache, cx| cache.load_at(&resource, 0, window, cx))
+            .and_then(Result::ok);
+        let Some(image) = image else {
+            if animates(cx) {
+                cache.update(cx, |cache, _| cache.await_cover(&resource, 0));
+            }
+            return frame;
         };
-        let scale = (width / px(wide)).max(height / px(high));
-        let (drawn_wide, drawn_high) = (px(wide) * scale, px(high) * scale);
-        let lead = (height - drawn_high) * focus;
-        if let Some((strip, reach)) = smear {
-            // The strip runs from `height - strip` to `height` in the box; stretched by
-            // `reach / strip` it fills the smear's box, the rest of the picture above it.
-            let stretch = reach / strip;
-            return frame.relative().child(
-                picture
-                    .absolute()
-                    .left((width - drawn_wide) / 2.)
-                    .top((lead - (height - strip)) * stretch)
-                    .w(drawn_wide)
-                    .h(drawn_high * stretch)
-                    .object_fit(ObjectFit::Fill),
-            );
-        }
-        frame.relative().child(
-            picture
-                .absolute()
-                .left((width - drawn_wide) / 2.)
-                .top(lead)
-                .w(drawn_wide)
-                .h(drawn_high)
-                .object_fit(ObjectFit::Fill),
+        // The sharp picture, frost and stretched colours share the cover's landing clock,
+        // so every layer fades together after the bytes arrive, even for a still image.
+        let span = Motion::Slow.span();
+        let landed = animates(cx)
+            .then(|| cache.update(cx, |cache, _| cache.landing(&resource, 0, span)))
+            .flatten();
+        let opacity = landed.map_or(1., |at| {
+            window.request_animation_frame();
+            ease_out_cubic(at.elapsed().as_secs_f32() / span.as_secs_f32())
+        });
+        frame.opacity(opacity).child(
+            canvas(
+                move |_, _, cx| {
+                    cache.update(cx, |cache, cx| cache.prepare(&resource, 0, soft, image, cx))
+                },
+                move |bounds, image: Arc<RenderImage>, window, cx| {
+                    if image.frame_count() == 0 {
+                        return;
+                    }
+                    let index = banner_frame(&image, started, window, cx);
+                    let natural = image.size(index);
+                    let (wide, high) = (px(natural.width.0 as f32), px(natural.height.0 as f32));
+                    if wide <= Pixels::ZERO || high <= Pixels::ZERO {
+                        return;
+                    }
+                    let scale = (width / wide).max(height / high);
+                    let (drawn_wide, drawn_high) = (wide * scale, high * scale);
+                    let lead = (height - drawn_high) * focus;
+                    let (top, high) = match smear {
+                        Some((strip, reach)) => {
+                            let stretch = reach / strip;
+                            ((lead - (height - strip)) * stretch, drawn_high * stretch)
+                        }
+                        None => (lead, drawn_high),
+                    };
+                    let viewport = window.content_mask().bounds;
+                    let visible = bounds.intersect(&viewport);
+                    if visible.is_empty() {
+                        return;
+                    }
+                    let corners = match sheet {
+                        true => crate::glass::sheet_corners(visible, viewport, radius),
+                        false => Corners::default(),
+                    };
+                    let image_bounds = Bounds::new(
+                        point(
+                            bounds.left() + (width - drawn_wide) / 2.,
+                            bounds.top() + top,
+                        ),
+                        size(drawn_wide, high),
+                    );
+                    if let Err(error) =
+                        window.paint_image(visible, image_bounds, corners, image, index, false)
+                    {
+                        log::warn!("artwork: cannot paint banner: {error:#}");
+                    }
+                },
+            )
+            .size_full(),
         )
     }
+}
+
+/// Picks a banner's animated frame without changing its crop as the frame advances.
+fn banner_frame(image: &RenderImage, started: Instant, window: &mut Window, cx: &App) -> usize {
+    if image.frame_count() <= 1 || !window.is_window_active() || !animates(cx) {
+        return 0;
+    }
+    let delay = |index| {
+        let delay = Duration::from(image.delay(index));
+        match delay.is_zero() {
+            true => BANNER_FRAME_DELAY,
+            false => delay,
+        }
+    };
+    let duration: Duration = (0..image.frame_count()).map(delay).sum();
+    let mut elapsed = started.elapsed().as_nanos() % duration.as_nanos();
+    window.request_animation_frame();
+    for index in 0..image.frame_count() {
+        let delay = delay(index).as_nanos();
+        if elapsed < delay {
+            return index;
+        }
+        elapsed -= delay;
+    }
+    0
 }
 
 fn refined<T: Styled + InteractiveElement>(mut element: T, mut caller: Interactivity) -> T {

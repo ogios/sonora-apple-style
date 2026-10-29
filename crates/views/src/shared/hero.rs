@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use gpui::prelude::*;
 use gpui::{
-    AnyElement, App, Div, ElementId, Entity, FontWeight, MouseButton, MouseDownEvent, Pixels,
-    SharedString, Stateful, Window, div, linear_color_stop, linear_gradient, px, relative,
+    AnyElement, App, Axis, Div, ElementId, Entity, FontWeight, MouseButton, MouseDownEvent, Pixels,
+    SharedString, Stateful, Window, div, px, relative,
 };
 use i18n::t;
 use music::{Album, Track};
@@ -50,13 +50,11 @@ const ARTIST_ASPECT: f32 = 1.9;
 const ARTIST_LEAST: f32 = 0.75;
 /// The sharp picture stays whole down all but this share of its box and fades out over the
 /// rest, on a smooth falloff rather than at a line.
-const ARTIST_SOFTEN: f32 = 0.3;
-/// Below the picture its own colours run on this far: the bottom `ARTIST_STRIP` of it is
-/// stretched down over the extension, blurred by `ARTIST_FROST` together with the picture
-/// above it, and the whole frosted copy fades into the page over the extension.
-const ARTIST_EXTEND: Pixels = px(220.);
-const ARTIST_STRIP: Pixels = px(40.);
-const ARTIST_FROST: Pixels = px(40.);
+const ARTIST_SOFTEN: f32 = 0.12;
+/// The picture's bottom colours run on below it before fading into the page. The stretched
+/// strip overlaps the picture by its source height so the two can crossfade without a seam.
+const ARTIST_EXTEND: Pixels = px(480.);
+const ARTIST_STRIP: Pixels = px(64.);
 /// The scrim behind an artist's name and buttons only: it covers this share of the hero from
 /// its foot and this share of the sheet's width from the left, at this strength where it is
 /// darkest, and fades out toward its top and right.
@@ -494,10 +492,18 @@ impl RenderOnce for PageHero {
         }
         let crossing = ui::reveal::crossing(&reveal, 0, window, cx);
         let circle = self.circle;
+        let bleed = ui::liquid(cx) && circle && self.cover.is_some();
         holder
             .child(
                 self.shown(window, cx)
-                    .when_some(crossing, ui::reveal::arriving),
+                    .when_some(crossing, |hero, progress| {
+                        // The reveal's translated layer clips anything beyond the hero's box.
+                        // A full-bleed picture must keep reaching above and below it as it fades.
+                        match bleed {
+                            true => hero.opacity(ui::ease_out_cubic(progress)),
+                            false => ui::reveal::arriving(hero, progress),
+                        }
+                    }),
             )
             .when_some(crossing, |this, progress| {
                 this.child(
@@ -589,7 +595,7 @@ impl PageHero {
             .children(backdrop)
             .when_some(wash, |hero, wash| {
                 hero.child(
-                    ui::liquid_wash(wash.opacity(HERO_WASH), HERO_WASH_HOLD, cx)
+                    ui::liquid_wash(wash.opacity(HERO_WASH), HERO_WASH_HOLD, Axis::Vertical, cx)
                         .absolute()
                         .top(-HERO_BLEED)
                         .left(-HERO_BLEED)
@@ -705,7 +711,11 @@ fn artist_backdrop(
         window,
     );
     let height = frame + ARTIST_EXTEND;
-    let picture = || Banner::new(cover.clone(), width, frame).focus(ARTIST_FOCUS);
+    let picture = || {
+        Banner::new(cover.clone(), width, frame)
+            .focus(ARTIST_FOCUS)
+            .sheet()
+    };
     // Both copies are centred across the backdrop, so the picture lines up with the sheet.
     let centred = |child: AnyElement| {
         div()
@@ -719,6 +729,27 @@ fn artist_backdrop(
             .child(child)
     };
 
+    // Lay the extension behind the picture and crossfade over their shared strip. Starting
+    // it at the picture's bottom would jump back to the strip's first row and leave a seam.
+    let extension = div()
+        .absolute()
+        .top(frame - ARTIST_STRIP)
+        .left_0()
+        .right_0()
+        .child(centred(
+            picture()
+                .smear(ARTIST_STRIP, ARTIST_EXTEND + ARTIST_STRIP)
+                .soft()
+                .into_any_element(),
+        ));
+    let softened = div()
+        .absolute()
+        .top_0()
+        .left_0()
+        .right_0()
+        .h(frame)
+        .fade_edges(Pixels::ZERO, ARTIST_STRIP)
+        .child(centred(picture().soft().into_any_element()));
     let frost = div()
         .absolute()
         .top_0()
@@ -726,20 +757,8 @@ fn artist_backdrop(
         .right_0()
         .h(height)
         .fade_edges(Pixels::ZERO, ARTIST_EXTEND)
-        .child(
-            div().absolute().inset_0().blur(ARTIST_FROST).child(centred(
-                div()
-                    .flex()
-                    .flex_col()
-                    .child(picture())
-                    .child(
-                        Banner::new(cover.clone(), width, frame)
-                            .focus(ARTIST_FOCUS)
-                            .smear(ARTIST_STRIP, ARTIST_EXTEND),
-                    )
-                    .into_any_element(),
-            )),
-        );
+        .child(extension)
+        .child(softened);
     let sharp = div()
         .absolute()
         .top_0()
@@ -751,18 +770,18 @@ fn artist_backdrop(
     // A soft shade behind the name and buttons only, darkest at the bottom left and gone by
     // its top and right, so the picture stays clear everywhere else.
     let scrim_high = tall * ARTIST_SCRIM_HIGH;
-    let scrim = div()
-        .absolute()
-        .left_0()
-        .top(hero - scrim_high)
-        .w(ARTIST_BLEED + width * ARTIST_SCRIM_WIDE)
-        .h(scrim_high + ARTIST_EXTEND / 2.)
-        .fade_edges(scrim_high * 0.6, ARTIST_EXTEND / 2.)
-        .bg(linear_gradient(
-            90.,
-            linear_color_stop(theme.background.opacity(ARTIST_SCRIM), 0.3),
-            linear_color_stop(theme.background.opacity(0.), 1.),
-        ));
+    let scrim = ui::liquid_wash(
+        theme.background.opacity(ARTIST_SCRIM),
+        0.3,
+        Axis::Horizontal,
+        cx,
+    )
+    .absolute()
+    .left_0()
+    .top(hero - scrim_high)
+    .w(ARTIST_BLEED + width * ARTIST_SCRIM_WIDE)
+    .h(scrim_high + ARTIST_EXTEND / 2.)
+    .fade_edges(scrim_high * 0.6, ARTIST_EXTEND / 2.);
 
     div()
         .absolute()

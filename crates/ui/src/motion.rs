@@ -191,18 +191,29 @@ impl Entrance {
         }
     }
 
+    /// Overrides this run's duration without changing the shared entrance presets.
+    pub fn with_span(mut self, span: Duration) -> Self {
+        self.span = span;
+        self
+    }
+
     pub fn span(self) -> Duration {
         self.span
     }
 
     /// How much of the screen is still hidden, from 1 as the entrance starts to 0 once it ends.
     pub fn hidden(self) -> f32 {
+        1. - ease_out_cubic(1. - self.linear_hidden())
+    }
+
+    /// The remaining share without easing, for a page that slides and fades at constant speed.
+    pub fn linear_hidden(self) -> f32 {
         if self.span.is_zero() {
             return 0.;
         }
         let elapsed = self.started.elapsed().as_secs_f32();
         let progress = (elapsed / self.span.as_secs_f32()).clamp(0., 1.);
-        1. - ease_out_cubic(progress)
+        1. - progress
     }
 
     pub fn running(self) -> bool {

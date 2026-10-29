@@ -1,6 +1,6 @@
 use gpui::prelude::*;
 use gpui::{
-    App, BoxShadow, Canvas, Corners, Div, Hsla, Pixels, Window, canvas, div, fill,
+    App, Axis, Bounds, BoxShadow, Canvas, Corners, Div, Hsla, Pixels, Window, canvas, div, fill,
     linear_color_stop, linear_gradient, px,
 };
 
@@ -223,10 +223,10 @@ pub fn liquid_sheet<E: Styled>(element: E, cx: &App) -> E {
         ])
 }
 
-/// A vertical colour wash that holds until `hold`, then fades to clear. Place it behind a
-/// sheet's scrolling content; its visible edges follow the sheet's rounded scroll bounds.
-pub fn liquid_wash(color: Hsla, hold: f32, cx: &App) -> Canvas<()> {
-    let radius = (liquid_radius(cx) - EDGE).max(Pixels::ZERO);
+/// A colour wash that holds until `hold`, then fades to clear along `axis`. Its visible
+/// edges follow the sheet's rounded scroll bounds, including while the page scrolls.
+pub fn liquid_wash(color: Hsla, hold: f32, axis: Axis, cx: &App) -> Canvas<()> {
+    let radius = sheet_radius(cx);
     let hold = hold.clamp(0., 1. - f32::EPSILON);
     canvas(
         |_, _, _| (),
@@ -239,37 +239,67 @@ pub fn liquid_wash(color: Hsla, hold: f32, cx: &App) -> Canvas<()> {
 
             // Round the visible viewport, rather than the oversized wash: scrolling must not
             // move the corners away from the sheet. Keep the gradient in its original space.
-            let fade = bounds.top() + bounds.size.height * hold;
-            let alpha =
-                |y: Pixels| ((bounds.bottom() - y) / (bounds.bottom() - fade)).clamp(0., 1.);
-            let held = ((fade - visible.top()) / visible.size.height).clamp(0., 1. - f32::EPSILON);
-            let top = match visible.top() == clip.top() {
-                true => radius,
-                false => Pixels::ZERO,
+            let (start, span, visible_start, visible_span, angle) = match axis {
+                Axis::Vertical => (
+                    bounds.top(),
+                    bounds.size.height,
+                    visible.top(),
+                    visible.size.height,
+                    180.,
+                ),
+                Axis::Horizontal => (
+                    bounds.left(),
+                    bounds.size.width,
+                    visible.left(),
+                    visible.size.width,
+                    90.,
+                ),
             };
-            let bottom = match visible.bottom() == clip.bottom() {
-                true => radius,
-                false => Pixels::ZERO,
-            };
+            let end = start + span;
+            let fade = start + span * hold;
+            let alpha = |at: Pixels| ((end - at) / (end - fade)).clamp(0., 1.);
+            let held = ((fade - visible_start) / visible_span).clamp(0., 1. - f32::EPSILON);
             window.paint_quad(
                 fill(
                     visible,
                     linear_gradient(
-                        180.,
-                        linear_color_stop(color.opacity(alpha(visible.top())), held),
-                        linear_color_stop(color.opacity(alpha(visible.bottom())), 1.),
+                        angle,
+                        linear_color_stop(color.opacity(alpha(visible_start)), held),
+                        linear_color_stop(color.opacity(alpha(visible_start + visible_span)), 1.),
                     ),
                 )
-                .corner_radii(Corners {
-                    top_left: top,
-                    top_right: top,
-                    bottom_left: bottom,
-                    bottom_right: bottom,
-                })
+                .corner_radii(sheet_corners(visible, clip, radius))
                 .corner_smoothing(LIQUID_SMOOTHING),
             );
         },
     )
+}
+
+/// The sheet's inner radius, after its hairline border.
+pub(crate) fn sheet_radius(cx: &App) -> Pixels {
+    (liquid_radius(cx) - EDGE).max(Pixels::ZERO)
+}
+
+/// Rounds only corners shared with the viewport, keeping the rounding fixed as content moves.
+pub(crate) fn sheet_corners(
+    bounds: Bounds<Pixels>,
+    viewport: Bounds<Pixels>,
+    radius: Pixels,
+) -> Corners<Pixels> {
+    let corner = |touches| match touches {
+        true => radius,
+        false => Pixels::ZERO,
+    };
+    Corners {
+        top_left: corner(bounds.top() == viewport.top() && bounds.left() == viewport.left()),
+        top_right: corner(bounds.top() == viewport.top() && bounds.right() == viewport.right()),
+        bottom_left: corner(
+            bounds.bottom() == viewport.bottom() && bounds.left() == viewport.left(),
+        ),
+        bottom_right: corner(
+            bounds.bottom() == viewport.bottom() && bounds.right() == viewport.right(),
+        ),
+    }
 }
 
 /// The Liquid Glass material at the size of a control: the same fill, blur, rim and shading
