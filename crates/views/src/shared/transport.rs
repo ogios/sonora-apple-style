@@ -3,7 +3,7 @@ use std::time::Duration;
 use gpui::prelude::*;
 use gpui::{App, Entity, SharedString, div};
 use i18n::t;
-use state::{Playback, Queue, Repeat, Sonora, Steered};
+use state::{Playback, Repeat, Sonora, Steered};
 use ui::{ActiveTheme as _, Button, Text};
 
 use crate::shared::ambient;
@@ -82,15 +82,10 @@ pub(crate) fn like(track: Option<&music::Track>, playback: &Entity<Playback>, cx
 /// `big` is only true in fullscreen, where these buttons float over the ambient
 /// background and so blur their hover fills. Without that background, and on
 /// the flat player bar, the blur would show nothing.
-pub(crate) fn transport(
-    playback: &Entity<Playback>,
-    queue: &Entity<Queue>,
-    big: bool,
-    cx: &App,
-) -> impl IntoElement {
+pub(crate) fn transport(playback: &Entity<Playback>, big: bool, cx: &App) -> impl IntoElement {
     let frosted = big && ambient::shown(cx);
     if big && ui::liquid(cx) {
-        return roomy(playback, queue, frosted, FULLSCREEN_GROW, cx).into_any_element();
+        return roomy(playback, frosted, FULLSCREEN_GROW, cx).into_any_element();
     }
 
     div()
@@ -100,31 +95,21 @@ pub(crate) fn transport(
         .child(shuffle(playback, frosted, cx))
         .child(previous(playback, frosted, cx))
         .child(toggle(playback, big, frosted, cx))
-        .child(next(playback, queue, frosted, cx))
+        .child(next(playback, frosted, cx))
         .child(repeat(playback, frosted, cx))
         .into_any_element()
 }
 
 /// The transport the Liquid Glass player bar carries: the same five buttons, round and large
 /// enough to hit without aiming, the play button the largest of them, as Cider's are.
-pub(crate) fn roomy_transport(
-    playback: &Entity<Playback>,
-    queue: &Entity<Queue>,
-    cx: &App,
-) -> impl IntoElement {
-    roomy(playback, queue, false, 1., cx)
+pub(crate) fn roomy_transport(playback: &Entity<Playback>, cx: &App) -> impl IntoElement {
+    roomy(playback, false, 1., cx)
 }
 
 /// The roomy transport, `grow` times its player-bar size. Over the fullscreen ambient field,
 /// when `frosted`, its buttons are bare glyphs that only glow under the pointer, since the
 /// glass bar they sit on is already the material.
-fn roomy(
-    playback: &Entity<Playback>,
-    queue: &Entity<Queue>,
-    frosted: bool,
-    grow: f32,
-    cx: &App,
-) -> gpui::Div {
+fn roomy(playback: &Entity<Playback>, frosted: bool, grow: f32, cx: &App) -> gpui::Div {
     let theme = *cx.theme();
     let side = theme.metrics.control * ROOMY_GROW * grow;
     let glyph = theme.text(Text::Body) * ROOMY_GLYPH * grow;
@@ -143,7 +128,7 @@ fn roomy(
                 .px_0()
                 .glyph(theme.text(Text::Body) * ROOMY_PLAY_GLYPH * grow),
         )
-        .child(sized(next(playback, queue, frosted, cx)))
+        .child(sized(next(playback, frosted, cx)))
         .child(sized(repeat(playback, frosted, cx)))
 }
 
@@ -238,8 +223,8 @@ fn previous(playback: &Entity<Playback>, frosted: bool, cx: &App) -> Button {
         })
 }
 
-fn next(playback: &Entity<Playback>, queue: &Entity<Queue>, frosted: bool, cx: &App) -> Button {
-    let enabled = steered(cx).is_some() || queue.read(cx).has_next();
+fn next(playback: &Entity<Playback>, frosted: bool, cx: &App) -> Button {
+    let enabled = steered(cx).is_some() || playback.read(cx).has_next(cx);
     let playback = playback.clone();
 
     Button::new("next")

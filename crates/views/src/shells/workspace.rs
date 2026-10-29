@@ -7,7 +7,7 @@ use input::WORKSPACE_CONTEXT;
 use state::{AppSettings, Playback, Queue, SideTab, Sonora};
 use ui::{
     Activate, ActiveTheme as _, Deselect, Entrance, Remove, SelectNext, SelectPrevious, entering,
-    settling, shown_listing, veiled,
+    shown_listing, veiled,
 };
 
 use crate::chrome::{
@@ -417,7 +417,9 @@ impl Render for Workspace {
                                     .flex_col()
                                     .flex_1()
                                     .min_h_0()
-                                    .when(hidden > 0., |this| this.overflow_hidden())
+                                    // Liquid pages extend above this slot behind the toolbar.
+                                    // Only the outer sheet may clip that background.
+                                    .when(hidden > 0. && !liquid, |this| this.overflow_hidden())
                                     .child(
                                         div()
                                             .absolute()
@@ -427,12 +429,12 @@ impl Render for Workspace {
                                             .bottom_0()
                                             .flex()
                                             .flex_col()
-                                            .map(|this| match dissolving {
-                                                true => entering(this, hidden),
-                                                false => veiled(this, hidden),
-                                            })
-                                            .when(liquid && hidden > 0., |this| {
-                                                settling(this, hidden)
+                                            .map(|this| match (liquid, dissolving) {
+                                                // Filtering this slot captures only the area
+                                                // below the toolbar, losing the page's bleed.
+                                                (true, _) => this.opacity(1. - hidden),
+                                                (false, true) => entering(this, hidden),
+                                                (false, false) => veiled(this, hidden),
                                             })
                                             .child(content),
                                     )

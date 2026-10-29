@@ -117,6 +117,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Next remains available at the end of a repeating queue and returns to its beginning.
+  Repeat-all loops the queue before playing any automatically suggested similar songs.
+
+- Album and playlist header colours reach behind the toolbar as soon as the page appears,
+  without jumping up when the page transition finishes.
+
+- Album and playlist header colours follow the Liquid Glass sheet's rounded corners instead
+  of showing square colour patches outside them.
+
 - Discord's provider and Sonora button choices each show their selected state with Liquid Glass,
   including when both are enabled.
 

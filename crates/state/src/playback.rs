@@ -1608,7 +1608,7 @@ impl Playback {
         }));
     }
 
-    /// Skips to the next playable track.
+    /// Skips to the next playable track, wrapping at the end when either repeat mode is on.
     pub fn next(&mut self, cx: &mut Context<Self>) {
         if self.steer(|_| Command::Next, cx) {
             return;
@@ -1616,6 +1616,16 @@ impl Playback {
         self.fetch = None;
         let start = self.burst();
         self.follow_queue(start, cx);
+    }
+
+    /// Whether Next can reach a playable track, including a wrap of the current queue.
+    pub fn has_next(&self, cx: &App) -> bool {
+        let queue = self.queue.read(cx);
+        queue.upcoming().any(|track| track.playable)
+            || match self.repeat {
+                Repeat::Off => queue.similar().any(|track| track.playable),
+                Repeat::All | Repeat::One => queue.repeat_start().is_some(),
+            }
     }
 
     /// Removing tracks from queue
@@ -1663,9 +1673,17 @@ impl Playback {
     /// Asks the engine to fetch the track that plays after this one. With `segue` it is also
     /// lined up to follow gaplessly, which waits for the end because the queue can still change.
     fn preload_upcoming(&mut self, segue: bool, cx: &Context<Self>) {
-        let next = match self.repeat != Repeat::One {
-            true => self.queue.read(cx).upcoming().next().cloned(),
-            false => None,
+        let queue = self.queue.read(cx);
+        let next = match self.repeat {
+            Repeat::One => None,
+            Repeat::Off | Repeat::All => queue
+                .upcoming()
+                .find(|track| track.playable)
+                .or_else(|| match self.repeat {
+                    Repeat::All => queue.repeat_start(),
+                    _ => None,
+                })
+                .cloned(),
         };
         let Some(next) = next else {
             self.preloaded = None;
@@ -1929,12 +1947,7 @@ impl Playback {
                 Some(track) => self.load_after(&track, Start::Segue, cx),
                 None => self.segue_queue(cx),
             },
-            Repeat::All if !self.queue.read(cx).has_next() => {
-                self.fetch = None;
-                if let Some(track) = self.queue.update(cx, |queue, cx| queue.rewind(cx)) {
-                    self.follow_after(track, Start::Segue, cx);
-                }
-            }
+            Repeat::All => self.segue_queue(cx),
             // The station's next stretch is on its way; playing resumes when it lands.
             _ if self.topping.is_some() && !self.queue.read(cx).has_next() => {
                 self.fetch = None;
@@ -1992,18 +2005,33 @@ impl Playback {
     }
 
     fn follow_queue(&mut self, start: Start, cx: &mut Context<Self>) {
-        let Some(track) = self.playable_next(cx) else {
+        // A manual skip leaves repeat-one, but still wraps at the end of the list.
+        let repeat = self.repeat == Repeat::All
+            || (self.repeat == Repeat::One && matches!(start, Start::Skip | Start::Burst));
+        let Some(track) = self.playable_next(repeat, cx) else {
             return;
         };
         self.load_after(&track, start, cx);
     }
 
-    /// The next playable track the queue has, dropping the ones that are not. Reaching the
-    /// suggestions means radio has taken over from the station the queue was playing.
-    fn playable_next(&mut self, cx: &mut Context<Self>) -> Option<Track> {
+    /// The next playable track, wrapping before suggestions when `repeat` is set. Rewinds at
+    /// most once so an entirely unavailable queue cannot loop forever.
+    fn playable_next(&mut self, repeat: bool, cx: &mut Context<Self>) -> Option<Track> {
+        let mut rewound = false;
         loop {
-            let suggested = self.queue.read(cx).next_is_suggested();
-            let track = self.queue.update(cx, |queue, cx| queue.next(cx))?;
+            let queue = self.queue.read(cx);
+            let restart = repeat && queue.upcoming().len() == 0;
+            let suggested = !restart && queue.next_is_suggested();
+            let track = match restart {
+                true => {
+                    if rewound {
+                        return None;
+                    }
+                    rewound = true;
+                    self.queue.update(cx, |queue, cx| queue.rewind(cx))?
+                }
+                false => self.queue.update(cx, |queue, cx| queue.next(cx))?,
+            };
             if suggested {
                 self.leave_station();
             }
@@ -2011,17 +2039,6 @@ impl Playback {
                 return Some(track);
             }
         }
-    }
-
-    fn follow_after(&mut self, track: Track, start: Start, cx: &mut Context<Self>) {
-        let track = match track.playable {
-            true => Some(track),
-            false => self.playable_next(cx),
-        };
-        let Some(track) = track else {
-            return;
-        };
-        self.load_after(&track, start, cx);
     }
 
     pub fn has_previous(&self, cx: &App) -> bool {
@@ -2245,7 +2262,7 @@ impl Playback {
         self.sleep = None;
         self.sleep_task = None;
         self.fetch = None;
-        let Some(track) = self.playable_next(cx) else {
+        let Some(track) = self.playable_next(self.repeat == Repeat::All, cx) else {
             return;
         };
         self.track = Some(track);
@@ -2258,7 +2275,7 @@ impl Playback {
     /// it then. Leaves nothing loaded when the queue has run out.
     fn hold_next(&mut self, cx: &mut Context<Self>) {
         self.fetch = None;
-        self.track = self.playable_next(cx);
+        self.track = self.playable_next(self.repeat == Repeat::All, cx);
         if self.track.is_some() {
             self.hold(Duration::ZERO, cx);
             self.remember(true, cx);

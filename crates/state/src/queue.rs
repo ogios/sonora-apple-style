@@ -671,6 +671,16 @@ impl Queue {
         !self.upcoming.is_empty()
     }
 
+    /// The first playable track a rewind would reach, excluding radio suggestions.
+    pub fn repeat_start(&self) -> Option<&Track> {
+        self.past
+            .iter()
+            .chain(self.current.as_ref())
+            .chain(self.upcoming.range(..self.queued()))
+            .map(|entry| &entry.track)
+            .find(|track| track.playable)
+    }
+
     /// Whether the track `next` would hand back is a radio suggestion rather than one the queue
     /// was started with.
     pub fn next_is_suggested(&self) -> bool {

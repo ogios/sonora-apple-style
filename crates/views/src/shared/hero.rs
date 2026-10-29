@@ -589,17 +589,12 @@ impl PageHero {
             .children(backdrop)
             .when_some(wash, |hero, wash| {
                 hero.child(
-                    div()
+                    ui::liquid_wash(wash.opacity(HERO_WASH), HERO_WASH_HOLD, cx)
                         .absolute()
                         .top(-HERO_BLEED)
                         .left(-HERO_BLEED)
                         .right(-HERO_BLEED)
-                        .bottom(-HERO_FADE)
-                        .bg(linear_gradient(
-                            180.,
-                            linear_color_stop(wash.opacity(HERO_WASH), HERO_WASH_HOLD),
-                            linear_color_stop(wash.opacity(0.), 1.),
-                        )),
+                        .bottom(-HERO_FADE),
                 )
             })
             .when_some(self.pin, |hero, pin| hero.pin(pin))

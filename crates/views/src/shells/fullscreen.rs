@@ -106,7 +106,6 @@ const SPRING_STALL: Duration = Duration::from_millis(64);
 
 pub struct FullscreenView {
     playback: Entity<Playback>,
-    queue: Entity<Queue>,
     cover: Entity<Cover>,
     settings: Entity<AppSettings>,
     aside: Entity<Aside>,
@@ -156,6 +155,7 @@ pub struct FullscreenView {
 impl FullscreenView {
     pub fn new(playback: Entity<Playback>, queue: Entity<Queue>, cx: &mut Context<Self>) -> Self {
         cx.observe(&playback, |_, _, cx| cx.notify()).detach();
+        cx.observe(&queue, |_, _, cx| cx.notify()).detach();
         let cover = Sonora::global(cx).cover.clone();
         cx.observe(&cover, |_, _, cx| cx.notify()).detach();
         let library = Sonora::global(cx).library.clone();
@@ -171,7 +171,6 @@ impl FullscreenView {
 
         Self {
             playback,
-            queue,
             cover,
             settings,
             aside,
@@ -861,7 +860,7 @@ impl FullscreenView {
                         this.over_transport = *hovering;
                         cx.notify();
                     }))
-                    .child(transport(&self.playback, &self.queue, true, cx))
+                    .child(transport(&self.playback, true, cx))
                     .child(
                         div()
                             .absolute()

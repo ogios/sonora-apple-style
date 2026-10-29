@@ -1,6 +1,7 @@
 use gpui::prelude::*;
 use gpui::{
-    App, BoxShadow, Div, Hsla, Pixels, Window, div, linear_color_stop, linear_gradient, px,
+    App, BoxShadow, Canvas, Corners, Div, Hsla, Pixels, Window, canvas, div, fill,
+    linear_color_stop, linear_gradient, px,
 };
 
 use crate::theme::ActiveTheme as _;
@@ -220,6 +221,55 @@ pub fn liquid_sheet<E: Styled>(element: E, cx: &App) -> E {
             BoxShadow::new(Pixels::ZERO, DROP_OFFSET, gpui::black().opacity(drop))
                 .blur_radius(DROP_BLUR),
         ])
+}
+
+/// A vertical colour wash that holds until `hold`, then fades to clear. Place it behind a
+/// sheet's scrolling content; its visible edges follow the sheet's rounded scroll bounds.
+pub fn liquid_wash(color: Hsla, hold: f32, cx: &App) -> Canvas<()> {
+    let radius = (liquid_radius(cx) - EDGE).max(Pixels::ZERO);
+    let hold = hold.clamp(0., 1. - f32::EPSILON);
+    canvas(
+        |_, _, _| (),
+        move |bounds, (), window, _| {
+            let clip = window.content_mask().bounds;
+            let visible = bounds.intersect(&clip);
+            if visible.is_empty() {
+                return;
+            }
+
+            // Round the visible viewport, rather than the oversized wash: scrolling must not
+            // move the corners away from the sheet. Keep the gradient in its original space.
+            let fade = bounds.top() + bounds.size.height * hold;
+            let alpha =
+                |y: Pixels| ((bounds.bottom() - y) / (bounds.bottom() - fade)).clamp(0., 1.);
+            let held = ((fade - visible.top()) / visible.size.height).clamp(0., 1. - f32::EPSILON);
+            let top = match visible.top() == clip.top() {
+                true => radius,
+                false => Pixels::ZERO,
+            };
+            let bottom = match visible.bottom() == clip.bottom() {
+                true => radius,
+                false => Pixels::ZERO,
+            };
+            window.paint_quad(
+                fill(
+                    visible,
+                    linear_gradient(
+                        180.,
+                        linear_color_stop(color.opacity(alpha(visible.top())), held),
+                        linear_color_stop(color.opacity(alpha(visible.bottom())), 1.),
+                    ),
+                )
+                .corner_radii(Corners {
+                    top_left: top,
+                    top_right: top,
+                    bottom_left: bottom,
+                    bottom_right: bottom,
+                })
+                .corner_smoothing(LIQUID_SMOOTHING),
+            );
+        },
+    )
 }
 
 /// The Liquid Glass material at the size of a control: the same fill, blur, rim and shading

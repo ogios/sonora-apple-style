@@ -73,7 +73,6 @@ const FACES_PAD: f32 = 2.;
 
 pub(crate) struct PlayerBar {
     playback: Entity<Playback>,
-    queue: Entity<Queue>,
     settings: Entity<AppSettings>,
     track_menu: ItemMenu,
     devices: Entity<DevicePicker>,
@@ -110,7 +109,6 @@ impl PlayerBar {
 
         Self {
             playback,
-            queue,
             settings,
             track_menu: ItemMenu::new(playlist_scrollbar, cx),
             devices: picker,
@@ -752,7 +750,7 @@ impl Render for PlayerBar {
                         .justify_between()
                         .gap_3()
                         .w_full()
-                        .child(roomy_transport(&self.playback, &self.queue, cx))
+                        .child(roomy_transport(&self.playback, cx))
                         .child(
                             div()
                                 .flex()
@@ -790,7 +788,7 @@ impl Render for PlayerBar {
                         .gap_2()
                         .w_full()
                         .child(self.now_playing(show_track, window, cx))
-                        .child(transport(&self.playback, &self.queue, false, cx)),
+                        .child(transport(&self.playback, false, cx)),
                 )
                 .child(
                     div()
@@ -817,7 +815,7 @@ impl Render for PlayerBar {
                         .items_center()
                         .gap_3()
                         .child(self.artwork(None, window, cx))
-                        .child(transport(&self.playback, &self.queue, false, cx)),
+                        .child(transport(&self.playback, false, cx)),
                 )
                 .child(
                     div()
@@ -852,7 +850,7 @@ impl Render for PlayerBar {
                     self.now_playing(show_track, window, cx)
                         .max_w(theme.metrics.cover * 1.6),
                 )
-                .child(transport(&self.playback, &self.queue, false, cx))
+                .child(transport(&self.playback, false, cx))
                 .child(div().flex_1().min_w_0().child(seek))
                 .child(self.devices.clone())
                 .children(sides)
@@ -876,7 +874,7 @@ impl Render for PlayerBar {
                                 .flex_1()
                                 .min_w_0()
                                 .items_center()
-                                .child(roomy_transport(&self.playback, &self.queue, cx)),
+                                .child(roomy_transport(&self.playback, cx)),
                         )
                         .child(self.capsule(show_track, window, cx).flex_1())
                         .child(
@@ -911,7 +909,7 @@ impl Render for PlayerBar {
                         .flex_1()
                         .min_w_0()
                         .max_w(px(SEEK_MAX))
-                        .child(transport(&self.playback, &self.queue, false, cx))
+                        .child(transport(&self.playback, false, cx))
                         .child(seek),
                 )
                 .child(
