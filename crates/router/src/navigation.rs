@@ -15,6 +15,7 @@ pub enum NavigationEvent {
         destination: Destination,
         direction: NavigationDirection,
         entry: u64,
+        animated: bool,
     },
 }
 
@@ -61,6 +62,21 @@ impl Navigation {
     }
 
     pub fn go(&mut self, destination: Destination, cx: &mut Context<Self>) {
+        self.go_with_transition(destination, true, cx);
+    }
+
+    /// Opens a peer tab immediately while preserving its normal Back and Forward history.
+    pub fn go_immediate(&mut self, destination: Destination, cx: &mut Context<Self>) {
+        self.go_with_transition(destination, false, cx);
+    }
+
+    /// Adds a visit, choosing whether its initial arrival should animate.
+    fn go_with_transition(
+        &mut self,
+        destination: Destination,
+        animated: bool,
+        cx: &mut Context<Self>,
+    ) {
         if self.current() == destination {
             return;
         }
@@ -76,7 +92,7 @@ impl Navigation {
                 self.at = self.trail.len() - 1;
             }
         }
-        self.arrive(NavigationDirection::Forward, cx);
+        self.arrive(NavigationDirection::Forward, animated, cx);
     }
 
     pub fn back(&mut self, cx: &mut Context<Self>) {
@@ -84,7 +100,7 @@ impl Navigation {
             return;
         }
         self.at -= 1;
-        self.arrive(NavigationDirection::Backward, cx);
+        self.arrive(NavigationDirection::Backward, true, cx);
     }
 
     /// Replaces the current page without leaving its stale destination in navigation history.
@@ -94,7 +110,7 @@ impl Navigation {
         }
         self.trail[self.at] = (self.next_entry, destination);
         self.next_entry += 1;
-        self.arrive(NavigationDirection::Forward, cx);
+        self.arrive(NavigationDirection::Forward, true, cx);
     }
 
     /// Returns from a drill-in to `parent`. Stepping back keeps the trail free of a parent,
@@ -114,7 +130,7 @@ impl Navigation {
                 }
                 self.trail[self.at] = (self.next_entry, parent);
                 self.next_entry += 1;
-                self.arrive(NavigationDirection::Backward, cx);
+                self.arrive(NavigationDirection::Backward, true, cx);
             }
         }
     }
@@ -133,10 +149,10 @@ impl Navigation {
             return;
         }
         self.at += 1;
-        self.arrive(NavigationDirection::Forward, cx);
+        self.arrive(NavigationDirection::Forward, true, cx);
     }
 
-    fn arrive(&mut self, direction: NavigationDirection, cx: &mut Context<Self>) {
+    fn arrive(&mut self, direction: NavigationDirection, animated: bool, cx: &mut Context<Self>) {
         if self.current().in_settings() {
             self.last_settings = Some(self.current());
         }
@@ -144,6 +160,7 @@ impl Navigation {
             destination: self.current(),
             direction,
             entry: self.current_entry(),
+            animated,
         });
         cx.notify();
     }

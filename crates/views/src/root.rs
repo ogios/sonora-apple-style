@@ -193,8 +193,16 @@ impl Root {
                 destination,
                 direction,
                 entry,
+                animated,
             } = event;
-            this.transition_to(destination.clone(), *direction, *entry, window, cx);
+            this.transition_to(
+                destination.clone(),
+                *direction,
+                *entry,
+                *animated,
+                window,
+                cx,
+            );
         })
         .detach();
 
@@ -702,12 +710,13 @@ impl Root {
 
     /// Moves to `destination`. A move to another shell plays the entrance over the whole
     /// window. Within the workspace, forward reveals the new page from the right and back
-    /// dismisses the current page to the right. Reduced motion skips both.
+    /// dismisses the current page to the right. Immediate tab visits and reduced motion skip both.
     fn transition_to(
         &mut self,
         destination: Destination,
         direction: NavigationDirection,
         entry: u64,
+        animated: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -716,13 +725,13 @@ impl Root {
 
         let next = RootView::of(&destination);
         let moving = next != self.view;
-        if moving || next == RootView::Fullscreen || cx.reduce_motion() {
+        if moving || next == RootView::Fullscreen || cx.reduce_motion() || !animated {
             self.shells
                 .workspace
                 .update(cx, |workspace, cx| workspace.finish_transition(cx));
             self.select_visit(entry, &destination, window, cx);
             self.show(destination, cx);
-            if moving && !cx.reduce_motion() {
+            if moving && animated && !cx.reduce_motion() {
                 self.reveal_shell(cx);
             }
             return;

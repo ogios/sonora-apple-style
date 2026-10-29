@@ -265,7 +265,7 @@ impl SettingsView {
                     .update(cx, |settings, cx| settings.set_controls_on_left(left, cx));
             }),
         )
-        .when(!shown, |bar| bar.opacity(0.4));
+        .when(!shown, |bar| bar.opacity(0.65));
 
         self.row(t!("settings-controls-side"), sides.into_any_element())
     }

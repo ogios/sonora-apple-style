@@ -423,6 +423,13 @@ pub fn navigate(destination: Destination, cx: &mut App) {
     trail(cx).update(cx, |navigation, cx| navigation.go(destination, cx));
 }
 
+/// Opens a peer tab immediately, retaining the same history as a normal page visit.
+pub fn navigate_immediate(destination: Destination, cx: &mut App) {
+    trail(cx).update(cx, |navigation, cx| {
+        navigation.go_immediate(destination, cx)
+    });
+}
+
 /// Replaces the current destination so Back and Forward do not revisit a page that disappeared.
 pub fn replace(destination: Destination, cx: &mut App) {
     trail(cx).update(cx, |navigation, cx| navigation.replace(destination, cx));

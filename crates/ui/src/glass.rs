@@ -67,6 +67,11 @@ const SHEET_RIM_LIGHT: f32 = 0.5;
 /// The fill of the glass pill that marks a selected entry, as a share of the foreground.
 const PILL_FILL: f32 = 0.12;
 const PILL_FOOT: f32 = 0.06;
+/// Neutral controls and selected lenses need a shaded outline on a bright page.
+const CONTROL_RIM_LIGHT: f32 = 0.22;
+const PILL_RIM_LIGHT: f32 = 0.3;
+const PILL_FILL_LIGHT: f32 = 0.2;
+const PILL_FOOT_LIGHT: f32 = 0.12;
 /// The drop shadow under a pill, much closer than a panel's since it sits on the panel.
 const PILL_DROP: f32 = 0.18;
 const PILL_DROP_BLUR: Pixels = px(6.);
@@ -304,9 +309,9 @@ pub(crate) fn sheet_corners(
 
 /// The Liquid Glass material at the size of a control: the same fill, blur, rim and shading
 /// as `liquid_glass`, with the close shadow of something resting on the surface rather than
-/// floating over it.
+/// floating over it. Light themes use a shaded edge to separate controls from the page.
 pub fn liquid_control<E: Styled>(element: E, cx: &App) -> E {
-    material(
+    let control = material(
         element,
         BoxShadow::new(
             Pixels::ZERO,
@@ -315,7 +320,11 @@ pub fn liquid_control<E: Styled>(element: E, cx: &App) -> E {
         )
         .blur_radius(PILL_DROP_BLUR),
         cx,
-    )
+    );
+    match cx.theme().background.l < 0.5 {
+        true => control,
+        false => control.border_color(cx.theme().foreground.opacity(CONTROL_RIM_LIGHT)),
+    }
 }
 
 /// Styles an element as the glass pill that marks the selected entry in a Liquid Glass panel
@@ -325,9 +334,14 @@ pub fn liquid_pill<E: Styled>(element: E, cx: &App) -> E {
     let theme = cx.theme();
     let dark = theme.background.l < 0.5;
     let white = gpui::white();
-    let (specular, rim) = match dark {
-        true => (SPECULAR_DARK, RIM_DARK),
-        false => (SPECULAR_LIGHT, RIM_LIGHT),
+    let (specular, rim, fill, foot) = match dark {
+        true => (SPECULAR_DARK, white.opacity(RIM_DARK), PILL_FILL, PILL_FOOT),
+        false => (
+            SPECULAR_LIGHT,
+            theme.foreground.opacity(PILL_RIM_LIGHT),
+            PILL_FILL_LIGHT,
+            PILL_FOOT_LIGHT,
+        ),
     };
 
     element
@@ -335,11 +349,11 @@ pub fn liquid_pill<E: Styled>(element: E, cx: &App) -> E {
         .corner_smoothing(LIQUID_SMOOTHING)
         .bg(linear_gradient(
             180.,
-            linear_color_stop(theme.foreground.opacity(PILL_FILL), 0.),
-            linear_color_stop(theme.foreground.opacity(PILL_FOOT), 1.),
+            linear_color_stop(theme.foreground.opacity(fill), 0.),
+            linear_color_stop(theme.foreground.opacity(foot), 1.),
         ))
         .border_1()
-        .border_color(white.opacity(rim))
+        .border_color(rim)
         .shadow(vec![
             BoxShadow::new(
                 Pixels::ZERO,

@@ -120,6 +120,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Switch settings tabs immediately without a page slide, blur or fade. Light themes give
+  buttons and selected segments clearer outlines, and keep unavailable window controls legible.
+
 - Rapidly go back through several pages with overlapping slide, blur and fade transitions.
   Each history visit keeps its own content and animation instead of restarting the current page.
 
