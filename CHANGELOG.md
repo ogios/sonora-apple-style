@@ -112,6 +112,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Use less memory at startup and while browsing large playlists. Navigation retains the latest
+  eight visits, and playlist pages load as needed.
+
 - Navigate forward with a quick ease-out cubic slide from the right, fading from soft to sharp.
   Going back slides the current page to the right as it blurs and fades out.
 
@@ -119,6 +122,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and a gentle finish. Hover effects ease smoothly in both directions, including when interrupted.
 
 ### Fixed
+
+- Keep covers loading when browsing large album grids on high-resolution displays, without
+  repeatedly decoding images while the cover cache is full.
+
+- Show playlist track counts from their full track lists and show total duration only after all
+  tracks have loaded.
 
 - Settings tab content slides left or right with a blur as the selection capsule moves,
   while the header and sidebar stay still. The sidebar's Settings highlight no longer flashes
