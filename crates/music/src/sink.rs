@@ -286,10 +286,9 @@ impl Drop for Chunk {
 /// queued, which keeps a decoder in step with playback. A write on an output that has to reopen
 /// reports it gone; the output also says so on `changed` itself, playing or not.
 ///
-/// Every packet goes through the resampler as it is written, so everything queued is at the
-/// device's rate already and a pause or a clear acts on it at once. A packet at the device's rate
-/// is copied through as it is, and a change of rate or channels starts a new span, which keeps
-/// the order of what is written without a flush.
+/// Packets at the device's rate enter the queue directly. Other rates initialize a resampler
+/// on the decoder thread, with queued audio already at the device's rate so pause and clear
+/// act immediately. Returning to the device's rate queues the resampler's tail first.
 pub struct Paced {
     output: Output,
     cue: Cue,
@@ -297,8 +296,8 @@ pub struct Paced {
     live: Arc<AtomicUsize>,
     spares: Spares,
     changed: UnboundedSender<()>,
-    /// ardftsrc at its good preset, for every writer.
-    resampler: RealtimeResampler,
+    /// Created only while converting packets whose rate differs from the output.
+    resampler: Option<RealtimeResampler>,
     /// The cue generation the audio the resampler holds belongs to.
     generation: u32,
 }
@@ -309,15 +308,6 @@ impl Paced {
         let output = Output::open(chain, changed.clone())?;
         output.sink().pause();
 
-        // the input format is a placeholder: each packet starts a span in its own
-        let rate = output.rate() as usize;
-        let config = ardftsrc::PRESET_GOOD
-            .with_input_rate(rate)
-            .with_output_rate(rate)
-            .with_channels(2);
-        // rodio refuses a zero rate when the output opens, so the config is always valid
-        let resampler = RealtimeResampler::new(config)
-            .expect("PRESET_GOOD at the device's non-zero rate, in stereo, is a valid config");
         let generation = cue.generation.load(Ordering::Relaxed);
         Ok(Self {
             output,
@@ -325,7 +315,7 @@ impl Paced {
             live: Arc::default(),
             spares: Spares::new(),
             changed,
-            resampler,
+            resampler: None,
             generation,
         })
     }
@@ -372,8 +362,29 @@ impl Paced {
         self.forget_cleared();
         let device = self.rate();
         let rate = packet.rate.get();
-        let resampler = &mut self.resampler;
+        if rate == device {
+            let tail = self.flush();
+            self.resampler = None;
+            let written = packet.samples.len();
+            let chunk = Chunk::new(
+                packet,
+                self.output.format(),
+                &self.cue,
+                &self.live,
+                &self.spares,
+            );
+            self.output.sink().append(chunk);
+            return Ok(tail + written);
+        }
         let channels = usize::from(packet.channels.get());
+        let resampler = self.resampler.get_or_insert_with(|| {
+            let config = ardftsrc::PRESET_GOOD
+                .with_input_rate(rate as usize)
+                .with_output_rate(device as usize)
+                .with_channels(channels);
+            RealtimeResampler::new(config)
+                .expect("non-zero packet and device rates and channels form a valid config")
+        });
 
         // pieces about as long as the packet, so a resampled queue paces like the packets did
         let frames = packet.samples.len() / channels;
@@ -402,7 +413,9 @@ impl Paced {
     /// the queue, or a writer that stops.
     pub fn flush(&mut self) -> usize {
         self.forget_cleared();
-        let resampler = &mut self.resampler;
+        let Some(resampler) = self.resampler.as_mut() else {
+            return 0;
+        };
         if resampler.is_empty() {
             return 0;
         }
@@ -421,7 +434,9 @@ impl Paced {
     /// Samples already written that the resampler has yet to queue, at the device's rate. Added
     /// to what the writes returned, it is where the next write starts, to within a frame.
     pub fn held_back(&self) -> usize {
-        self.resampler.samples_outstanding()
+        self.resampler
+            .as_ref()
+            .map_or(0, RealtimeResampler::samples_outstanding)
     }
 
     /// The rate the device runs at. A packet at any other rate is resampled before it is heard.
@@ -456,8 +471,11 @@ impl Paced {
     /// samples that added. A partial piece waits for the next write (except the tail of a span,
     /// which is queued as it is).
     fn queue_ready(&mut self, frames: usize) -> usize {
+        let Some(resampler) = self.resampler.as_mut() else {
+            return 0;
+        };
         let mut queued = 0;
-        while let Some(span) = self.resampler.read_span(frames) {
+        while let Some(span) = resampler.read_span(frames) {
             let (channels, rate) = (span.channels() as u16, span.sample_rate() as u32);
             let mut samples = self.spares.take(span.len());
             samples.extend(span.map(|sample| sample as f32));
@@ -480,7 +498,7 @@ impl Paced {
             return;
         }
         self.generation = generation;
-        self.resampler.reset();
+        self.resampler = None;
     }
 }
 
