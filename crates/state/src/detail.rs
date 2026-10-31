@@ -23,6 +23,18 @@ enum Loaded {
     Playlist(Arc<PlaylistDetail>),
 }
 
+/// Song rows shared with the catalog or another visit, copied only when edited.
+#[derive(Clone)]
+pub struct SharedTracks(TrackStorage);
+
+/// Immutable provider responses or editable rows shared with retained callbacks.
+#[derive(Clone)]
+enum TrackStorage {
+    Album(Arc<AlbumDetail>),
+    Playlist(Arc<PlaylistDetail>),
+    Owned(Arc<Vec<Track>>),
+}
+
 pub struct Header {
     pub kind: Collection,
     /// What kind of release an album is, `None` for a playlist.
@@ -45,12 +57,13 @@ pub struct Detail {
     kind: Option<Collection>,
     album: Option<Album>,
     playlist: Option<Playlist>,
-    tracks: Vec<Track>,
+    tracks: SharedTracks,
     continuation: Option<String>,
     also_like: Vec<Album>,
     similar: Vec<SavedArtist>,
     loading: bool,
     loading_more: bool,
+    more_failed: bool,
     loaded: bool,
     filling: bool,
     error: Option<String>,
@@ -62,6 +75,37 @@ pub struct Detail {
     fill: Option<Task<()>>,
     filling_request: Option<AbortHandle>,
     mosaic: Option<Task<()>>,
+}
+
+impl Default for SharedTracks {
+    fn default() -> Self {
+        Self(TrackStorage::Owned(Arc::default()))
+    }
+}
+
+impl std::ops::Deref for SharedTracks {
+    type Target = Vec<Track>;
+
+    fn deref(&self) -> &Self::Target {
+        match &self.0 {
+            TrackStorage::Album(detail) => &detail.tracks,
+            TrackStorage::Playlist(detail) => &detail.tracks,
+            TrackStorage::Owned(tracks) => tracks,
+        }
+    }
+}
+
+impl SharedTracks {
+    /// Makes an editable list while keeping cached provider responses immutable.
+    fn make_mut(&mut self) -> &mut Vec<Track> {
+        if !matches!(self.0, TrackStorage::Owned(_)) {
+            self.0 = TrackStorage::Owned(Arc::new(self.to_vec()));
+        }
+        let TrackStorage::Owned(tracks) = &mut self.0 else {
+            unreachable!()
+        };
+        Arc::make_mut(tracks)
+    }
 }
 
 impl Detail {
@@ -131,16 +175,20 @@ impl Detail {
                 if this.id.as_deref() == Some(playlist.as_str()) =>
             {
                 this.tracks
+                    .make_mut()
                     .retain(|shown| shown.id.as_deref() != Some(track.as_str()));
                 cx.notify();
             }
-            LibraryEvent::TracksHidden(ids) => {
-                let before = this.tracks.len();
+            LibraryEvent::TracksHidden(ids)
+                if this
+                    .tracks
+                    .iter()
+                    .any(|track| track.id.as_ref().is_some_and(|id| ids.contains(id))) =>
+            {
                 this.tracks
+                    .make_mut()
                     .retain(|track| !track.id.as_ref().is_some_and(|id| ids.contains(id)));
-                if this.tracks.len() != before {
-                    cx.notify();
-                }
+                cx.notify();
             }
             _ => {}
         })
@@ -155,6 +203,10 @@ impl Detail {
             };
             if playlist.cover.is_none() {
                 playlist.cover = this.playlist.as_ref().and_then(|shown| shown.cover.clone());
+            }
+            if let Some(shown) = &this.playlist {
+                // The detail endpoint includes track IDs omitted from library summary counts.
+                playlist.track_count = playlist.track_count.max(shown.track_count);
             }
             if this.playlist.as_ref() == Some(&playlist) {
                 return;
@@ -171,12 +223,13 @@ impl Detail {
             kind: None,
             album: None,
             playlist: None,
-            tracks: Vec::new(),
+            tracks: SharedTracks::default(),
             continuation: None,
             also_like: Vec::new(),
             similar: Vec::new(),
             loading: false,
             loading_more: false,
+            more_failed: false,
             loaded: false,
             filling: false,
             error: None,
@@ -217,6 +270,16 @@ impl Detail {
         &self.tracks
     }
 
+    /// Whether the playlist still has provider pages that have not been loaded.
+    pub fn has_more(&self) -> bool {
+        self.continuation.is_some()
+    }
+
+    /// A cheap snapshot for callbacks that must keep these rows alive across renders.
+    pub fn shared_tracks(&self) -> SharedTracks {
+        self.tracks.clone()
+    }
+
     /// What the provider lists as related to the page's album, with more from the same
     /// artist first and similar artists' releases topping the rail up, filled in behind
     /// the tracks.
@@ -240,9 +303,9 @@ impl Detail {
         self.loading
     }
 
-    /// Appends provider pages in sequence while keeping the first page immediately usable.
-    fn load_more(&mut self, cx: &mut Context<Self>) {
-        if self.loading_more {
+    /// Fetches one continuation when the visible list needs more rows.
+    pub fn load_more(&mut self, cx: &mut Context<Self>) {
+        if self.loading || self.loading_more || self.more_failed {
             return;
         }
         let Some(continuation) = self.continuation.clone() else {
@@ -270,12 +333,12 @@ impl Detail {
                 match loaded {
                     Ok((tracks, continuation)) => {
                         let offset = this.tracks.len() as u32;
-                        this.tracks.extend(tracks.into_iter().enumerate().map(
-                            |(index, mut track)| {
-                                track.track_number = offset + index as u32 + 1;
-                                track
-                            },
-                        ));
+                        let rows = this.tracks.make_mut();
+                        rows.reserve_exact(tracks.len());
+                        rows.extend(tracks.into_iter().enumerate().map(|(index, mut track)| {
+                            track.track_number = offset + index as u32 + 1;
+                            track
+                        }));
                         this.continuation = continuation;
                         if let Some(playlist) = this.playlist.as_mut()
                             && playlist.track_count < this.tracks.len() as u32
@@ -283,9 +346,11 @@ impl Detail {
                             playlist.track_count = this.tracks.len() as u32;
                             this.header = Some(playlist_header(playlist));
                         }
-                        this.load_more(cx);
                     }
-                    Err(error) => log::warn!("detail: cannot load more playlist tracks: {error:#}"),
+                    Err(error) => {
+                        this.more_failed = true;
+                        log::warn!("detail: cannot load more playlist tracks: {error:#}");
+                    }
                 }
                 cx.notify();
             })
@@ -368,6 +433,9 @@ impl Detail {
         if self.loaded
             && let Some(known) = known.as_mut()
         {
+            if let Some(shown) = &self.playlist {
+                known.track_count = known.track_count.max(shown.track_count);
+            }
             if known.cover.is_none() {
                 known.cover = self
                     .playlist
@@ -523,17 +591,20 @@ impl Detail {
             Loaded::Album(detail) => {
                 self.header = Some(album_header(&detail.album));
                 self.album = Some(detail.album.clone());
-                self.tracks = detail
-                    .tracks
-                    .iter()
-                    .filter(|track| {
+                self.tracks = SharedTracks(TrackStorage::Album(detail));
+                if self.tracks.iter().any(|track| {
+                    track
+                        .id
+                        .as_deref()
+                        .is_some_and(|id| self.library.read(cx).local_track_hidden(id))
+                }) {
+                    self.tracks.make_mut().retain(|track| {
                         !track
                             .id
                             .as_deref()
                             .is_some_and(|id| self.library.read(cx).local_track_hidden(id))
-                    })
-                    .cloned()
-                    .collect();
+                    });
+                }
                 self.continuation = None;
                 self.fill(cx);
             }
@@ -547,12 +618,11 @@ impl Detail {
                 }
                 self.header = Some(playlist_header(&playlist));
                 self.playlist = Some(playlist);
-                self.tracks = detail.tracks.clone();
                 self.continuation = detail.continuation.clone();
+                self.tracks = SharedTracks(TrackStorage::Playlist(detail));
             }
         }
         self.loaded = true;
-        self.load_more(cx);
     }
 
     fn clear(&mut self) {
@@ -570,12 +640,13 @@ impl Detail {
         self.kind = None;
         self.album = None;
         self.playlist = None;
-        self.tracks.clear();
+        self.tracks = SharedTracks::default();
         self.continuation = None;
         self.also_like.clear();
         self.similar.clear();
         self.loading = false;
         self.loading_more = false;
+        self.more_failed = false;
         self.loaded = false;
         self.filling = false;
         self.error = None;

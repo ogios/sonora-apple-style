@@ -382,7 +382,10 @@ impl DetailView {
         let owner_name = header.and_then(|header| header.owner_name.clone());
         let track_count = header.map(|header| header.track_count).unwrap_or(0);
         let listed = self.detail.read(cx).tracks();
-        let duration: std::time::Duration = listed.iter().map(|track| track.duration).sum();
+        let duration: std::time::Duration = match self.detail.read(cx).has_more() {
+            true => std::time::Duration::ZERO,
+            false => listed.iter().map(|track| track.duration).sum(),
+        };
         let (eyebrow, label) = match kind {
             Collection::Playlist => (t!("detail-playlist"), t!("detail-play-playlist")),
             Collection::Album => (
@@ -556,7 +559,7 @@ impl DetailView {
         }
         let album = detail.album().cloned();
         let playlist = detail.playlist().cloned();
-        let tracks = detail.tracks().to_vec();
+        let tracks = detail.shared_tracks();
         let share = downloads.read(cx).share(kind, &id);
         let ring = |done: f32, color: Hsla| {
             ArrowRing::new("detail-download-ring", Some(done)).color(color)
@@ -581,7 +584,7 @@ impl DetailView {
                         downloads.download_album(
                             AlbumDetail {
                                 album: album.clone(),
-                                tracks: tracks.clone(),
+                                tracks: tracks.to_vec(),
                             },
                             cx,
                         );
@@ -780,8 +783,14 @@ impl Render for DetailView {
         // from below the bar, so its head pins there rather than under the page's tools.
         let under = crate::chrome::Chrome::under_bar(window, cx);
         let viewport = page::viewport(&scroll, inset, window);
-        self.table
-            .update(cx, |table, _| table.set_viewport(viewport));
+        let filtering = self.table.filtering(cx);
+        let needs_more = self.table.update(cx, |table, cx| {
+            table.set_viewport(viewport);
+            table.near_end(window, cx) || table.delegate().sorting().is_some() || filtering
+        });
+        if needs_more {
+            self.detail.update(cx, |detail, cx| detail.load_more(cx));
+        }
 
         let context_menu = self.context_menu.and_then(|position| {
             let menu = self.menu(cx)?;

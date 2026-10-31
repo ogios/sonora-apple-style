@@ -110,6 +110,7 @@ pub struct Root {
     pending: Option<Focus>,
     navigation_transition: Option<Task<()>>,
     /// Independent view handles for visits still in navigation history.
+    /// Full pages retained only while their visit belongs to the bounded navigation trail.
     page_screens: HashMap<u64, Screens>,
     shown_entry: u64,
     /// The entrance the shell plays as the window moves from one shell to another.

@@ -397,11 +397,13 @@ impl From<&Pin> for Origin {
     }
 }
 
-/// A station the queue was started from, and the continuation its next stretch is fetched with.
+/// A radio or playlist continuation fetched as its queue approaches the last loaded track.
 #[derive(Clone, PartialEq)]
 struct Station {
     origin: Origin,
     next: String,
+    /// Rows already loaded past the first playlist page, or `None` for track radio.
+    playlist_skip: Option<usize>,
 }
 
 /// A file handed in from the OS that could not be read as a track.
@@ -968,7 +970,28 @@ impl Playback {
         cx: &mut Context<Self>,
     ) {
         self.fetch = None;
-        self.begin(tracks, index, origin, cx);
+        let continuation = origin.as_ref().and_then(|origin| {
+            if origin.whence != Whence::Playlist {
+                return None;
+            }
+            let catalog = self.session.read(cx).catalog(&origin.id)?;
+            let detail = catalog.peek_playlist(&origin.id)?;
+            let next = detail.continuation.clone()?;
+            let prefix = tracks.len() >= detail.tracks.len()
+                && tracks
+                    .iter()
+                    .zip(&detail.tracks)
+                    .all(|(row, cached)| row.id == cached.id);
+            prefix.then(|| Station {
+                origin: origin.clone(),
+                next,
+                playlist_skip: Some(tracks.len() - detail.tracks.len()),
+            })
+        });
+        if self.begin(tracks, index, origin, cx) {
+            self.station = continuation;
+            self.continue_station(cx);
+        }
     }
 
     /// Replaces the queue with `tracks` and plays the one at `index` here from `at`, as another
@@ -1065,6 +1088,7 @@ impl Playback {
                     this.station = next.map(|next| Station {
                         origin: origin.clone(),
                         next,
+                        playlist_skip: None,
                     });
                     this.queue
                         .update(cx, |queue, cx| queue.extend_context(tracks, origin, cx));
@@ -1591,6 +1615,7 @@ impl Playback {
                     let station = next.map(|next| Station {
                         origin: origin.clone(),
                         next,
+                        playlist_skip: None,
                     });
                     if this.begin(tracks, index, Some(origin), cx) {
                         this.station = station;
@@ -1736,8 +1761,8 @@ impl Playback {
     }
 
     /// Fetches the station's next stretch once fewer than `RADIO_LOOKAHEAD` tracks are left to
-    /// play, so the queue never reaches its end while the provider has more. What the queue
-    /// has already heard is left out. The station is the queue itself, so it goes on whether
+    /// play, so the queue never reaches its end while the provider has more. Radio excludes
+    /// songs already heard; playlist continuations retain their order and repeated songs. The station is the queue itself, so it goes on whether
     /// or not radio suggestions are on; a fetch that fails drops the continuation and hands the
     /// end of the queue back to `advance` through `stranded`.
     fn continue_station(&mut self, cx: &mut Context<Self>) {
@@ -1756,7 +1781,21 @@ impl Playback {
         self.topping = Some(cx.spawn(async move |this, cx| {
             let seed = station.origin.id.clone();
             let token = station.next.clone();
+            let playlist_skip = station.playlist_skip;
             let loaded = join(io.spawn(async move {
+                if let Some(mut skip) = playlist_skip {
+                    let mut token = token;
+                    loop {
+                        let (mut tracks, next) = client.playlist_continuation(&token).await?;
+                        let skipped = skip.min(tracks.len());
+                        tracks.drain(..skipped);
+                        skip -= skipped;
+                        if !tracks.is_empty() || next.is_none() {
+                            return anyhow::Ok((tracks, next));
+                        }
+                        token = next.expect("playlist continuation available");
+                    }
+                }
                 let (mut tracks, next) = client.track_radio(&seed, Some(&token)).await?;
                 unheard(&mut tracks, &heard);
                 anyhow::Ok((tracks, next))
@@ -1779,6 +1818,7 @@ impl Playback {
                                 .map(|next| Station {
                                     origin: station.origin.clone(),
                                     next,
+                                    playlist_skip: station.playlist_skip.map(|_| 0),
                                 });
                         let idle = this.track.is_none() && !this.queue.read(cx).has_next();
                         this.queue.update(cx, |queue, cx| {

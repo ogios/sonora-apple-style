@@ -2,6 +2,9 @@ use gpui::{Context, EventEmitter};
 
 use crate::{Destination, SettingsPage};
 
+/// Maximum visits retained, including the current page and forward history.
+const HISTORY_LIMIT: usize = 8;
+
 /// The history direction of a page change, so shells can animate arrivals and departures.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NavigationDirection {
@@ -22,6 +25,7 @@ pub enum NavigationEvent {
 pub struct Navigation {
     trail: Vec<(u64, Destination)>,
     next_entry: u64,
+    pruned: u64,
     at: usize,
     /// The settings destination last on show, which opening settings again returns to.
     last_settings: Option<Destination>,
@@ -34,6 +38,7 @@ impl Navigation {
         Self {
             trail: vec![(0, start)],
             next_entry: 1,
+            pruned: 0,
             at: 0,
             last_settings: None,
         }
@@ -51,6 +56,11 @@ impl Navigation {
     /// Whether a visit still belongs to history after a new branch or replacement.
     pub fn has_entry(&self, entry: u64) -> bool {
         self.trail.iter().any(|(id, _)| *id == entry)
+    }
+
+    /// Visits removed by the history limit or by branching to a new destination.
+    pub fn pruned(&self) -> u64 {
+        self.pruned
     }
 
     pub fn can_go_back(&self) -> bool {
@@ -77,13 +87,20 @@ impl Navigation {
         }
 
         let replacing = self.current() == Destination::Fullscreen;
+        self.pruned += self.trail.len().saturating_sub(self.at + 1) as u64;
         self.trail.truncate(self.at + 1);
         let entry = (self.next_entry, destination);
         self.next_entry += 1;
         match replacing {
-            true => self.trail[self.at] = entry,
+            true => {
+                self.pruned += 1;
+                self.trail[self.at] = entry;
+            }
             false => {
                 self.trail.push(entry);
+                let excess = self.trail.len().saturating_sub(HISTORY_LIMIT);
+                self.trail.drain(..excess);
+                self.pruned += excess as u64;
                 self.at = self.trail.len() - 1;
             }
         }
@@ -103,6 +120,7 @@ impl Navigation {
         if self.current() == destination {
             return;
         }
+        self.pruned += 1;
         self.trail[self.at] = (self.next_entry, destination);
         self.next_entry += 1;
         self.arrive(NavigationDirection::Forward, false, cx);
@@ -123,6 +141,7 @@ impl Navigation {
                 if self.current() == parent {
                     return;
                 }
+                self.pruned += 1;
                 self.trail[self.at] = (self.next_entry, parent);
                 self.next_entry += 1;
                 self.arrive(NavigationDirection::Backward, false, cx);

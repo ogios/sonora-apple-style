@@ -886,9 +886,9 @@ impl MusicApi for NetEaseClient {
                 .collect(),
         };
         let mut playlist = head.playlist(self.user_id());
-        if playlist.track_count == 0 {
-            playlist.track_count = head.track_ids.len().max(tracks.len()) as u32;
-        }
+        playlist.track_count = playlist
+            .track_count
+            .max(head.track_ids.len().max(tracks.len()) as u32);
         if playlist.cover.is_none() {
             playlist.cover = tracks.iter().find_map(|track| track.cover.clone());
         }

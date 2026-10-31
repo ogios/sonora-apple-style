@@ -666,6 +666,14 @@ impl<S: TableSource> TableState<S> {
         self
     }
 
+    /// Whether the viewport is within one screenful of the last displayed row.
+    pub fn near_end(&self, window: &Window, cx: &App) -> bool {
+        let row = row_height(window, cx);
+        let head = snapped(cx.theme().metrics.header, window);
+        let end = head + row * self.delegate.order.len() as f32;
+        self.viewport.top + self.viewport.height * 2. >= end
+    }
+
     pub fn set_viewport(&mut self, viewport: Viewport) {
         self.viewport = viewport;
     }
