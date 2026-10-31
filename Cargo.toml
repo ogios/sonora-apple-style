@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/*"]
+exclude = ["vendor/gpui"]
 
 [workspace.package]
 version = "0.44.1"
@@ -242,3 +243,7 @@ opt-level = 3
 
 [profile.dev.package.rusty_aac]
 opt-level = 3
+
+[patch."https://github.com/sonorahq/gpui"]
+gpui = { path = "vendor/gpui/crates/gpui" }
+gpui_platform = { path = "vendor/gpui/crates/gpui_platform" }

@@ -1,8 +1,9 @@
-/target
+target/
 /result
 /.claude
 /.direnv
-/vendor
+/vendor/*
+!/vendor/gpui/
 __pycache__/
 /.idea
 /flatpak/flatpak-repo
