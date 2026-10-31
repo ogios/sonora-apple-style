@@ -33,12 +33,12 @@ pub(crate) const ROUNDED: Pixels = px(4.);
 /// How much larger and softer a cover starts as it fades in, settling to its size and focus.
 const COVER_SETTLE: f32 = 0.04;
 const COVER_BLUR: Pixels = px(6.);
-/// What the cache trims back to at the least. The budget grows to one screenful of the
-/// largest window a cover was drawn in, plus the `PREFETCH_REACH` laid out past both of its
-/// edges, so a HiDPI grid never trims what it shows or is about to. The cache is allowed half
-/// as much again past its budget while a scroll pulls covers in, since a trim asks every
-/// window to redraw and is worth doing in one batch.
+/// Minimum working budget for decoded covers, within the independent byte ceiling.
 const CACHE_BYTES: usize = 16 * 1024 * 1024;
+/// Maximum decoded bytes held by active, retiring and softened cache entries together.
+const CACHE_HARD_BYTES: usize = 32 * 1024 * 1024;
+/// A single image leaves room for other covers and their retiring GPU atlas references.
+const IMAGE_BYTES: usize = CACHE_HARD_BYTES / 4;
 const CACHE_ITEMS: usize = 256;
 /// The largest edge a cover is decoded at. It sits above a fullscreen cover on a 5K screen at
 /// 2x, so it only ever stops a local original of several thousand pixels from being kept whole.
@@ -171,11 +171,8 @@ impl Asset for ArtworkAssetLoader {
                 return Ok(Decoded { image, palette });
             };
             on_decoder(move || {
-                let image = Arc::new(RenderImage::new(raster_frames(
-                    &bytes,
-                    format,
-                    source.edge,
-                )?));
+                let frames = raster_frames(&bytes, format, source.edge)?;
+                let image = Arc::new(RenderImage::new(bounded_frames(frames)));
                 let palette = of_image(&image);
                 Ok(Decoded { image, palette })
             })
@@ -314,6 +311,37 @@ fn artwork_frame(image: DynamicImage, edge: u32) -> RgbaImage {
     image
 }
 
+/// Scales decoded frames together to bound one cached image while preserving its aspect ratio.
+fn bounded_frames(frames: Vec<Frame>) -> Vec<Frame> {
+    let bytes: usize = frames.iter().map(|frame| frame.buffer().len()).sum();
+    if bytes <= IMAGE_BYTES {
+        return frames;
+    }
+    let scale = (IMAGE_BYTES as f64 / bytes as f64).sqrt();
+    frames
+        .into_iter()
+        .take(IMAGE_BYTES / 4)
+        .map(|frame| {
+            let delay = frame.delay();
+            let image = frame.into_buffer();
+            let width = (f64::from(image.width()) * scale).floor().max(1.) as u32;
+            let height = (f64::from(image.height()) * scale).floor().max(1.) as u32;
+            let pixels = (IMAGE_BYTES as f64 * image.len() as f64 / bytes as f64 / 4.)
+                .floor()
+                .max(1.) as u64;
+            let height = height.min(pixels.min(u64::from(u32::MAX)) as u32);
+            let width =
+                width.min((pixels / u64::from(height)).max(1).min(u64::from(u32::MAX)) as u32);
+            Frame::from_parts(
+                imageops::resize(&image, width, height, imageops::FilterType::Triangle),
+                0,
+                0,
+                delay,
+            )
+        })
+        .collect()
+}
+
 fn bgra(image: &mut RgbaImage) {
     for pixel in image.as_chunks_mut::<4>().0 {
         pixel.swap(0, 2);
@@ -339,7 +367,7 @@ struct ArtworkCache {
     /// so an eviction never costs a button its colour.
     tints: HashMap<Resource, CoverPalette>,
     bytes: usize,
-    /// The size in bytes of the largest window a cover was drawn in, which sets the budget.
+    /// The current window size in bytes, used to size the working budget.
     screen: usize,
     /// Covers drawn before their image was ready, which fade in once it lands, and when each
     /// of those landed, per decode size so a thumbnail cannot consume a banner's fade.
@@ -380,7 +408,7 @@ impl ArtworkCache {
         resource: ArtworkKey,
         decoded: Result<Decoded, ImageCacheError>,
         cx: &mut App,
-    ) {
+    ) -> bool {
         if let Ok(decoded) = &decoded
             && !self.tints.contains_key(&resource.0)
         {
@@ -389,6 +417,34 @@ impl ArtworkCache {
         }
         let value = decoded.map(|decoded| decoded.image);
         let bytes = value.as_ref().map_or(0, |image| image_bytes(image));
+        if self.held_bytes().saturating_add(bytes) > CACHE_HARD_BYTES {
+            let before = self.condemned.len();
+            let mut retiring = 0;
+            // Reclaim room for a batch so pending loads can settle between redraws.
+            let room = bytes.saturating_mul(MAX_PENDING).min(IMAGE_BYTES);
+            while self
+                .held_bytes()
+                .saturating_sub(retiring)
+                .saturating_add(room)
+                > CACHE_HARD_BYTES
+            {
+                let Some((key, _)) = self.oldest() else { break };
+                retiring += self.items.get(&key).map_or(0, |cached| cached.bytes);
+                self.condemn(&key);
+            }
+            if self.condemned.len() > before {
+                self.condemned_at = Some(Instant::now());
+                cx.refresh_windows();
+            }
+            cx.remove_asset::<ArtworkResourceLoader>(&ArtworkSource {
+                resource: resource.0,
+                edge: resource.1,
+            });
+            return false;
+        }
+        if let Some(previous) = self.items.remove(&resource) {
+            self.bytes = self.bytes.saturating_sub(previous.bytes);
+        }
         self.bytes = self.bytes.saturating_add(bytes);
         self.items.insert(
             resource,
@@ -400,6 +456,23 @@ impl ArtworkCache {
         );
 
         self.trim(cx);
+        true
+    }
+
+    /// Counts every decoded image still retained through a redraw, including softened copies.
+    fn held_bytes(&self) -> usize {
+        self.bytes
+            + self
+                .condemned
+                .values()
+                .map(|cached| cached.bytes)
+                .sum::<usize>()
+            + self
+                .soft
+                .values()
+                .chain(&self.condemned_soft)
+                .map(|image| image_bytes(image))
+                .sum::<usize>()
     }
 
     /// Drops the palettes of covers no longer held, once the map has grown past
@@ -433,11 +506,12 @@ impl ArtworkCache {
         self.condemned.insert(resource.clone(), cached);
     }
 
-    /// What the cache trims back to: `CACHE_BYTES`, or one screenful of the largest window and
-    /// its prefetched reach when that is more.
+    /// Sizes the working budget from the current viewport within the byte ceiling.
     fn budget(&self) -> usize {
         let reach = (self.screen as f32 * PREFETCH_REACH * 2.) as usize;
-        CACHE_BYTES.max(self.screen + reach)
+        CACHE_BYTES
+            .max(self.screen.saturating_add(reach))
+            .min(CACHE_HARD_BYTES)
     }
 
     /// Condemns the least recently drawn covers until the cache is back inside its budget,
@@ -446,7 +520,9 @@ impl ArtworkCache {
     /// primitives and everything still on screen asks for its cover again.
     fn trim(&mut self, cx: &mut App) {
         let budget = self.budget();
-        if self.bytes <= budget + budget / 2 && self.items.len() <= CACHE_ITEMS {
+        if self.bytes <= (budget + budget / 2).min(CACHE_HARD_BYTES)
+            && self.items.len() <= CACHE_ITEMS
+        {
             return;
         }
         let before = self.condemned.len();
@@ -481,6 +557,7 @@ impl ArtworkCache {
         for image in std::mem::take(&mut self.condemned_soft) {
             cx.drop_image(image, None);
         }
+        cx.refresh_windows();
     }
 
     fn prepared(&self, resource: &Resource, edge: u32, soft: bool) -> Option<Arc<RenderImage>> {
@@ -515,6 +592,9 @@ impl ArtworkCache {
         let Some(softened) = blurred(&image, edge == 0) else {
             return image;
         };
+        if self.held_bytes().saturating_add(image_bytes(&softened)) > CACHE_HARD_BYTES {
+            return image;
+        }
         self.soft.insert(key, softened.clone());
         softened
     }
@@ -553,7 +633,7 @@ impl ArtworkCache {
         let mut stale = Vec::new();
 
         for (index, (resource, used, size)) in ages.iter().enumerate() {
-            if index >= protected || used.elapsed() <= GRACE {
+            if bytes <= budget && (index >= protected || used.elapsed() <= GRACE) {
                 break;
             }
             if bytes <= budget && used.elapsed() <= IDLE {
@@ -633,6 +713,9 @@ impl ArtworkCache {
     fn reap_pending(&mut self, window: &mut Window, cx: &mut App) {
         let pending: Vec<ArtworkKey> = self.pending.keys().cloned().collect();
         for key in pending {
+            if self.condemned_at.is_some() {
+                break;
+            }
             let source = ArtworkSource {
                 resource: key.0.clone(),
                 edge: key.1,
@@ -652,6 +735,14 @@ impl ArtworkCache {
         window: &mut Window,
         cx: &mut App,
     ) -> Option<Result<Arc<RenderImage>, ImageCacheError>> {
+        let viewport = window.viewport_size();
+        let scale = window.scale_factor();
+        let screen =
+            (viewport.width.as_f32() * viewport.height.as_f32() * scale * scale) as usize * 4;
+        if self.screen != screen {
+            self.screen = screen;
+            self.trim(cx);
+        }
         let key = (resource.clone(), edge);
         if let Some(cached) = self.items.get_mut(&key) {
             cached.used = Instant::now();
@@ -665,19 +756,18 @@ impl ArtworkCache {
             self.items.insert(key, cached);
             return Some(value);
         }
-        let viewport = window.viewport_size();
-        let scale = window.scale_factor();
-        let screen =
-            (viewport.width.as_f32() * viewport.height.as_f32() * scale * scale) as usize * 4;
-        self.screen = self.screen.max(screen);
-
+        // Retirement holds the pixels through a redraw. Loading more during that interval
+        // would decode images that cannot be admitted and keep postponing the release.
+        if self.condemned_at.is_some() {
+            return None;
+        }
         let room = match PREFETCHING.get() {
             true => PREFETCH_PENDING,
             false => MAX_PENDING,
         };
         if !self.pending.contains_key(&key) && self.pending.len() >= room {
             self.reap_pending(window, cx);
-            if self.pending.len() >= room {
+            if self.condemned_at.is_some() || self.pending.len() >= room {
                 return None;
             }
         }
@@ -693,8 +783,10 @@ impl ArtworkCache {
 
         let image = value.clone().map(|decoded| decoded.image);
         self.pending.remove(&key);
-        self.insert(key, value, cx);
-        Some(image)
+        match self.insert(key, value, cx) {
+            true => Some(image),
+            false => None,
+        }
     }
 
     /// Notes that a cover is on screen ahead of its image, so it fades in once it lands.
@@ -832,10 +924,9 @@ pub(crate) fn sample_palette(url: SharedString, cx: &mut App) -> Task<CoverPalet
 pub fn artwork_usage(cx: &App) -> Option<(usize, usize)> {
     let installed = cx.try_global::<Installed>()?;
     let cache = installed.0.read(cx);
-    let soft_bytes: usize = cache.soft.values().map(|image| image_bytes(image)).sum();
     Some((
-        cache.items.len() + cache.soft.len(),
-        cache.bytes + soft_bytes,
+        cache.items.len() + cache.condemned.len() + cache.soft.len() + cache.condemned_soft.len(),
+        cache.held_bytes(),
     ))
 }
 
@@ -1104,7 +1195,8 @@ impl RenderOnce for Artwork {
                     (_, false) => None,
                 };
                 let shown = landed.map(|at| {
-                    window.request_animation_frame();
+                    // Cached parent views must rebuild the image's changing opacity.
+                    window.on_next_frame(|window, _| window.refresh());
                     ease_out_cubic(at.elapsed().as_secs_f32() / span.as_secs_f32())
                 });
                 let source = ImageSource::Custom(Arc::new({
@@ -1267,7 +1359,7 @@ impl RenderOnce for Banner {
             .then(|| cache.update(cx, |cache, _| cache.landing(&resource, 0, span)))
             .flatten();
         let opacity = landed.map_or(1., |at| {
-            window.request_animation_frame();
+            window.on_next_frame(|window, _| window.refresh());
             ease_out_cubic(at.elapsed().as_secs_f32() / span.as_secs_f32())
         });
         frame.opacity(opacity).child(
