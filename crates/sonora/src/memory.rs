@@ -1,10 +1,58 @@
 use std::time::Duration;
 
 use gpui::App;
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+use gpui::{AppContext as _, Context, Entity, Global, Task};
 use state::Sonora;
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+use std::time::Instant;
 
 /// How often the footprint is logged under debug logging.
 const INTERVAL: Duration = Duration::from_secs(10);
+
+/// Waits for page transitions to release their outgoing views before returning free pages.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+const TRIM_IDLE: Duration = Duration::from_secs(2);
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+const TRIM_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Debounces bulk page releases and keeps allocator work off the UI and audio threads.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+struct Reclaimer {
+    pruned: u64,
+    last_trim: Option<Instant>,
+    task: Option<Task<()>>,
+}
+
+/// Keeps the reclamation entity alive for the application lifetime.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+struct ReclaimerGlobal {
+    _entity: Entity<Reclaimer>,
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+impl Global for ReclaimerGlobal {}
+
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+impl Reclaimer {
+    fn schedule(&mut self, cx: &mut Context<Self>) {
+        let interval = self.last_trim.map_or(Duration::ZERO, |last| {
+            TRIM_INTERVAL.saturating_sub(last.elapsed())
+        });
+        let wait = TRIM_IDLE.max(interval);
+        self.task = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(wait).await;
+            cx.background_executor()
+                .spawn(async {
+                    // glibc returns free whole pages without moving live allocations.
+                    unsafe { libc::malloc_trim(0) };
+                })
+                .await;
+            this.update(cx, |this, _| this.last_trim = Some(Instant::now()))
+                .ok();
+        }));
+    }
+}
 
 /// Keeps glibc to one malloc arena and sends every block of 256 KiB or more straight to mmap.
 /// Every arena holds on to the holes its own threads leave, so one shared arena reuses them where
@@ -21,9 +69,10 @@ pub fn tune() {
 #[cfg(not(all(target_os = "linux", target_env = "gnu")))]
 pub fn tune() {}
 
-/// Logs the memory footprint every `INTERVAL` while debug logging is on, and does nothing
-/// otherwise.
+/// Installs idle reclamation on glibc and logs the footprint when debug logging is enabled.
 pub fn watch(cx: &mut App) {
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    install_reclaimer(cx);
     if !log::log_enabled!(log::Level::Debug) {
         return;
     }
@@ -38,6 +87,34 @@ pub fn watch(cx: &mut App) {
         }
     })
     .detach();
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+fn install_reclaimer(cx: &mut App) {
+    let navigation = router::trail(cx);
+    let session = Sonora::global(cx).session.clone();
+    let reclaimer = cx.new(|cx| {
+        cx.subscribe(&navigation, |this: &mut Reclaimer, navigation, _, cx| {
+            let pruned = navigation.read(cx).pruned();
+            if this.pruned != pruned {
+                this.pruned = pruned;
+                this.schedule(cx);
+            }
+        })
+        .detach();
+        cx.subscribe(&session, |this, _, event, cx| {
+            if matches!(event, state::SessionEvent::SignedOut) {
+                this.schedule(cx);
+            }
+        })
+        .detach();
+        Reclaimer {
+            pruned: navigation.read(cx).pruned(),
+            last_trim: None,
+            task: None,
+        }
+    });
+    cx.set_global(ReclaimerGlobal { _entity: reclaimer });
 }
 
 fn report(probed: (Footprint, Option<usize>), cx: &mut App) {
