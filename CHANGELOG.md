@@ -112,6 +112,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Scrolling cover grids uses less CPU time to prepare GPU draws, preserving artwork quality and
+  transitions.
+
 - Use less memory at startup and while browsing large playlists. Navigation retains the latest
   eight visits, and playlist pages load as needed.
 

@@ -11,7 +11,7 @@ use log::warn;
 #[cfg(not(target_family = "wasm"))]
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use smallvec::SmallVec;
-use std::cell::RefCell;
+use std::cell::{OnceCell, RefCell};
 use std::num::NonZeroU64;
 use std::ops::Range;
 use std::rc::Rc;
@@ -173,6 +173,13 @@ struct InstanceBinding {
     first_instance: u32,
 }
 
+/// A storage binding reused while its allocation offset and size bucket stay the same.
+struct CachedInstanceBindGroup {
+    offset: u64,
+    size: u64,
+    bind_group: wgpu::BindGroup,
+}
+
 struct InstanceBindings {
     backdrops: InstanceBinding,
     quads: InstanceBinding,
@@ -217,6 +224,8 @@ struct WgpuResources {
     globals_bind_group: wgpu::BindGroup,
     path_globals_bind_group: wgpu::BindGroup,
     instance_data: InstanceData,
+    /// Bindings in allocation order for the current instance buffer generation.
+    instance_bind_groups: Vec<CachedInstanceBindGroup>,
     /// Where paths are rasterized before they are copied into the frame.
     path_intermediate: Option<Scratch>,
     /// The multisampled target paths are rasterized into and resolved from, when the target
@@ -261,6 +270,7 @@ const LAYER_DEPTH: usize = 4;
 struct Scratch {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
+    bind_group: OnceCell<wgpu::BindGroup>,
     used: Instant,
 }
 
@@ -292,6 +302,7 @@ impl Scratch {
         Self {
             texture,
             view,
+            bind_group: OnceCell::new(),
             used: now,
         }
     }
@@ -357,7 +368,14 @@ impl FilterTargets {
         }
     }
 
-    fn slots(&mut self) -> impl Iterator<Item = &mut Option<Scratch>> {
+    fn slots(&self) -> impl Iterator<Item = &Option<Scratch>> {
+        std::iter::once(&self.frame)
+            .chain(self.layers.iter())
+            .chain(self.levels.iter())
+            .chain(std::iter::once(&self.scratch))
+    }
+
+    fn slots_mut(&mut self) -> impl Iterator<Item = &mut Option<Scratch>> {
         std::iter::once(&mut self.frame)
             .chain(self.layers.iter_mut())
             .chain(self.levels.iter_mut())
@@ -368,7 +386,7 @@ impl FilterTargets {
 impl WgpuResources {
     fn invalidate_intermediate_textures(&mut self) {
         let paths = [&mut self.path_intermediate, &mut self.path_msaa];
-        for slot in paths.into_iter().chain(self.filter_targets.slots()) {
+        for slot in paths.into_iter().chain(self.filter_targets.slots_mut()) {
             if let Some(scratch) = slot.take() {
                 scratch.texture.destroy();
             }
@@ -379,7 +397,7 @@ impl WgpuResources {
     /// `now`. Called after the frame is submitted, so a target the frame used is never idle.
     fn release_targets_idle_at(&mut self, now: Instant) {
         let paths = [&mut self.path_intermediate, &mut self.path_msaa];
-        for slot in paths.into_iter().chain(self.filter_targets.slots()) {
+        for slot in paths.into_iter().chain(self.filter_targets.slots_mut()) {
             if slot
                 .as_ref()
                 .is_some_and(|scratch| now.duration_since(scratch.used) >= IDLE_RELEASE)
@@ -395,6 +413,10 @@ struct WgpuRendererCore {
     atlas: Arc<WgpuAtlas>,
     path_globals_offset: u64,
     gamma_offset: u64,
+    /// Packed storage records for the buffer generation being encoded.
+    instance_upload: Vec<u8>,
+    /// Next storage allocation slot in the current buffer generation.
+    instance_binding_index: usize,
     instance_data_capacity: u64,
     max_instance_data_size: u64,
     instance_data_alignment: u64,
@@ -2085,6 +2107,7 @@ impl WgpuRendererCore {
                 globals_bind_group,
                 path_globals_bind_group,
                 instance_data,
+                instance_bind_groups: Vec::new(),
                 // Offscreen targets are created by the first frame that draws through them,
                 // once the target is known to be healthy, and released again when they go unused.
                 path_intermediate: None,
@@ -2094,6 +2117,8 @@ impl WgpuRendererCore {
             atlas,
             path_globals_offset,
             gamma_offset,
+            instance_upload: Vec::new(),
+            instance_binding_index: 0,
             instance_data_capacity,
             max_instance_data_size,
             instance_data_alignment,
@@ -2190,6 +2215,8 @@ impl WgpuRendererCore {
         frame_view: &wgpu::TextureView,
         clear_color: wgpu::Color,
     ) -> Result<wgpu::SubmissionIndex> {
+        self.instance_upload.clear();
+        self.instance_binding_index = 0;
         let mut instance_offset = 0;
         let filtered = !(scene.backdrops.is_empty() && scene.effects.is_empty())
             && !self.uses_webgl_instance_data;
@@ -2498,11 +2525,16 @@ impl WgpuRendererCore {
             );
         }
 
+        self.flush_instance_upload();
         let submission = self
             .resources()
             .queue
             .submit(std::iter::once(encoder.finish()));
 
+        let binding_count = self.instance_binding_index;
+        self.resources_mut()
+            .instance_bind_groups
+            .truncate(binding_count);
         let now = self.frame_time;
         self.resources_mut().release_targets_idle_at(now);
         self.settle_instance_data(instance_offset, now);
@@ -2612,28 +2644,39 @@ impl WgpuRendererCore {
         })
     }
 
+    /// Reuses bindings owned by offscreen targets for exactly as long as those targets live.
     fn create_texture_bind_group(
         &self,
         label: &str,
         texture_view: &wgpu::TextureView,
     ) -> wgpu::BindGroup {
         let resources = self.resources();
-        resources
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some(label),
-                layout: &resources.bind_group_layouts.texture,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(texture_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&resources.atlas_sampler),
-                    },
-                ],
-            })
+        let create = || {
+            resources
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some(label),
+                    layout: &resources.bind_group_layouts.texture,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(texture_view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&resources.atlas_sampler),
+                        },
+                    ],
+                })
+        };
+        let target = std::iter::once(&resources.path_intermediate)
+            .chain(resources.filter_targets.slots())
+            .flatten()
+            .find(|scratch| scratch.view == *texture_view);
+        match target {
+            Some(scratch) => scratch.bind_group.get_or_init(create).clone(),
+            None => create(),
+        }
     }
 
     fn prepare_texture_bind_groups(&mut self, scene: &Scene) {
@@ -2884,6 +2927,18 @@ impl WgpuRendererCore {
         } else {
             (self.instance_data_alignment.max(1), size)
         };
+        // Whole size buckets keep following offsets stable when record counts vary within a bucket.
+        let allocation_size = match self.uses_webgl_instance_data {
+            true => allocation_size,
+            false => allocation_size
+                .next_power_of_two()
+                .min(self.max_instance_data_size),
+        };
+        anyhow::ensure!(
+            allocation_size >= size,
+            "instance data needs {size} bytes, above the maximum of {}",
+            self.max_instance_data_size
+        );
         let mut offset = (*instance_offset).next_multiple_of(alignment);
         if offset + allocation_size > self.instance_data_capacity {
             self.grow_instance_data(allocation_size)?;
@@ -2891,21 +2946,50 @@ impl WgpuRendererCore {
         }
         *instance_offset = offset + allocation_size;
 
-        let first_instance = if self.uses_webgl_instance_data {
-            u32::try_from(offset / stride).context("instance index exceeds u32 range")?
-        } else {
-            0
-        };
-
-        let resources = self.resources();
-        if !data.is_empty() {
-            match &resources.instance_data {
-                InstanceData::Storage(buffer) => resources.queue.write_buffer(buffer, offset, data),
-                InstanceData::Texture { .. } => {
-                    Self::write_instance_texture(resources, offset, data)
-                }
+        if self.uses_webgl_instance_data {
+            let resources = self.resources();
+            if !data.is_empty() {
+                Self::write_instance_texture(resources, offset, data);
             }
+            let InstanceData::Texture { view, .. } = &resources.instance_data else {
+                unreachable!("WebGL instance texture is available");
+            };
+            let bind_group = resources
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some(label),
+                    layout: &resources.bind_group_layouts.instances,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(view),
+                    }],
+                });
+            return Ok(InstanceBinding {
+                bind_group,
+                first_instance: u32::try_from(offset / stride)
+                    .context("instance index exceeds u32 range")?,
+            });
         }
+
+        // Queue writes own their staging data and run after prior submissions, before these draws.
+        // Pack only through the final record; subsequent allocations fill any bucket/alignment gaps.
+        self.instance_upload.resize((offset + size) as usize, 0);
+        self.instance_upload[offset as usize..offset as usize + data.len()].copy_from_slice(data);
+        let index = self.instance_binding_index;
+        self.instance_binding_index += 1;
+        let resources = self.resources_mut();
+        if let Some(cached) = resources.instance_bind_groups.get(index)
+            && cached.offset == offset
+            && cached.size == allocation_size
+        {
+            return Ok(InstanceBinding {
+                bind_group: cached.bind_group.clone(),
+                first_instance: 0,
+            });
+        }
+        let InstanceData::Storage(buffer) = &resources.instance_data else {
+            unreachable!("storage instance buffer is available");
+        };
         let bind_group = resources
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
@@ -2913,24 +2997,40 @@ impl WgpuRendererCore {
                 layout: &resources.bind_group_layouts.instances,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: match &resources.instance_data {
-                        InstanceData::Storage(buffer) => {
-                            wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                                buffer,
-                                offset,
-                                size: NonZeroU64::new(size),
-                            })
-                        }
-                        InstanceData::Texture { view, .. } => {
-                            wgpu::BindingResource::TextureView(view)
-                        }
-                    },
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer,
+                        offset,
+                        size: NonZeroU64::new(allocation_size),
+                    }),
                 }],
             });
+        let cached = CachedInstanceBindGroup {
+            offset,
+            size: allocation_size,
+            bind_group: bind_group.clone(),
+        };
+        if index == resources.instance_bind_groups.len() {
+            resources.instance_bind_groups.push(cached);
+        } else {
+            resources.instance_bind_groups[index] = cached;
+        }
         Ok(InstanceBinding {
             bind_group,
-            first_instance,
+            first_instance: 0,
         })
+    }
+
+    /// Stages the packed records before submitting draws or replacing their buffer generation.
+    fn flush_instance_upload(&mut self) {
+        if self.instance_upload.is_empty() {
+            return;
+        }
+        if let InstanceData::Storage(buffer) = &self.resources.instance_data {
+            self.resources
+                .queue
+                .write_buffer(buffer, 0, &self.instance_upload);
+        }
+        self.instance_upload.clear();
     }
 
     fn write_instance_texture(resources: &WgpuResources, offset: u64, data: &[u8]) {
@@ -3039,6 +3139,7 @@ impl WgpuRendererCore {
         // Bind groups created earlier in the frame keep the previous buffer or
         // texture alive, so allocations written before the grow remain valid;
         // only subsequent writes land in the new allocation.
+        self.flush_instance_upload();
         self.replace_instance_data(capacity);
         Ok(())
     }
@@ -3066,12 +3167,15 @@ impl WgpuRendererCore {
             self.instance_data_capacity
         );
         self.replace_instance_data(capacity);
+        self.instance_upload.shrink_to(capacity as usize);
     }
 
     /// Swaps the instance data for a fresh allocation of at least `capacity` bytes.
     fn replace_instance_data(&mut self, capacity: u64) {
+        self.instance_binding_index = 0;
         let uses_webgl_instance_data = self.uses_webgl_instance_data;
         let resources = self.resources_mut();
+        resources.instance_bind_groups.clear();
         if uses_webgl_instance_data {
             let max_texture_dimension = resources.device.limits().max_texture_dimension_2d;
             let (instance_data, actual_capacity) =
