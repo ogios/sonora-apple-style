@@ -14,7 +14,7 @@ use gpui::{
     AnyElement, App, Context, Entity, Hsla, InteractiveElement as _, IntoElement as _,
     ParentElement as _, SharedString, Styled as _, WeakEntity, div,
 };
-use music::Track;
+use music::{SharedTrack, Track};
 use router::Destination;
 use state::{Detail, History, Library, Network, Origin, Playback, Progress, Shelf, Sonora};
 use ui::{
@@ -53,6 +53,11 @@ pub(crate) trait Tracks: 'static {
     fn tracks<'a>(&self, cx: &'a App) -> &'a [Track];
     fn is_loading(&self, cx: &App) -> bool;
 
+    /// Shares a row for playback; providers with immutable responses retain their owner.
+    fn shared_at(&self, row: usize, cx: &App) -> Option<SharedTrack> {
+        self.tracks(cx).get(row).cloned().map(SharedTrack::from)
+    }
+
     /// The skeleton rows the table draws before the first tracks arrive. A list that leaves
     /// the default fills the viewport with them while it loads.
     fn pending(&self, cx: &App) -> Option<Pending> {
@@ -86,6 +91,23 @@ pub(crate) fn holds(table: &Entity<TableState<TrackSource>>, id: &str, cx: &App)
 
 pub(crate) fn whence(table: &Entity<TableState<TrackSource>>, cx: &App) -> Option<Origin> {
     table.read(cx).delegate().source().whence(cx)
+}
+
+/// Keeps the displayed order and shares each row's immutable metadata with playback.
+pub(crate) fn ordered_shared(
+    table: &Entity<TableState<TrackSource>>,
+    cx: &App,
+) -> Vec<SharedTrack> {
+    let state = table.read(cx);
+    let delegate = state.delegate();
+    (0..delegate.row_count())
+        .filter_map(|display| {
+            delegate
+                .source()
+                .provider
+                .shared_at(delegate.row(display), cx)
+        })
+        .collect()
 }
 
 pub(crate) fn ordered(table: &Entity<TableState<TrackSource>>, cx: &App) -> Vec<Track> {
@@ -420,7 +442,9 @@ impl TrackSource {
                 let press = cells::toggle(&self.playback, playing, move |playback, cx| {
                     let from = whence.as_ref().and_then(|whence| whence(cx));
                     match table.as_ref().and_then(|table| table.upgrade()) {
-                        Some(table) => playback.start(ordered(&table, cx), display, from, cx),
+                        Some(table) => {
+                            playback.start_shared(ordered_shared(&table, cx), display, from, cx)
+                        }
                         None => playback.start(provider.tracks(cx).to_vec(), row, from, cx),
                     }
                 });

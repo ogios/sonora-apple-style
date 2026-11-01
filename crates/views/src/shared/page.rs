@@ -107,7 +107,7 @@ pub(crate) fn play(
     display: usize,
     cx: &mut App,
 ) {
-    let queued = tracks::ordered(table, cx);
+    let queued = tracks::ordered_shared(table, cx);
     // A row that cannot play while the network is gone stays inert, with its tooltip saying why.
     let unreachable = queued
         .get(display)
@@ -116,7 +116,9 @@ pub(crate) fn play(
         return;
     }
     let from = tracks::whence(table, cx);
-    playback.update(cx, |playback, cx| playback.start(queued, display, from, cx));
+    playback.update(cx, |playback, cx| {
+        playback.start_shared(queued, display, from, cx)
+    });
 }
 
 pub(crate) fn play_or_toggle(
@@ -125,7 +127,7 @@ pub(crate) fn play_or_toggle(
     display: usize,
     cx: &mut App,
 ) {
-    let queued = tracks::ordered(table, cx);
+    let queued = tracks::ordered_shared(table, cx);
     let Some(track) = queued.get(display) else {
         return;
     };

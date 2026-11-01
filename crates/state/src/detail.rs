@@ -4,7 +4,7 @@ use std::sync::Arc;
 use gpui::{App, Context, Entity, Task};
 use music::{
     Album, AlbumCatalogue, AlbumDetail, ArtistRef, Contributor, Playlist, PlaylistDetail,
-    ReleaseType, SavedArtist, Track,
+    ReleaseType, SavedArtist, SharedTrack, Track,
 };
 use tokio::task::AbortHandle;
 
@@ -96,6 +96,15 @@ impl std::ops::Deref for SharedTracks {
 }
 
 impl SharedTracks {
+    /// Shares a response row without copying its song or collection metadata.
+    pub fn shared_at(&self, index: usize) -> Option<SharedTrack> {
+        match &self.0 {
+            TrackStorage::Album(detail) => SharedTrack::album(detail.clone(), index),
+            TrackStorage::Playlist(detail) => SharedTrack::playlist(detail.clone(), index),
+            TrackStorage::Owned(tracks) => SharedTrack::owned(tracks.clone(), index),
+        }
+    }
+
     /// Makes an editable list while keeping cached provider responses immutable.
     fn make_mut(&mut self) -> &mut Vec<Track> {
         if !matches!(self.0, TrackStorage::Owned(_)) {

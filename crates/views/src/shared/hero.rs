@@ -6,7 +6,7 @@ use gpui::{
     SharedString, Stateful, Window, div, px, relative,
 };
 use i18n::t;
-use music::{Album, Track};
+use music::{Album, SharedTrack, Track};
 use state::{Origin, Playback};
 use ui::{
     ActiveTheme as _, Artwork, Banner, Button, ExplicitBadge, LEADING, Pin, Pinnable as _,
@@ -207,10 +207,10 @@ impl Listing {
         }
     }
 
-    fn queue(&self, cx: &App) -> Vec<Track> {
+    fn queue(&self, cx: &App) -> Vec<SharedTrack> {
         match self {
-            Self::Owned(tracks) => tracks.clone(),
-            Self::Listed(table) => tracks::ordered(table, cx),
+            Self::Owned(tracks) => tracks.iter().cloned().map(SharedTrack::from).collect(),
+            Self::Listed(table) => tracks::ordered_shared(table, cx),
         }
     }
 
@@ -319,7 +319,9 @@ impl HeroPlayButton {
             .on_click(move |_, _, cx| {
                 let queued = listing.queue(cx);
                 let from = from.clone().or_else(|| listing.whence(cx));
-                playback.update(cx, |playback, cx| playback.shuffle_any(queued, from, cx));
+                playback.update(cx, |playback, cx| {
+                    playback.shuffle_any_shared(queued, from, cx)
+                });
             })
     }
 }
@@ -371,7 +373,7 @@ impl RenderOnce for HeroPlayButton {
                         None => {
                             let queued = listing.queue(cx);
                             let from = from.clone().or_else(|| listing.whence(cx));
-                            playback.start_any(queued, from, cx)
+                            playback.start_any_shared(queued, from, cx)
                         }
                     });
                 }),

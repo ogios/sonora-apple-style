@@ -76,6 +76,74 @@ pub struct Track {
     pub credits: Vec<Credit>,
 }
 
+/// Immutable metadata for one response row. Collection fields stay with that response;
+/// sharing a row does not give separate queue occurrences the same identity.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SharedTrack {
+    rows: TrackRows,
+    index: usize,
+}
+
+/// Owns the response that keeps a shared row alive.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum TrackRows {
+    One(Arc<Track>),
+    Album(Arc<AlbumDetail>),
+    Playlist(Arc<PlaylistDetail>),
+    Owned(Arc<Vec<Track>>),
+}
+
+impl SharedTrack {
+    /// Shares an album row while retaining its immutable response.
+    pub fn album(detail: Arc<AlbumDetail>, index: usize) -> Option<Self> {
+        detail.tracks.get(index)?;
+        Some(Self {
+            rows: TrackRows::Album(detail),
+            index,
+        })
+    }
+
+    /// Shares a playlist row, including metadata specific to this playlist occurrence.
+    pub fn playlist(detail: Arc<PlaylistDetail>, index: usize) -> Option<Self> {
+        detail.tracks.get(index)?;
+        Some(Self {
+            rows: TrackRows::Playlist(detail),
+            index,
+        })
+    }
+
+    /// Shares one row of an immutable owned list.
+    pub fn owned(tracks: Arc<Vec<Track>>, index: usize) -> Option<Self> {
+        tracks.get(index)?;
+        Some(Self {
+            rows: TrackRows::Owned(tracks),
+            index,
+        })
+    }
+}
+
+impl From<Track> for SharedTrack {
+    fn from(track: Track) -> Self {
+        Self {
+            rows: TrackRows::One(Arc::new(track)),
+            index: 0,
+        }
+    }
+}
+
+impl std::ops::Deref for SharedTrack {
+    type Target = Track;
+
+    fn deref(&self) -> &Track {
+        match &self.rows {
+            TrackRows::One(track) => track,
+            TrackRows::Album(detail) => &detail.tracks[self.index],
+            TrackRows::Playlist(detail) => &detail.tracks[self.index],
+            TrackRows::Owned(tracks) => &tracks[self.index],
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Playlist {
     pub id: String,

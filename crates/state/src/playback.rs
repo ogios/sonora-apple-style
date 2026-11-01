@@ -11,7 +11,7 @@ use music::connect::{self, Command};
 use music::vault::Vault;
 use music::{
     Analyzer, Meter, MusicApi, PlaybackConfig, PlaybackEvent as BackendEvent, PlaybackEvents,
-    PlaybackFactory, Player, Quality, Spectrum, Track, TrackSignal, Transcode,
+    PlaybackFactory, Player, Quality, SharedTrack, Spectrum, Track, TrackSignal, Transcode,
 };
 use ui::{Pin, PinKind};
 
@@ -758,7 +758,13 @@ impl Playback {
     /// Has the other device that has playback start the track at `index` of `tracks`, from the
     /// collection `origin` names, and says whether it did. A local file has no place there and
     /// plays here.
-    fn hand_over(&self, tracks: &[Track], index: usize, origin: Option<&Origin>, cx: &App) -> bool {
+    fn hand_over(
+        &self,
+        tracks: &[SharedTrack],
+        index: usize,
+        origin: Option<&Origin>,
+        cx: &App,
+    ) -> bool {
         let Some(id) = tracks
             .get(index)
             .and_then(|track| track.id.clone())
@@ -969,6 +975,22 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        self.start_shared(
+            tracks.into_iter().map(SharedTrack::from).collect(),
+            index,
+            origin,
+            cx,
+        );
+    }
+
+    /// Starts immutable response rows without copying their metadata into the queue.
+    pub fn start_shared(
+        &mut self,
+        tracks: Vec<SharedTrack>,
+        index: usize,
+        origin: Option<Origin>,
+        cx: &mut Context<Self>,
+    ) {
         self.fetch = None;
         let continuation = origin.as_ref().and_then(|origin| {
             if origin.whence != Whence::Playlist {
@@ -988,7 +1010,7 @@ impl Playback {
                 playlist_skip: Some(tracks.len() - detail.tracks.len()),
             })
         });
-        if self.begin(tracks, index, origin, cx) {
+        if self.begin_shared(tracks, index, origin, cx) {
             self.station = continuation;
             self.continue_station(cx);
         }
@@ -1039,10 +1061,39 @@ impl Playback {
         self.start_any(tracks, origin, cx);
     }
 
+    /// Starts shared rows from the first playable one, or a random one when shuffle is on.
+    pub fn start_any_shared(
+        &mut self,
+        tracks: Vec<SharedTrack>,
+        origin: Option<Origin>,
+        cx: &mut Context<Self>,
+    ) {
+        let index = self
+            .opener(tracks.iter().map(|track| &**track), cx)
+            .unwrap_or_default();
+        self.start_shared(tracks, index, origin, cx);
+    }
+
+    /// Enables shuffle and starts a random playable shared row.
+    pub fn shuffle_any_shared(
+        &mut self,
+        tracks: Vec<SharedTrack>,
+        origin: Option<Origin>,
+        cx: &mut Context<Self>,
+    ) {
+        self.queue
+            .update(cx, |queue, cx| queue.set_shuffle(true, cx));
+        self.start_any_shared(tracks, origin, cx);
+    }
+
     /// Which of `tracks` a collection opens with.
-    fn opener(&self, tracks: &[Track], cx: &Context<Self>) -> Option<usize> {
+    fn opener<'a>(
+        &self,
+        tracks: impl IntoIterator<Item = &'a Track>,
+        cx: &Context<Self>,
+    ) -> Option<usize> {
         let playable = tracks
-            .iter()
+            .into_iter()
             .enumerate()
             .filter(|(_, track)| track.playable && self.unreachable_reason(track, cx).is_none())
             .map(|(index, _)| index)
@@ -1563,6 +1614,22 @@ impl Playback {
     fn begin(
         &mut self,
         tracks: Vec<Track>,
+        index: usize,
+        origin: Option<Origin>,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        self.begin_shared(
+            tracks.into_iter().map(SharedTrack::from).collect(),
+            index,
+            origin,
+            cx,
+        )
+    }
+
+    /// Applies local availability and device handover to shared queue rows.
+    fn begin_shared(
+        &mut self,
+        tracks: Vec<SharedTrack>,
         index: usize,
         origin: Option<Origin>,
         cx: &mut Context<Self>,

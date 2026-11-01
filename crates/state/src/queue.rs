@@ -1,13 +1,16 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::rc::{Rc, Weak};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use gpui::{App, Context, Entity};
-use music::{ArtistRef, Track};
+use music::{ArtistRef, SharedTrack, Track};
 use serde::{Deserialize, Serialize};
 
 use crate::{AppSettings, Origin, Outcome, Session, SessionEvent, Toast, Toasts};
+
+static NEXT_ENTRY: AtomicU64 = AtomicU64::new(1);
 
 const PAST_LIMIT: usize = 500;
 const KEPT_PAST: usize = 20;
@@ -69,15 +72,27 @@ pub struct Named {
 
 /// A queued track and the collection it was queued from. A track the user added on its own has
 /// no origin.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 struct Entry {
-    track: Track,
+    identity: u64,
+    track: SharedTrack,
     origin: Option<Origin>,
 }
 
+impl PartialEq for Entry {
+    fn eq(&self, other: &Self) -> bool {
+        self.identity == other.identity
+    }
+}
+
 impl Entry {
-    fn id(&self) -> Option<&str> {
-        self.track.id.as_deref()
+    /// Assigns an identity to this queue occurrence independently of its metadata.
+    fn new(track: impl Into<SharedTrack>, origin: Option<Origin>) -> Self {
+        Self {
+            identity: NEXT_ENTRY.fetch_add(1, Ordering::Relaxed),
+            track: track.into(),
+            origin,
+        }
     }
 }
 
@@ -262,23 +277,17 @@ fn sift<T>(
 }
 
 fn scramble(upcoming: &mut VecDeque<Entry>, source: &[Entry], current: Option<&Entry>) {
-    let known: HashSet<&str> = source.iter().filter_map(Entry::id).collect();
+    let known: HashSet<u64> = source.iter().map(|entry| entry.identity).collect();
     let mut entries: Vec<Entry> = upcoming
         .drain(..)
-        .filter(|entry| !entry.id().is_some_and(|id| known.contains(id)))
+        .filter(|entry| !known.contains(&entry.identity))
         .collect();
 
-    let mut playing = current.and_then(Entry::id);
+    let playing = current.map(|entry| entry.identity);
     entries.extend(
         source
             .iter()
-            .filter(|entry| match playing == entry.id() {
-                true => {
-                    playing = None;
-                    false
-                }
-                false => true,
-            })
+            .filter(|entry| Some(entry.identity) != playing)
             .cloned(),
     );
 
@@ -287,15 +296,13 @@ fn scramble(upcoming: &mut VecDeque<Entry>, source: &[Entry], current: Option<&E
 }
 
 fn restore(upcoming: &mut VecDeque<Entry>, source: &[Entry], current: Option<&Entry>) {
-    let known: HashSet<&str> = source.iter().filter_map(Entry::id).collect();
+    let known: HashSet<u64> = source.iter().map(|entry| entry.identity).collect();
     let extra: Vec<Entry> = upcoming
         .drain(..)
-        .filter(|entry| !entry.id().is_some_and(|id| known.contains(id)))
+        .filter(|entry| !known.contains(&entry.identity))
         .collect();
 
-    let at = current
-        .and_then(Entry::id)
-        .and_then(|id| source.iter().position(|entry| entry.id() == Some(id)));
+    let at = current.and_then(|current| source.iter().position(|entry| entry == current));
     let tail = match at {
         Some(at) => &source[at + 1..],
         None => source,
@@ -367,14 +374,13 @@ pub(crate) fn gap_target(from: usize, gap: usize, len: usize) -> usize {
 }
 
 /// Pairs each track with the collection it was queued from.
-fn tagged(
-    tracks: impl IntoIterator<Item = Track>,
+fn tagged<T: Into<SharedTrack>>(
+    tracks: impl IntoIterator<Item = T>,
     origin: Option<Origin>,
 ) -> impl Iterator<Item = Entry> {
-    tracks.into_iter().map(move |track| Entry {
-        track,
-        origin: origin.clone(),
-    })
+    tracks
+        .into_iter()
+        .map(move |track| Entry::new(track, origin.clone()))
 }
 
 /// The play order around the current track. `upcoming` is one list in three runs: the first
@@ -498,9 +504,9 @@ impl Queue {
     /// which goes to every track except the ones queued by hand.
     pub(crate) fn revive(&mut self, resume: Resume, cx: &mut Context<Self>) -> Option<Track> {
         let origins = resume.origins;
-        let entry = |stub: Stub| Entry {
-            origin: stub.from.and_then(|index| origins.get(index).cloned()),
-            track: hydrate(stub),
+        let entry = |stub: Stub| {
+            let origin = stub.from.and_then(|index| origins.get(index).cloned());
+            Entry::new(hydrate(stub), origin)
         };
         self.past = resume.past.into_iter().map(&entry).collect();
         self.current = resume.current.map(&entry);
@@ -553,11 +559,11 @@ impl Queue {
     }
 
     pub fn past(&self) -> impl ExactSizeIterator<Item = &Track> {
-        self.past.iter().map(|entry| &entry.track)
+        self.past.iter().map(|entry| &*entry.track)
     }
 
     pub fn current(&self) -> Option<&Track> {
-        self.current.as_ref().map(|entry| &entry.track)
+        self.current.as_ref().map(|entry| &*entry.track)
     }
 
     /// The collection the current track was queued from. `None` while nothing plays or when the
@@ -581,18 +587,20 @@ impl Queue {
     pub fn upcoming(&self) -> impl ExactSizeIterator<Item = &Track> {
         self.upcoming
             .range(..self.queued())
-            .map(|entry| &entry.track)
+            .map(|entry| &*entry.track)
     }
 
     /// The tracks the user queued by hand. They open `upcoming`.
     pub fn manual(&self) -> impl ExactSizeIterator<Item = &Track> {
-        self.upcoming.range(..self.manual).map(|entry| &entry.track)
+        self.upcoming
+            .range(..self.manual)
+            .map(|entry| &*entry.track)
     }
 
     pub fn similar(&self) -> impl ExactSizeIterator<Item = &Track> {
         self.upcoming
             .range(self.queued()..)
-            .map(|entry| &entry.track)
+            .map(|entry| &*entry.track)
     }
 
     /// Replaces the suggestions with `tracks` from the radio `origin`.
@@ -677,7 +685,7 @@ impl Queue {
             .iter()
             .chain(self.current.as_ref())
             .chain(self.upcoming.range(..self.queued()))
-            .map(|entry| &entry.track)
+            .map(|entry| &*entry.track)
             .find(|track| track.playable)
     }
 
@@ -774,20 +782,16 @@ impl Queue {
         let index = self
             .current
             .as_ref()
-            .and_then(|current| {
-                self.source
-                    .iter()
-                    .position(|entry| entry.track == current.track)
-            })
+            .and_then(|current| self.source.iter().position(|entry| entry == current))
             .unwrap_or_default();
         let source = self.source.clone();
         self.fill(source, index, cx)
     }
 
     /// Makes `tracks` the queue, all of them queued from `origin`, and plays the one at `index`.
-    pub fn start(
+    pub fn start<T: Into<SharedTrack>>(
         &mut self,
-        tracks: Vec<Track>,
+        tracks: Vec<T>,
         index: usize,
         origin: Option<Origin>,
         cx: &mut Context<Self>,
@@ -1017,12 +1021,9 @@ impl Queue {
         self.changed(cx);
     }
 
-    /// Takes the first copy of `entry`'s track out of the source's run, matched by id.
+    /// Removes the same source occurrence when a rebuild has already restored it.
     fn drop_copy(&mut self, entry: &Entry) {
-        let Some(id) = entry.id() else {
-            return;
-        };
-        let copy = (self.manual..self.queued()).find(|&at| self.upcoming[at].id() == Some(id));
+        let copy = (self.manual..self.queued()).find(|&at| self.upcoming[at] == *entry);
         if let Some(copy) = copy {
             self.upcoming.remove(copy);
         }
@@ -1106,21 +1107,10 @@ impl Queue {
     }
 }
 
-/// Drops from `entries` one copy of each track in `restored`, matched by id, for when the
-/// queue brought back on its own some of what an Undo is about to restore.
+/// Drops source occurrences already restored by a rebuild before Undo puts them back.
 fn drop_copies(entries: &mut Vec<Entry>, restored: &[Entry]) {
-    let mut owed: HashMap<&str, usize> = HashMap::new();
-    for id in restored.iter().filter_map(Entry::id) {
-        *owed.entry(id).or_default() += 1;
-    }
-    entries.retain(|entry| {
-        let Some(owed) = entry.id().and_then(|id| owed.get_mut(id)) else {
-            return true;
-        };
-        let keep = *owed == 0;
-        *owed = owed.saturating_sub(1);
-        keep
-    });
+    let restored: HashSet<u64> = restored.iter().map(|entry| entry.identity).collect();
+    entries.retain(|entry| !restored.contains(&entry.identity));
 }
 
 #[cfg(test)]
@@ -1160,10 +1150,7 @@ mod tests {
     }
 
     fn entry(id: &str) -> Entry {
-        Entry {
-            track: track(id),
-            origin: None,
-        }
+        Entry::new(track(id), None)
     }
 
     fn ids(entries: &VecDeque<Entry>) -> Vec<String> {
@@ -1207,9 +1194,9 @@ mod tests {
         let source = vec![entry("a"), entry("b"), entry("c")];
         let mut upcoming = VecDeque::from(vec![
             entry("queued-one"),
-            entry("c"),
+            source[2].clone(),
             entry("queued-two"),
-            entry("a"),
+            source[0].clone(),
         ]);
 
         restore(&mut upcoming, &source, None);
@@ -1220,7 +1207,11 @@ mod tests {
     #[test]
     fn restoring_keeps_both_copies_of_a_repeated_track() {
         let source = vec![entry("a"), entry("b"), entry("a")];
-        let mut upcoming = VecDeque::from(vec![entry("a"), entry("a"), entry("b")]);
+        let mut upcoming = VecDeque::from(vec![
+            source[0].clone(),
+            source[2].clone(),
+            source[1].clone(),
+        ]);
 
         restore(&mut upcoming, &source, None);
 

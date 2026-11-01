@@ -7,7 +7,7 @@ use gpui::{
 use std::rc::Rc;
 
 use i18n::t;
-use music::{Album, AlbumDetail, Playlist, ReleaseType, Track};
+use music::{Album, AlbumDetail, Playlist, ReleaseType, SharedTrack, Track};
 use router::{Destination, navigate};
 use state::{
     AppSettings, Collection, Detail, DownloadsChanged, LibraryEvent, Origin, Playback, Progress,
@@ -72,6 +72,10 @@ impl RailTab {
 struct DetailTracks(Entity<Detail>);
 
 impl Tracks for DetailTracks {
+    fn shared_at(&self, row: usize, cx: &App) -> Option<SharedTrack> {
+        self.0.read(cx).shared_tracks().shared_at(row)
+    }
+
     fn tracks<'a>(&self, cx: &'a App) -> &'a [Track] {
         self.0.read(cx).tracks()
     }
