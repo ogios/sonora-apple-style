@@ -134,11 +134,11 @@ impl Card {
 
     pub fn tile_height(art: Pixels, window: &Window, cx: &App) -> Pixels {
         let theme = *cx.theme();
-        let rem = window.rem_size();
+        let caption_inset = theme.metrics.pad * 1.5;
         let line = |step: Text| px((theme.text(step) / px(1.) * LEADING).round());
 
         snapped(
-            art + rem * 0.5 + line(Text::Body) + TIGHT + line(Text::Small),
+            art + caption_inset * 2. + line(Text::Body) + TIGHT + line(Text::Small),
             window,
         )
     }
@@ -580,7 +580,7 @@ impl RenderOnce for Card {
             .flex()
             .when_else(
                 tile.is_some(),
-                |this| this.flex_col().gap_2().w(art),
+                |this| this.flex_col().w(art),
                 |this| this.items_center().gap_3().px(lead),
             )
             .rounded(theme.radius)
@@ -621,7 +621,9 @@ impl RenderOnce for Card {
                     .min_w_0()
                     .overflow_hidden()
                     .line_height(relative(LEADING))
-                    .when(tile.is_some(), |this| this.w_full().flex_none())
+                    .when(tile.is_some(), |this| {
+                        this.w_full().flex_none().p(inset * 1.5)
+                    })
                     .when_else(
                         loading,
                         |this| {

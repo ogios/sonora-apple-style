@@ -128,6 +128,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Give album, playlist and artist cards comfortable padding around their captions, including
+  the latest release on artist pages.
+
 - Keep covers loading when browsing large album grids on high-resolution displays, without
   repeatedly decoding images while the cover cache is full.
 
