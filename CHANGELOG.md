@@ -128,6 +128,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Keep the playing cover visible until its replacement loads, then fade the new cover in
+  from soft to sharp with a gentle settling motion. Fullscreen resolution upgrades keep the
+  same transition instead of fading in a second time.
+
 - Give album, playlist and artist cards comfortable padding around their captions, including
   the latest release on artist pages.
 

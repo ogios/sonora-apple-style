@@ -376,18 +376,12 @@ impl PlayerBar {
                     }),
                 )
             })
-            .child(ui::crossfade(
-                "now-playing-cover",
-                cover,
-                window,
-                cx,
-                move |cover| {
-                    Artwork::new(cover)
-                        .size(artwork)
-                        .when_some(corner, Artwork::corner_radius)
-                        .into_any_element()
-                },
-            ))
+            .child(
+                Artwork::new(cover)
+                    .size(artwork)
+                    .when_some(corner, Artwork::corner_radius)
+                    .transition("now-playing-cover"),
+            )
             .flex_none()
     }
 

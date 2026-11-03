@@ -74,7 +74,6 @@ pub use checkbox::Checkbox;
 pub use controls::WindowControls;
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 pub use controls::WindowFrame;
-pub use cover_fade::crossfade;
 pub use deck::Deck;
 pub use drag::{Edge, Ghost, drop_gap, drop_marker, grip};
 pub use explicit::ExplicitBadge;

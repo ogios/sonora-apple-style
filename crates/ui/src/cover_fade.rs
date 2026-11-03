@@ -1,62 +1,81 @@
+use std::sync::Arc;
 use std::time::Instant;
 
-use gpui::prelude::*;
-use gpui::{AnyElement, App, ElementId, Window, div};
+use gpui::{App, ElementId, RenderImage, Resource, SharedString, Window};
 
 use crate::motion::{Motion, animates, ease_out_cubic};
 
-/// The cover an element showed last and the one it is fading out from.
-struct Crossing {
-    shown: Option<String>,
-    previous: Option<String>,
-    since: Instant,
+/// A decoded cover, including whether it is the higher-resolution replacement.
+#[derive(Clone)]
+pub(crate) struct LoadedCover {
+    pub key: (Resource, u32),
+    pub image: Arc<RenderImage>,
+    pub upgraded: bool,
 }
 
-/// Draws `cover` through `draw`, and when it changes, as the track does, lays the cover it
-/// replaces over it and fades that out, so one cover dissolves into the next rather than
-/// cutting. `id` keeps the memory of the last cover, one per place a cover is shown.
-pub fn crossfade(
-    id: impl Into<ElementId>,
-    cover: Option<String>,
+/// The decoded pictures retained by one cover slot while its replacement loads and enters.
+#[derive(Default)]
+struct Crossing {
+    cover: Option<SharedString>,
+    shown: Option<LoadedCover>,
+    previous: Option<LoadedCover>,
+    since: Option<Instant>,
+}
+
+/// One frame of the cover's entrance. The previous picture stays opaque beneath the new one.
+pub(crate) struct CoverFrame {
+    pub shown: LoadedCover,
+    pub previous: Option<LoadedCover>,
+    pub progress: Option<f32>,
+}
+
+/// Keeps the last decoded picture until `ready` can replace it. Resolution upgrades share
+/// the current entrance clock; consecutive replacements wait for that entrance to finish.
+pub(crate) fn crossfade(
+    id: ElementId,
+    cover: SharedString,
+    ready: Option<LoadedCover>,
     window: &mut Window,
     cx: &mut App,
-    draw: impl Fn(Option<String>) -> AnyElement,
-) -> AnyElement {
-    if !animates(cx) {
-        return draw(cover);
-    }
-    let state = window.use_keyed_state(id.into(), cx, |_, _| Crossing {
-        shown: cover.clone(),
-        previous: None,
-        since: Instant::now(),
-    });
+) -> Option<CoverFrame> {
+    let state = window.use_keyed_state(id, cx, |_, _| Crossing::default());
     let span = Motion::Slow.span().as_secs_f32();
-    let fading = state.update(cx, |state, _| {
-        if state.shown != cover {
-            state.previous = Some(std::mem::replace(&mut state.shown, cover.clone())).flatten();
-            state.since = Instant::now();
-        }
-        let progress = (state.since.elapsed().as_secs_f32() / span).min(1.);
-        if progress >= 1. {
+    let moving = animates(cx);
+    let frame = state.update(cx, |state, _| {
+        let now = Instant::now();
+        if !moving
+            || state
+                .since
+                .is_some_and(|since| since.elapsed().as_secs_f32() >= span)
+        {
             state.previous = None;
+            state.since = None;
         }
-        state.previous.clone().map(|previous| (previous, progress))
+        if let Some(ready) = ready {
+            if state.cover.as_ref() == Some(&cover) {
+                if ready.upgraded || !state.shown.as_ref().is_some_and(|shown| shown.upgraded) {
+                    state.shown = Some(ready);
+                }
+            } else if state.since.is_none() {
+                state.previous = state.shown.take();
+                state.shown = Some(ready);
+                state.cover = Some(cover);
+                state.since = moving.then_some(now);
+                if !moving {
+                    state.previous = None;
+                }
+            }
+        }
+        Some(CoverFrame {
+            shown: state.shown.as_ref()?.clone(),
+            previous: state.previous.clone(),
+            progress: state
+                .since
+                .map(|since| ease_out_cubic((since.elapsed().as_secs_f32() / span).min(1.))),
+        })
     });
-    match fading {
-        None => draw(cover),
-        Some((previous, progress)) => {
-            window.request_animation_frame();
-            div()
-                .relative()
-                .child(draw(cover))
-                .child(
-                    div()
-                        .absolute()
-                        .inset_0()
-                        .opacity(1. - ease_out_cubic(progress))
-                        .child(draw(Some(previous))),
-                )
-                .into_any_element()
-        }
+    if frame.as_ref().is_some_and(|frame| frame.progress.is_some()) {
+        window.on_next_frame(|window, _| window.refresh());
     }
+    frame
 }

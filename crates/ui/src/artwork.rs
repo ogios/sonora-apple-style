@@ -1,3 +1,4 @@
+use crate::cover_fade::{LoadedCover, crossfade};
 use crate::metrics::snapped;
 use crate::motion::{Motion, animates, ease_out_cubic};
 use crate::palette::{CoverPalette, of_image};
@@ -789,6 +790,17 @@ impl ArtworkCache {
         }
     }
 
+    /// Keeps a transitioning cover accounted for and available until its layer is released.
+    fn retain_cover(&mut self, key: &ArtworkKey) {
+        if let Some(cached) = self.items.get_mut(key) {
+            cached.used = Instant::now();
+        } else if let Some(mut cached) = self.condemned.remove(key) {
+            cached.used = Instant::now();
+            self.bytes = self.bytes.saturating_add(cached.bytes);
+            self.items.insert(key.clone(), cached);
+        }
+    }
+
     /// Notes that a cover is on screen ahead of its image, so it fades in once it lands.
     fn await_cover(&mut self, resource: &Resource, edge: u32) {
         self.awaited.insert((resource.clone(), edge));
@@ -1055,6 +1067,8 @@ impl RenderOnce for Avatar {
 #[derive(IntoElement)]
 pub struct Artwork {
     url: Option<SharedString>,
+    transition: Option<ElementId>,
+    upgrade: Option<SharedString>,
     size: Pixels,
     circle: bool,
     radius: Option<Pixels>,
@@ -1070,6 +1084,8 @@ impl Artwork {
     pub fn new(url: Option<impl Into<SharedString>>) -> Self {
         Self {
             url: url.map(Into::into),
+            transition: None,
+            upgrade: None,
             size: px(28.),
             circle: false,
             radius: None,
@@ -1083,6 +1099,20 @@ impl Artwork {
 
     pub fn size(mut self, size: Pixels) -> Self {
         self.size = size;
+        self
+    }
+
+    /// Retains the decoded cover at `id` until its replacement is ready, then fades it in
+    /// from slightly enlarged and blurred. Keep the same id for one place showing covers.
+    pub fn transition(mut self, id: impl Into<ElementId>) -> Self {
+        self.transition = Some(id.into());
+        self
+    }
+
+    /// Supplies a higher-resolution picture for a transitioning cover. It replaces the
+    /// decoded picture when ready without starting another entrance.
+    pub fn upgrade(mut self, url: Option<impl Into<SharedString>>) -> Self {
+        self.upgrade = url.map(Into::into);
         self
     }
 
@@ -1140,6 +1170,8 @@ impl RenderOnce for Artwork {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let Self {
             url,
+            transition,
+            upgrade,
             size,
             circle,
             radius,
@@ -1172,11 +1204,103 @@ impl RenderOnce for Artwork {
         match url {
             Some(url) => {
                 let cache = ArtworkCache::entity(cx);
-                let resource = resource(url);
+                let resource = resource(url.clone());
                 let edge = sample_edge(size, window);
                 if PREFETCHING.get() {
                     cache.update(cx, |cache, cx| cache.load_at(&resource, edge, window, cx));
                     return div().size(size).into_any_element();
+                }
+                if let Some(id) = transition {
+                    let upgraded = upgrade.and_then(|url| {
+                        let key = (self::resource(url), edge);
+                        cache
+                            .update(cx, |cache, cx| cache.load_at(&key.0, key.1, window, cx))
+                            .and_then(Result::ok)
+                            .map(|image| LoadedCover {
+                                key,
+                                image,
+                                upgraded: true,
+                            })
+                    });
+                    let loaded = match upgraded.is_some() {
+                        true => None,
+                        false => {
+                            cache.update(cx, |cache, cx| cache.load_at(&resource, edge, window, cx))
+                        }
+                    };
+                    let waiting = upgraded.is_none() && loaded.is_none();
+                    let ready = upgraded.or_else(|| {
+                        loaded.and_then(Result::ok).map(|image| LoadedCover {
+                            key: (resource.clone(), edge),
+                            image,
+                            upgraded: false,
+                        })
+                    });
+                    let frame = crossfade(id, url, ready, window, cx);
+                    if let Some(frame) = &frame {
+                        cache.update(cx, |cache, _| {
+                            cache.retain_cover(&frame.shown.key);
+                            if let Some(previous) = &frame.previous {
+                                cache.retain_cover(&previous.key);
+                            }
+                        });
+                    }
+                    let content = match frame {
+                        Some(frame) => div()
+                            .relative()
+                            .size(size)
+                            .when(
+                                frame.previous.is_none() && frame.progress.is_some(),
+                                |this| {
+                                    this.child(
+                                        Skeleton::new()
+                                            .absolute()
+                                            .inset_0()
+                                            .size(size)
+                                            .rounded(rounded),
+                                    )
+                                },
+                            )
+                            .when_some(frame.previous, |this, previous| {
+                                this.child(
+                                    img(previous.image)
+                                        .absolute()
+                                        .inset_0()
+                                        .size(size)
+                                        .object_fit(ObjectFit::Cover)
+                                        .rounded(rounded),
+                                )
+                            })
+                            .child(
+                                img(frame.shown.image)
+                                    .size(size)
+                                    .object_fit(ObjectFit::Cover)
+                                    .rounded(rounded)
+                                    .when_some(frame.progress, |img, shown| {
+                                        img.opacity(shown)
+                                            .layer_scale(1. + COVER_SETTLE * (1. - shown))
+                                            .blur(COVER_BLUR * (1. - shown))
+                                    }),
+                            )
+                            .into_any_element(),
+                        None => match waiting {
+                            true => Skeleton::new()
+                                .size(size)
+                                .rounded(rounded)
+                                .into_any_element(),
+                            false => placeholder(),
+                        },
+                    };
+                    return refined(
+                        div()
+                            .relative()
+                            .size(size)
+                            .rounded(rounded)
+                            .overflow_hidden()
+                            .child(content),
+                        interactivity,
+                    )
+                    .into_any_element();
                 }
                 // Drawn at once rather than after `img`'s loading delay, and under the cover,
                 // so a cover that lands mid-pulse simply covers it.

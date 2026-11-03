@@ -122,8 +122,6 @@ pub struct FullscreenView {
     over_leave: bool,
     volume_held: bool,
     muted: Option<f32>,
-    large: Option<SharedString>,
-    revision: usize,
     track_menu: ItemMenu,
     context_menu: Option<(music::Track, Point<Pixels>)>,
     last_moved: Instant,
@@ -187,8 +185,6 @@ impl FullscreenView {
             over_leave: false,
             volume_held: false,
             muted: None,
-            large: None,
-            revision: 0,
             track_menu: ItemMenu::new(playlist_scrollbar, cx),
             context_menu: None,
             last_moved: Instant::now(),
@@ -427,7 +423,6 @@ impl FullscreenView {
         layout_side: Pixels,
         raster_side: Pixels,
         presentation_scale: f32,
-        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let radius = cx.theme().radius * 2.;
@@ -447,16 +442,9 @@ impl FullscreenView {
         // Only upgrade resolution for non-local tracks, since a local cover is always
         // the full resolution picture. The track's own embedded cover is prioritized
         // over the cover of its album.
-        let large =
-            cover_large.filter(|url| !local && small.is_some() && Some(*url) != small.as_deref());
-
-        if self.large.as_deref() != large {
-            self.large = large.map(SharedString::from);
-            self.revision += 1;
-        }
-        let large = self.large.clone();
-        let revision = self.revision;
-        let waiting = !local && album.is_some() && cover_large.is_none();
+        let large = cover_large
+            .filter(|url| !local && small.is_some() && Some(*url) != small.as_deref())
+            .map(SharedString::from);
 
         div()
             .id("fullscreen-artwork")
@@ -474,36 +462,15 @@ impl FullscreenView {
                     .left(inset)
                     .size(raster_side + pad * 2.)
                     .layer_scale(presentation_scale)
-                    .child(div().absolute().top(pad).left(pad).child(ui::crossfade(
-                        "fullscreen-cover",
-                        small,
-                        window,
-                        cx,
-                        move |small| {
+                    .child(
+                        div().absolute().top(pad).left(pad).child(
                             Artwork::new(small)
                                 .size(raster_side)
                                 .corner_radius(radius)
-                                .soft(waiting)
-                                .into_any_element()
-                        },
-                    )))
-                    .when_some(large, |this, url| {
-                        this.child(
-                            div()
-                                .absolute()
-                                .top(pad)
-                                .left(pad)
-                                .child(
-                                    Artwork::new(Some(url))
-                                        .size(raster_side)
-                                        .corner_radius(radius)
-                                        .overlay(),
-                                )
-                                .motion(("cover-large", revision), Motion::Slow, |art, t| {
-                                    art.opacity(t)
-                                }),
-                        )
-                    }),
+                                .transition("fullscreen-cover")
+                                .upgrade(large),
+                        ),
+                    ),
             )
     }
 
@@ -1260,7 +1227,6 @@ pub(crate) fn backdrop(
     cover: Option<String>,
     ambient: bool,
     window: &mut Window,
-    cx: &mut App,
 ) -> gpui::AnyElement {
     let viewport = window.viewport_size();
     let edge = viewport.width.max(viewport.height) * BACKDROP_REACH;
@@ -1276,13 +1242,11 @@ pub(crate) fn backdrop(
                 .flex_none()
                 .when(ambient, |this| this.opacity(BACKDROP_OVER_AMBIENT))
                 .blur(px(BACKDROP_BLUR))
-                .child(ui::crossfade(
-                    "fullscreen-backdrop",
-                    cover,
-                    window,
-                    cx,
-                    move |cover| Artwork::new(cover).size(edge).into_any_element(),
-                )),
+                .child(
+                    Artwork::new(cover)
+                        .size(edge)
+                        .transition("fullscreen-backdrop"),
+                ),
         )
         // The ambient field comes shaded already, so over it the cover takes no shade of its
         // own.
@@ -1555,7 +1519,7 @@ impl Render for FullscreenView {
                                     |this| this.flex_1().h_full(),
                                     |this| this.w_full(),
                                 )
-                                .child(self.artwork(side, raster_side, cover_scale, window, cx))
+                                .child(self.artwork(side, raster_side, cover_scale, cx))
                                 .child(self.meta(hide, lift, cx))
                                 .when(split, |this| {
                                     this.child(self.dock(

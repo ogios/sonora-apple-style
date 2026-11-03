@@ -1406,9 +1406,7 @@ impl Render for Root {
                 // both ambient settings.
                 RootView::Fullscreen => {
                     let cover = self.shells.fullscreen.read(cx).cover(cx);
-                    this.child(crate::shells::fullscreen::backdrop(
-                        cover, ambient, window, cx,
-                    ))
+                    this.child(crate::shells::fullscreen::backdrop(cover, ambient, window))
                 }
                 RootView::Workspace if !ambient => this.child(ui::liquid_field(window, cx)),
                 RootView::Workspace => this,
