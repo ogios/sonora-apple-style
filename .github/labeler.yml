@@ -1,5 +1,5 @@
 # Area labels for a pull request, derived from the paths it touches. These name parts of the
-# app, not crates: a change lands in views and state whatever it is about, so those two say
+# app, not crates: a change lands in views and service whatever it is about, so those two say
 # nothing and are deliberately absent. A path that maps to no area gets no label, which is
 # better than a label nobody can filter on.
 #
@@ -16,15 +16,15 @@ playback:
           - crates/music/src/spectrum.rs
           - crates/music/src/spotify/playback.rs
           - crates/music/src/spotify/sink.rs
-          - crates/state/src/playback.rs
+          - crates/service/src/playback.rs
           - crates/views/src/shared/visualizer.rs
 
 player:
   - changed-files:
       - any-glob-to-any-file:
-          - crates/state/src/queue.rs
-          - crates/state/src/remote.rs
-          - crates/state/src/discord.rs
+          - crates/service/src/queue.rs
+          - crates/service/src/remote/**
+          - crates/service/src/discord/**
           - crates/views/src/chrome/player_bar.rs
           - crates/views/src/chrome/sidebar_right.rs
           - crates/views/src/shared/transport.rs
@@ -39,22 +39,22 @@ lyrics:
           - crates/music/src/binimum/**
           - crates/music/src/kugou/**
           - crates/music/src/netease/**
-          - crates/state/src/lyrics.rs
+          - crates/service/src/lyrics.rs
           - crates/views/src/shells/fullscreen.rs
 
 library:
   - changed-files:
       - any-glob-to-any-file:
-          - crates/state/src/library.rs
-          - crates/state/src/catalog.rs
-          - crates/state/src/detail.rs
-          - crates/state/src/artist.rs
-          - crates/state/src/genre.rs
-          - crates/state/src/history.rs
-          - crates/state/src/home.rs
-          - crates/state/src/song.rs
-          - crates/state/src/pins.rs
-          - crates/state/src/profile.rs
+          - crates/service/src/library.rs
+          - crates/service/src/catalog.rs
+          - crates/service/src/detail.rs
+          - crates/service/src/artist.rs
+          - crates/service/src/genre.rs
+          - crates/service/src/history.rs
+          - crates/service/src/home.rs
+          - crates/service/src/song.rs
+          - crates/service/src/pins.rs
+          - crates/service/src/profile.rs
           - crates/views/src/screens/library/**
           - crates/views/src/screens/home/**
           - crates/views/src/screens/artist.rs
@@ -74,15 +74,15 @@ library:
 search:
   - changed-files:
       - any-glob-to-any-file:
-          - crates/state/src/search.rs
+          - crates/service/src/search.rs
           - crates/views/src/screens/search.rs
 
 settings:
   - changed-files:
       - any-glob-to-any-file:
-          - crates/state/src/settings.rs
-          - crates/state/src/usage.rs
-          - crates/state/src/updates.rs
+          - crates/service/src/settings.rs
+          - crates/service/src/usage.rs
+          - crates/service/src/updates.rs
           - crates/views/src/screens/settings.rs
           - crates/views/src/shared/about.rs
 

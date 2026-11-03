@@ -1,7 +1,7 @@
 use gpui::prelude::*;
 use gpui::{AnyElement, App, Context};
 use i18n::t;
-use state::{DiscordName, Sonora};
+use service::{DiscordName, Sonora};
 use ui::{Button, MenuItem, Picker, Switch, TabBar};
 
 use super::{Group, SettingsView, Slot};

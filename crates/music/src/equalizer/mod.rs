@@ -54,7 +54,7 @@ const BAND_FREQUENCIES: [f64; 10] = [
 const BAND_Q: f64 = SQRT_2;
 
 /// What a filter does to the band around its frequency.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Kind {
     Peak,
     LowShelf,
@@ -119,7 +119,7 @@ impl Kind {
 
 /// How wide a filter is. Octaves are kept as written, because Equalizer APO converts them to a Q
 /// at the playing rate, so converting at import would be wrong at every other rate.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Width {
     Q(f64),
     Octaves(f64),
@@ -172,13 +172,35 @@ impl std::error::Error for Invalid {}
 
 /// One filter of a curve. Only `new` makes one, so a filter that exists is in range and the audio
 /// thread can trust it.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
 pub struct Filter {
     kind: Kind,
     frequency: f64,
     gain: f64,
     width: Width,
     enabled: bool,
+}
+
+impl<'de> serde::Deserialize<'de> for Filter {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        struct Data {
+            kind: Kind,
+            frequency: f64,
+            gain: f64,
+            width: Width,
+            enabled: bool,
+        }
+        let data = <Data as serde::Deserialize>::deserialize(deserializer)?;
+        Self::new(
+            data.kind,
+            data.frequency,
+            data.gain,
+            data.width,
+            data.enabled,
+        )
+        .map_err(serde::de::Error::custom)
+    }
 }
 
 impl Filter {
@@ -267,17 +289,29 @@ impl Filter {
 
 /// How the level is lowered to make room for a curve's boosts: by the curve's own highest
 /// boost, or by what the user or an imported file says.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Preamp {
     Auto,
     Manual(f64),
 }
 
 /// A preamp and up to `MAX_FILTERS` filters, applied in order. One curve plays on every channel.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct Curve {
     preamp: Preamp,
     filters: Vec<Filter>,
+}
+
+impl<'de> serde::Deserialize<'de> for Curve {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        struct Data {
+            preamp: Preamp,
+            filters: Vec<Filter>,
+        }
+        let data = <Data as serde::Deserialize>::deserialize(deserializer)?;
+        Self::new(data.preamp, data.filters).map_err(serde::de::Error::custom)
+    }
 }
 
 impl Curve {
@@ -429,10 +463,22 @@ impl Response {
 
 /// A bass and a treble shelf laid over whatever sound plays, so a listener can tilt it without
 /// editing the sound. Both gains are 0 dB when the tone is flat, and always within `TONE_RANGE`.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize)]
 pub struct Tone {
     bass: f64,
     treble: f64,
+}
+
+impl<'de> serde::Deserialize<'de> for Tone {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        struct Data {
+            bass: f64,
+            treble: f64,
+        }
+        let data = <Data as serde::Deserialize>::deserialize(deserializer)?;
+        Ok(Self::new(data.bass, data.treble))
+    }
 }
 
 impl Tone {
@@ -487,7 +533,7 @@ impl Tone {
 }
 
 /// A named curve a user can pick instead of shaping each band.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Preset {
     Flat,
     BassBoost,

@@ -155,7 +155,7 @@ impl YouTubeProvider {
             authenticated: true,
             capabilities: Capabilities {
                 playcounts: false,
-                qualities: playback::QUALITIES,
+                qualities: crate::Qualities::new(playback::QUALITIES),
                 ..Capabilities::ALL
             },
         }
@@ -174,7 +174,7 @@ impl YouTubeProvider {
             authenticated: false,
             capabilities: Capabilities {
                 playcounts: false,
-                qualities: playback::QUALITIES,
+                qualities: crate::Qualities::new(playback::QUALITIES),
                 ..Capabilities::ALL
             },
         }

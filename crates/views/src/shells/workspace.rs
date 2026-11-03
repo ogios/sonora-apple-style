@@ -8,7 +8,7 @@ use gpui::{
 use gpui::{Window, deferred, div, px};
 use input::WORKSPACE_CONTEXT;
 use router::NavigationDirection;
-use state::{AppSettings, Playback, Queue, SideTab, Sonora};
+use service::{AppSettings, Playback, Queue, SideTab, Sonora};
 use ui::{
     Activate, ActiveTheme as _, Deselect, Entrance, Remove, SelectNext, SelectPrevious,
     shown_listing,

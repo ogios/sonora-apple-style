@@ -7,7 +7,7 @@ use gpui::{
 };
 use i18n::t;
 use music::{AccountChoice, SignIn, SignInPrompt};
-use state::{Session, SessionState, Sonora, Usage};
+use service::{Session, SessionState, Sonora, Usage};
 use ui::ActiveTheme as _;
 use ui::{Button, Checkbox, Input, Modal, TabBar, Text};
 
@@ -407,7 +407,7 @@ impl Render for LoginView {
     ) -> impl IntoElement {
         let state = self.session.read(cx).state().clone();
         let pending = self.session.read(cx).is_pending();
-        let providers: Vec<state::ProviderInfo> = self.session.read(cx).providers().collect();
+        let providers: Vec<service::ProviderInfo> = self.session.read(cx).providers().collect();
         let guest = providers
             .iter()
             .filter(|info| {

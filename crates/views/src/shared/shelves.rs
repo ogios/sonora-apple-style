@@ -6,7 +6,7 @@ use gpui::{
 use std::rc::Rc;
 
 use music::{GenreItem, GenreSection};
-use state::Playback;
+use service::Playback;
 use ui::{
     ActiveTheme as _, Button, Card, Deck, Glide, Mode, Reveal, Skeleton, Text, heading, snapped,
 };

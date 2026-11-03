@@ -2,7 +2,7 @@ use gpui::prelude::*;
 use gpui::{AnyElement, App, Context, SharedString, div};
 use i18n::t;
 use music::output::{self, DeviceOption, OutputId, Sink};
-use state::{DeviceRule, RuleDevice};
+use service::{DeviceRule, RuleDevice};
 use ui::{ActiveTheme as _, Button, MenuItem, Picker, Text};
 
 use super::{EqualizerView, heading};

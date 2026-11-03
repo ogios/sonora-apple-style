@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UserProfile {
     pub id: String,
     pub display_name: String,
@@ -12,7 +12,7 @@ pub struct UserProfile {
     pub avatar: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UserDetail {
     pub id: String,
     pub name: String,
@@ -131,6 +131,18 @@ impl From<Track> for SharedTrack {
     }
 }
 
+impl Serialize for SharedTrack {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        std::ops::Deref::deref(self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for SharedTrack {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Track::deserialize(deserializer).map(Self::from)
+    }
+}
+
 impl std::ops::Deref for SharedTrack {
     type Target = Track;
 
@@ -236,7 +248,7 @@ impl Album {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AlbumDetail {
     pub album: Album,
     pub tracks: Vec<Track>,
@@ -247,7 +259,7 @@ pub struct AlbumDetail {
 /// releases topping the rail up, plus the similar artists themselves for the rail's
 /// artists tab. Every list replaces what the page held, and an empty one leaves that
 /// part alone.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AlbumCatalogue {
     pub also_like: Vec<Album>,
     pub similar: Vec<SavedArtist>,
@@ -259,7 +271,7 @@ impl AlbumCatalogue {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Genre {
     pub id: String,
     pub name: String,
@@ -271,7 +283,7 @@ pub struct Genre {
 
 /// One card of a browse shelf. A provider's home and genre pages mix whatever the shelf holds,
 /// so a track or an artist sits beside albums and playlists in the same row.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GenreItem {
     Playlist(Playlist),
     Album(Album),
@@ -280,13 +292,13 @@ pub enum GenreItem {
     Artist(SavedArtist),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GenreSection {
     pub title: String,
     pub items: Vec<GenreItem>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HomeFeed {
     /// What the user has been playing lately, in every shape the provider lists it: songs and
     /// videos, but also the albums, playlists and artists they came from.
@@ -295,13 +307,13 @@ pub struct HomeFeed {
     pub sections: Vec<GenreSection>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GenreDetail {
     pub name: String,
     pub sections: Vec<GenreSection>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrackTags {
     pub title: String,
     /// The track's artists, one name each, in the order the file credits them.
@@ -321,14 +333,14 @@ pub struct TrackTags {
     pub lyrics: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaylistDetail {
     pub playlist: Playlist,
     pub tracks: Vec<Track>,
     pub continuation: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtistProfile {
     pub name: String,
     pub cover_large: Option<String>,
@@ -343,7 +355,7 @@ pub struct SavedArtist {
     pub added_at: Option<i64>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Artist {
     pub name: String,
     pub cover_large: Option<String>,
@@ -355,7 +367,7 @@ pub struct Artist {
 
 /// What an artist page fills in once its overview is already on screen. Every list
 /// replaces what `MusicApi::artist` answered with, and an empty one leaves that part alone.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtistCatalogue {
     pub albums: Vec<Album>,
     pub top_tracks: Vec<Track>,
@@ -568,7 +580,7 @@ pub struct LyricsHit {
 
 /// Something the provider keeps sidebar pins for, with whether it is pinned now. The uri is
 /// the provider's own and is what `MusicApi::set_pinned` takes.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PinTarget {
     pub uri: String,
     pub name: String,
@@ -578,7 +590,7 @@ pub struct PinTarget {
     pub pinned: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PinTargetKind {
     Playlist,
     Album,
@@ -592,7 +604,7 @@ pub enum PinTargetKind {
 /// How a provider answered a pin change. `LimitReached` means it turned the pin away for
 /// holding too many already, and `Outside` that it can only pin what is in the listener's
 /// library. Either way the pin stays a local one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PinOutcome {
     Updated,
     LimitReached,

@@ -7,7 +7,7 @@ use i18n::t;
 use music::equalizer::{Curve, MAX_FILTERS, PREAMP_RANGE, Preamp, Preset, TONE_RANGE, Tone};
 use music::output::{DeviceOption, OutputId, Port};
 use router::Destination;
-use state::{
+use service::{
     AppSettings, Equalizer, Outputs, RuleDevice, Signal, Sonora, Sound, equalizer_profile_label,
 };
 use ui::{

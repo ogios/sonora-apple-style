@@ -2,7 +2,7 @@ use gpui::prelude::*;
 use gpui::{App, Context, Entity, FocusHandle, Global, Render, SharedString, Window, div};
 use i18n::t;
 use music::{Album, SavedArtist, Track};
-use state::{Detail, History, Io, Outcome, Shelf, Sonora, Toasts, equalizer_profile_label};
+use service::{Detail, History, Shelf, Sonora, equalizer_profile_label};
 use ui::{Button, Dismiss, FORM_CONTEXT, Modal, Submit};
 
 #[derive(Clone)]
@@ -232,53 +232,8 @@ impl Confirm {
         Self::ask(
             Kind::DeleteTrackFiles(ids.len()),
             move |cx| {
-                let sonora = Sonora::global(cx);
-                let Some(provider) = sonora.session.read(cx).local_client() else {
-                    return;
-                };
-                let library = sonora.library.clone();
-                let playback = sonora.playback.clone();
-                let io = Io::global(cx);
-                cx.spawn(async move |cx| {
-                    let result = io
-                        .spawn(async move {
-                            let mut failed = 0;
-                            let mut deleted = Vec::new();
-                            for id in ids {
-                                match provider.delete_track_file(&id).await {
-                                    Ok(()) => deleted.push(id),
-                                    Err(error) => {
-                                        failed += 1;
-                                        log::warn!(
-                                            "local: cannot delete track file {id}: {error:#}"
-                                        );
-                                    }
-                                }
-                            }
-                            (failed, deleted)
-                        })
-                        .await;
-
-                    if let Ok((_, ref deleted)) = result {
-                        library.update(cx, |library, cx| library.hide_local_tracks(deleted, cx));
-                        playback.update(cx, |playback, cx| playback.remove_from_queue(deleted, cx));
-                    }
-                    match result {
-                        Ok((failed, _)) if failed > 0 => {
-                            cx.update(|cx| {
-                                Toasts::show(Outcome::Failed, "toast-local-delete-failed", cx);
-                            });
-                        }
-                        Err(error) => {
-                            log::warn!("local: deletion task failed: {error}");
-                            cx.update(|cx| {
-                                Toasts::show(Outcome::Failed, "toast-local-delete-failed", cx);
-                            });
-                        }
-                        Ok(_) => {}
-                    }
-                })
-                .detach();
+                let library = Sonora::global(cx).library.clone();
+                library.update(cx, |library, cx| library.delete_track_files(ids, cx));
             },
             cx,
         );

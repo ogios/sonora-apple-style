@@ -6,7 +6,7 @@ use gpui::{
 use i18n::t;
 use music::{Credit, Track};
 use router::{Destination, Link as _};
-use state::{Playback, SongDetail, Sonora};
+use service::{Playback, SongDetail, Sonora};
 use ui::{
     ActiveTheme as _, Avatar, Button, Fact, InfoCard, Initials, Popup, Scrollbar, Scroller,
     Skeleton, Text, clock,

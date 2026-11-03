@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::prelude::*;
 use gpui::{App, ClickEvent, ElementId, Entity, MouseDownEvent, Pixels, SharedString, Window, div};
 use music::{GenreItem, Track};
-use state::Playback;
+use service::Playback;
 use ui::{ActiveTheme as _, Button, Card, Reveal, eyebrow, heading, snapped, vacant};
 
 use crate::shared::cards;

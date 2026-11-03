@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Run playback in a separate `sonora-server` process and reopen the GUI without stopping music.
+  On Linux, `run.sh` starts both processes and stops both with Ctrl+C.
+
 - Switch between playlists you created, playlists you saved, and all playlists in your library
   when the provider reports ownership. Playlists with missing ownership have their own category;
   providers that cannot distinguish creation from editing or sharing keep the complete list.
@@ -127,6 +130,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and a gentle finish. Hover effects ease smoothly in both directions, including when interrupted.
 
 ### Fixed
+
+- Keep the progress bar and lyric focus aligned when seeking through the standalone service.
+  Playback updates no longer copy the full library cache or restart theme effects.
 
 - Keep the playing cover visible until its replacement loads, then fade the new cover in
   from soft to sharp with a gentle settling motion. Fullscreen resolution upgrades keep the

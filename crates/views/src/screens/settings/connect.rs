@@ -1,7 +1,7 @@
 use gpui::prelude::*;
 use gpui::{AnyElement, App, Context, div};
 use i18n::t;
-use state::{ConnectName, Sonora};
+use service::{ConnectName, Sonora};
 use ui::{MenuItem, Picker, Switch};
 
 use super::{Group, SettingsView, Slot};

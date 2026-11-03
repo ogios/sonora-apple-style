@@ -2,7 +2,7 @@ use gpui::prelude::*;
 use gpui::{App, ClickEvent, Context, Entity, Window, div};
 use i18n::t;
 use music::connect::{Command, DeviceKind};
-use state::{Devices, Sonora};
+use service::{Devices, Sonora};
 use ui::{ActiveTheme as _, MenuItem, Picker, Popovers};
 
 use crate::chrome::jam;
@@ -44,7 +44,7 @@ impl Render for DevicePicker {
                 .selected(elsewhere.is_none())
                 .on_click({
                     let devices = devices.clone();
-                    move |_, _, cx| devices.read(cx).transfer_here()
+                    move |_, _, cx| devices.update(cx, |devices, cx| devices.transfer_here(cx))
                 }),
         ];
         for (at, device) in state.devices().iter().enumerate() {
@@ -58,7 +58,7 @@ impl Render for DevicePicker {
                     .selected(playing)
                     .on_click({
                         let devices = devices.clone();
-                        move |_, _, cx| devices.read(cx).transfer(&id)
+                        move |_, _, cx| devices.update(cx, |devices, cx| devices.transfer(&id, cx))
                     }),
             );
         }
@@ -69,7 +69,9 @@ impl Render for DevicePicker {
                 let devices = devices.clone();
                 let id = id.clone();
                 move |_: &ClickEvent, _: &mut Window, cx: &mut App| {
-                    devices.read(cx).control(&id, command.clone())
+                    devices.update(cx, |devices, cx| {
+                        devices.request_control(&id, command.clone(), cx)
+                    })
                 }
             };
             let (toggle, label, glyph) = match elsewhere.playing {
@@ -136,7 +138,7 @@ impl Render for DevicePicker {
                         .icon("icons/users-round-collaboration.svg")
                         .on_click({
                             let devices = devices.clone();
-                            move |_, _, cx| devices.update(cx, |devices, _| devices.start_jam())
+                            move |_, _, cx| devices.update(cx, |devices, cx| devices.start_jam(cx))
                         }),
                 );
                 items.push(

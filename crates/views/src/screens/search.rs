@@ -15,7 +15,7 @@ use ui::Input;
 
 use crate::chrome::Chrome;
 use crate::shared::menus::{ItemMenu, album_menu, artist_menu, playlist_menu};
-use state::{
+use service::{
     AlbumHit, ArtistHit, Genres, Hit, Kind, Network, Playback, PlaylistHit, Search, Sonora,
 };
 use ui::ActiveTheme as _;
@@ -679,11 +679,11 @@ impl SearchView {
                 return Some((playing, play));
             }
             Hit::Artist(artist) => {
-                state::Origin::artist(artist.id.clone()?).named(artist.name.clone())
+                service::Origin::artist(artist.id.clone()?).named(artist.name.clone())
             }
-            Hit::Album(album) => state::Origin::album(album.id.clone()).named(album.name.clone()),
+            Hit::Album(album) => service::Origin::album(album.id.clone()).named(album.name.clone()),
             Hit::Playlist(list) => {
-                state::Origin::playlist(list.id.clone()).named(list.name.clone())
+                service::Origin::playlist(list.id.clone()).named(list.name.clone())
             }
         };
         let playing = self.playback.read(cx).playing_from(&origin, cx) == Some(true);

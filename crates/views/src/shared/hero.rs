@@ -7,7 +7,7 @@ use gpui::{
 };
 use i18n::t;
 use music::{Album, SharedTrack, Track};
-use state::{Origin, Playback};
+use service::{Origin, Playback};
 use ui::{
     ActiveTheme as _, Artwork, Banner, Button, ExplicitBadge, LEADING, Pin, Pinnable as _,
     Skeleton, TableState, Text, Type, Typeset as _, upper,

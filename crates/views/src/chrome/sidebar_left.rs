@@ -18,7 +18,7 @@ use router::{
     Destination, LibraryTab, NavEntry, Navigation, NavigationEvent, SettingsPage, navigate,
     open_settings,
 };
-use state::{AppSettings, Library, Origin, PinSort, Pins, Playback, Session, Shelf, Sonora};
+use service::{AppSettings, Library, Origin, PinSort, Pins, Playback, Session, Shelf, Sonora};
 
 use crate::shared::menus::{ItemMenu, item_menu};
 use crate::shared::nav::nav_row;
@@ -924,7 +924,7 @@ impl SidebarLeft {
         let account = match session.state() {
             // A guest session, or an account without a name of its own, is named after the
             // service, which would only say the same thing twice over the service's name.
-            state::SessionState::SignedIn(profile)
+            service::SessionState::SignedIn(profile)
                 if !profile.display_name.trim().is_empty() && profile.display_name != provider =>
             {
                 Account {

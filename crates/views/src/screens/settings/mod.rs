@@ -10,7 +10,7 @@ use gpui::{
 use i18n::{Language, t};
 use music::SignInPrompt;
 use router::{Destination, SettingsPage, SettingsTab, navigate};
-use state::{
+use service::{
     AppSettings, Drm, Equalizer, Io, Outputs, Playback, Scan, Scrobbling, Session, SessionState,
     Sleep, Sonora,
 };

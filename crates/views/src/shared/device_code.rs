@@ -1,6 +1,6 @@
 use gpui::prelude::*;
 use gpui::{App, ClipboardItem, FontWeight, SharedString, div};
-use state::{Outcome, Toasts};
+use service::{Outcome, Toasts};
 use ui::ActiveTheme as _;
 use ui::{Button, Text};
 

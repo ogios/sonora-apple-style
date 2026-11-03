@@ -11,7 +11,7 @@ use crate::chrome::Chrome;
 use crate::shared::cells;
 use i18n::t;
 use music::{SavedArtist, Track};
-use state::{AppSettings, ArtistDetail, Origin, Playback, Sonora};
+use service::{AppSettings, ArtistDetail, Origin, Playback, Sonora};
 use ui::ActiveTheme as _;
 use ui::Listing as _;
 use ui::{
@@ -159,7 +159,7 @@ impl ArtistView {
         });
 
         cx.subscribe(&detail, |_, _, event, cx| {
-            let state::ArtistDetailEvent::Gone(id) = event;
+            let service::ArtistDetailEvent::Gone(id) = event;
             if router::trail(cx).read(cx).current()
                 == router::Destination::Artist(id.clone().into())
             {

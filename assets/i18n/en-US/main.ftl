@@ -1,4 +1,9 @@
+toast-service-disconnected = Connection to the music service was lost. Reconnecting…
 # common
+toast-service-busy = The music service cannot accept this action right now. Please try again.
+toast-service-state-invalid = The music service returned data that could not be displayed.
+toast-service-action-failed = The music service could not complete this action.
+
 common-on = On
 common-off = Off
 common-left = Left

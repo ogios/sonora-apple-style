@@ -3,7 +3,7 @@ use gpui::{
     AnyElement, App, Context, Div, Hsla, Pixels, SharedString, Window, div, px, relative, svg,
 };
 use i18n::t;
-use state::SYSTEM_FONT;
+use service::SYSTEM_FONT;
 use ui::{
     ActiveTheme as _, Button, Look, MAX_FONT, MAX_TRANSPARENCY, MIN_FONT, MenuItem, OptionCard,
     Picker, Rounding, Scrubber, Switch, Theme, ThemeKind,

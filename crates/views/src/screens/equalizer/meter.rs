@@ -1,7 +1,7 @@
 use gpui::prelude::*;
 use gpui::{AnyElement, App, Context, Entity, FontWeight, Render, SharedString, Window, div, svg};
 use i18n::t;
-use state::{Change, Equalizer, FLOAT_BITS, OutputLevel, Signal};
+use service::{Change, Equalizer, FLOAT_BITS, OutputLevel, Signal};
 use ui::{ActiveTheme as _, Button, LevelMeter, Perch, Text, Tipped as _};
 
 use super::rows::figure;

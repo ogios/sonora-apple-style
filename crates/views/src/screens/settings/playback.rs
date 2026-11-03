@@ -5,7 +5,7 @@ use gpui::{AnyElement, App, Context, Div, MouseUpEvent, SharedString, Window, di
 use i18n::t;
 use music::drm::Origin;
 use music::{Codec, Encoding, Offer, Quality, Transcode};
-use state::{CdmState, Sleep};
+use service::{CdmState, Sleep};
 use ui::{ActiveTheme as _, Button, MenuItem, OptionCard, Picker, Scrubber, Switch, Text};
 
 use super::rows::{grid, segmented};
@@ -114,7 +114,7 @@ impl SettingsView {
     /// it. The label follows a drag at once, and the limit changes when the drag lets go.
     pub(super) fn cache_size_row(&self, cx: &mut Context<Self>) -> AnyElement {
         let theme = *cx.theme();
-        let (low, high) = state::CACHE_GB_RANGE;
+        let (low, high) = service::CACHE_GB_RANGE;
         let current = self
             .pending_cache
             .unwrap_or_else(|| self.playback.read(cx).cache_gb());
@@ -164,7 +164,7 @@ impl SettingsView {
     pub(super) fn stream_quality_row(&self, cx: &mut Context<Self>) -> AnyElement {
         let theme = *cx.theme();
         let offers = self.session.read(cx).capabilities().qualities;
-        let current = self.playback.read(cx).quality().within(offers);
+        let current = self.playback.read(cx).quality().within(&offers);
         let encoding = offers
             .iter()
             .find(|offer| offer.quality == current)
@@ -185,7 +185,7 @@ impl SettingsView {
     /// streams as. A saved level the service lacks shows as the one it plays instead.
     pub(super) fn quality_cards(&self, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let offers = self.session.read(cx).capabilities().qualities;
-        let current = self.playback.read(cx).quality().within(offers);
+        let current = self.playback.read(cx).quality().within(&offers);
         let mut ladder = offers.to_vec();
         ladder.sort_by_key(|offer| offer.quality);
         let steps = ladder.len();

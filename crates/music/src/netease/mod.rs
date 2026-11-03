@@ -81,7 +81,7 @@ fn session(client: NetEaseClient) -> ProviderSession {
             // Songs are streamed for every play and never kept or downloaded.
             keeps: false,
             downloads: false,
-            qualities: client::QUALITIES,
+            qualities: crate::Qualities::new(client::QUALITIES),
             ..Capabilities::ALL
         },
     }

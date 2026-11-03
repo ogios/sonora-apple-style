@@ -1,5 +1,5 @@
 use music::{Album, Playlist, SavedArtist, Track};
-use state::Hit;
+use service::Hit;
 use ui::{Pin, PinKind};
 
 pub(crate) trait Pinned {

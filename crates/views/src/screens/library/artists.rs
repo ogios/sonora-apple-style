@@ -6,7 +6,7 @@ use ui::{ActiveTheme as _, Filter, FilterChange, FlagAxis};
 use gpui::{AnyElement, App, Entity, SharedString};
 use i18n::t;
 use music::SavedArtist;
-use state::{Library, LibraryPart, Network, Origin, Playback, Shelf, Sonora};
+use service::{Library, LibraryPart, Network, Origin, Playback, Shelf, Sonora};
 use ui::rank::{ESSENTIAL, HANDY};
 use ui::{Cell, ColumnSpec, Menu, Pin, TableSource, Width};
 

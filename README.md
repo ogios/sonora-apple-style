@@ -123,6 +123,18 @@ Stream from your favorite services and play local files — all in one **native*
 - Discord Rich Presence, native file opening
 - macOS, Windows, Linux, and (probably) FreeBSD support
 
+## Running this working tree
+
+On Linux, `./run.sh` builds and starts `sonora-server` and the `sonora` GUI. Press Ctrl+C to stop
+both processes and their helpers. Use `./run.sh --no-build` to reuse the debug binaries, or
+`./run.sh --release` for a release build. GUI arguments follow `--`.
+
+To manage the processes independently, run `cargo run --locked -p service --bin sonora-server`
+in one terminal and `cargo run --locked -p sonora` in another. Closing the GUI leaves a separately
+started server running. Reopening the GUI attaches to its current playback and queue. The GUI
+reconnects after a service restart; actions that modify playback or data are never retried.
+`SONORA_SOCKET` selects a private IPC endpoint when running isolated instances.
+
 ## Installation
 
 ### macOS

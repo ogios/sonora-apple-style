@@ -11,7 +11,7 @@ use gpui::http_client::{AsyncBody, HttpClient};
 use gpui::{App, AppContext as _, Context, Entity, Global, SharedString, Task};
 use i18n::t;
 use router::Destination;
-use state::{Outcome, PlaybackState, Repeat, Sonora, Toasts};
+use service::{Outcome, PlaybackState, Repeat, Sonora, Toasts};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 #[cfg(any(target_os = "macos", windows))]

@@ -13,7 +13,7 @@ use input::{
     ZoomWindow,
 };
 use router::{Destination, NavigationDirection, NavigationEvent, Screen, back, forward, navigate};
-use state::{
+use service::{
     ArtistDetail, Detail, GenreDetails, Genres, HistoryState, Home, Io, Library, LibraryState,
     Network, Playback, Profile, Queue, Reconnected, SYSTEM_FONT, Scan, Search, Session,
     SessionEvent, SessionState, Shelf, SideTab, SongDetail, Sonora,
@@ -1229,7 +1229,7 @@ impl Render for Root {
             };
             if self.rounded != Some(rounding) {
                 self.rounded = Some(rounding);
-                state::apply_window_rounding(window, rounding, cx);
+                service::apply_window_rounding(window, rounding, cx);
             }
         }
 
@@ -1249,7 +1249,7 @@ impl Render for Root {
             if self.framed != Some(framed) {
                 self.framed = Some(framed);
                 window.defer(cx, move |window, cx| {
-                    state::apply_window_rounding(window, framed.0, cx);
+                    service::apply_window_rounding(window, framed.0, cx);
                     window.set_traffic_light_position(framed.1);
                 });
             }

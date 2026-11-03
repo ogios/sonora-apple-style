@@ -2,7 +2,7 @@ use gpui::prelude::*;
 use gpui::{AnyElement, App, ClickEvent, ElementId, SharedString, Window};
 use i18n::t;
 use music::SignInProblem;
-use state::{Failure, Network};
+use service::{Failure, Network};
 use ui::{Button, Notice, Vacancy};
 
 /// The sign-in failure a screen puts up. One that only says the provider could not be reached

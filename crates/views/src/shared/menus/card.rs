@@ -1,6 +1,6 @@
 use gpui::prelude::*;
 use gpui::{App, Context, Entity, Global, MouseDownEvent, Pixels, Point, Window, div};
-use state::Playback;
+use service::Playback;
 use ui::{Popup, Scrollbar};
 
 use crate::shared::menus::{Item, ItemMenu};

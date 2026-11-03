@@ -16,7 +16,7 @@ const PAGE_LIMIT: usize = 256 * 1024;
 const ADDRESS_END: [char; 7] = ['"', '\'', '<', '>', '\\', ' ', '`'];
 
 /// What a link points at, in the ids its provider's client takes.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Linked {
     Track(String),
     Album(String),

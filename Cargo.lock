@@ -3374,8 +3374,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "798de1433ba514cc6c04c4144c2469af81396e4906195218737c776d47769572"
 dependencies = [
  "doctest-file",
+ "futures-core",
  "libc",
  "recvmsg",
+ "tokio",
  "widestring",
  "windows-sys 0.61.2",
 ]
@@ -5595,6 +5597,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "protocol"
+version = "0.44.1"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "interprocess",
+ "libc",
+ "serde",
+ "serde_json",
+ "tokio",
+ "widestring",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "psl-types"
 version = "2.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6890,6 +6907,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "service"
+version = "0.44.1"
+dependencies = [
+ "anyhow",
+ "ashpd",
+ "async-trait",
+ "dirs",
+ "discord-rich-presence",
+ "embed",
+ "env_logger",
+ "fastrand",
+ "futures",
+ "gpui",
+ "gpui_platform",
+ "i18n",
+ "icons",
+ "image",
+ "interprocess",
+ "libc",
+ "log",
+ "moka",
+ "mpris-server",
+ "music",
+ "notify",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "protocol",
+ "reqwest 0.13.4",
+ "rusqlite",
+ "rustls 0.23.43",
+ "serde",
+ "serde_json",
+ "sha2",
+ "souvlaki",
+ "storage",
+ "tempfile",
+ "tokio",
+ "ui",
+ "webview",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "sha1"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7105,14 +7165,13 @@ dependencies = [
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
+ "protocol",
  "raw-window-handle",
  "reqwest 0.13.4",
  "resvg",
  "router",
- "rustls 0.23.43",
+ "service",
  "sha2",
- "state",
- "storage",
  "tokio",
  "tray-icon",
  "ui",
@@ -7194,44 +7253,6 @@ name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
-
-[[package]]
-name = "state"
-version = "0.44.1"
-dependencies = [
- "anyhow",
- "ashpd",
- "async-trait",
- "dirs",
- "discord-rich-presence",
- "embed",
- "fastrand",
- "futures",
- "gpui",
- "i18n",
- "icons",
- "image",
- "libc",
- "log",
- "moka",
- "mpris-server",
- "music",
- "notify",
- "objc2-core-foundation",
- "objc2-io-kit",
- "reqwest 0.13.4",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "souvlaki",
- "storage",
- "tempfile",
- "tokio",
- "ui",
- "webview",
- "windows-sys 0.61.2",
-]
 
 [[package]]
 name = "static_assertions"
@@ -7846,6 +7867,7 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",
@@ -8498,7 +8520,7 @@ dependencies = [
  "music",
  "open",
  "router",
- "state",
+ "service",
  "ui",
 ]
 
@@ -9077,6 +9099,7 @@ dependencies = [
  "libc",
  "log",
  "reqwest 0.13.4",
+ "serde",
  "serde_json",
  "sha2",
  "smallvec",

@@ -3,7 +3,7 @@ use std::time::Duration;
 use gpui::App;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 use gpui::{AppContext as _, Context, Entity, Global, Task};
-use state::Sonora;
+use service::Sonora;
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 use std::time::Instant;
 
@@ -103,7 +103,7 @@ fn install_reclaimer(cx: &mut App) {
         })
         .detach();
         cx.subscribe(&session, |this, _, event, cx| {
-            if matches!(event, state::SessionEvent::SignedOut) {
+            if matches!(event, service::SessionEvent::SignedOut) {
                 this.schedule(cx);
             }
         })

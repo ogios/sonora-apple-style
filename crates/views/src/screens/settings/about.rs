@@ -97,7 +97,7 @@ impl SettingsView {
     /// The row that opens a copy of the current log file in whatever the system reads text
     /// with. It is disabled when the platform names no state or cache folder to log into.
     pub(super) fn log_row(&self, cx: &mut Context<Self>) -> AnyElement {
-        let path = state::log_file();
+        let path = service::log_file();
 
         outward("open-log", t!("settings-log-open"), None, cx)
             .disabled(path.is_none())

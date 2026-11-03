@@ -10,7 +10,7 @@ use std::time::Duration;
 use gpui::prelude::*;
 use gpui::{App, Context, Div, EdgesRefinement, Entity, Pixels, SharedString, Task, Window, div};
 use i18n::t;
-use state::Sonora;
+use service::Sonora;
 use ui::ActiveTheme as _;
 
 use super::SettingsView;

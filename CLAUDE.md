@@ -7,9 +7,10 @@ A native music streaming client, built with Rust and [GPUI](https://github.com/z
 
 ```
 crates/
-  sonora/     binary: main, window, actions, asset registry, HTTP client shim, tray, dock
+  sonora/     GUI binary: main, window, actions, asset registry, HTTP client shim, tray, dock
   views/      screens, shells (Workspace, FullscreenView) and app chrome
-  state/      GPUI entities holding app state, and all async orchestration
+  service/    sonora-server binary, authoritative music state and GUI read models
+  protocol/   versioned local IPC framing, commands and ordered subscriptions
   music/      provider traits and models in the root, one submodule per provider (no GPUI)
   storage/    the state.sqlite and cache.sqlite paths, schema and connection setup
   ui/         design system: theme, metrics, layout ladder and reusable elements
@@ -25,24 +26,32 @@ crates/
 Dependency direction is strict. Do not create a back edge:
 
 ```
-sonora → views → state → music
-         state, music → storage
-         state → webview
+sonora → views → service → music
+sonora, service → protocol
+         service, music → storage
+         service → webview
          music → widevine
          all ui-side crates → ui, router, input → ui → gpui
          every ui-side crate → i18n, icons → gpui
 ```
 
-- `state` and `views` see only the traits and models in the root of `music`, never a provider
-  module. Only `sonora/src/main.rs` names a concrete provider.
-- `music` never depends on `gpui`. `ui` never knows about `music`, `state` or playback. Widgets
+- Only `service/src/bootstrap.rs` constructs concrete music and lyrics providers. Views and the
+  rest of the service use the traits and models in the root of `music`.
+- `sonora` connects to `sonora-server` through `protocol`; it never starts an embedded music
+  service. Server-owned GPUI entities manage providers, playback, queues, lyrics and persistence.
+  GUI entities mirror presentation data and forward commands. Their constructors must not open
+  databases, create playback engines, restore accounts or start provider tasks.
+- Linux MPRIS, Discord, download jobs and audio analysis belong to the server. GUI subscriptions
+  are released on page drop or disconnect. Accepted mutations are never replayed on reconnect.
+  The service never depends on `sonora` or `views`.
+- `music` never depends on `gpui`. `ui` never knows about `music`, `service` or playback. Widgets
   that need app state live in `views/src/chrome/`.
 - `music::engine` is the one playback engine and `music::stream` the one progressive download. A
   provider implements `engine::Fetch` and `stream::Body` rather than writing its own. The engine
   applies loudness normalisation, so a provider only reports a track's level through
   `Fetch::loudness`. Spotify is the one exception, because librespot decodes and normalises
   inside its own player.
-- `music::drm` is the only way `state` and `views` reach protected playback. The CDM is never
+- `music::drm` is the only way `service` and `views` reach protected playback. The CDM is never
   shipped in any artefact or package.
 
 ## Rules
@@ -67,9 +76,9 @@ sonora → views → state → music
 - **Network work runs on tokio.** Anything touching `MusicApi`, librespot or sockets goes inside
   `Io::global(cx).spawn`, awaited from `cx.spawn` and applied in `this.update` ending with
   `cx.notify()`. Store the returned `Task` in a field and never detach a data load. Network-backed
-  features belong in a `state` entity, not a view. An entity that caches provider data clears on
+  features belong in a `service` entity, not a view. An entity that caches provider data clears on
   `SessionEvent::SignedOut`.
-- **Never drive a player from a view.** Go through `state::Playback`.
+- **Never drive a player from a view.** Go through `service::Playback`.
 - **Assets are picked up from their folder.** Drop an icon into `assets/icons/<pack>/` or a face
   into `assets/fonts/`. Call sites spell `"icons/<name>.svg"` and resolve it with `icons::path` at
   render.
@@ -83,7 +92,8 @@ sonora → views → state → music
 
 ```sh
 nix develop                    # or direnv allow
-cargo run --locked --package sonora
+./run.sh                       # build and supervise server + GUI; Ctrl+C stops both
+# or start sonora-server and sonora separately in two terminals
 cargo fmt
 cargo check --workspace
 cargo test --workspace

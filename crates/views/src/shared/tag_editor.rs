@@ -2,7 +2,7 @@ use gpui::prelude::*;
 use gpui::{App, Context, Div, Entity, FocusHandle, Global, Render, SharedString, Window, div};
 use i18n::t;
 use music::{Track, TrackTags};
-use state::{Io, Sonora, TagState, Tags};
+use service::{Io, Sonora, TagState, Tags};
 use ui::{ActiveTheme as _, Button, Dismiss, FORM_CONTEXT, Input, Modal, Submit, TabBar, Text};
 
 #[derive(Clone, Copy, PartialEq, Eq)]

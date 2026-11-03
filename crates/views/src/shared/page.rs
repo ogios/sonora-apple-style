@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use gpui::{App, Entity, Pixels, ScrollHandle, Window, px};
 
-use state::{AppSettings, FilterValue, Playback};
+use service::{AppSettings, FilterValue, Playback};
 use ui::{Filter, FilterChange, Listing, TableState, Viewport, quantize, scrolled};
 
 use crate::shared::cells;

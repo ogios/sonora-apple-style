@@ -90,7 +90,7 @@ pub fn distinct_covers(tracks: &[Track], wanted: usize) -> Vec<String> {
     covers
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MediaKind {
     Track,
     Album,
@@ -99,7 +99,7 @@ pub enum MediaKind {
 }
 
 /// What `MusicApi::report` tells the provider's server about the current track.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Report {
     Playing,
     Paused,
@@ -382,7 +382,19 @@ pub struct PlaybackConfig {
 /// [`Capabilities::qualities`], plays any other level as the nearest of those through
 /// [`Quality::within`], and steps further down by itself when the account or the track has
 /// nothing at that level.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub enum Quality {
     Low,
     Normal,
@@ -429,7 +441,7 @@ impl Quality {
 
 /// One level a service serves and what it streams at that level, so the listener can choose by
 /// what they will hear.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Offer {
     pub quality: Quality,
     pub encoding: Encoding,
@@ -438,9 +450,61 @@ pub struct Offer {
     pub up_to: bool,
 }
 
+/// An owned offer list with one slot per quality level, kept small enough to copy into UI state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Qualities {
+    offers: [Offer; Quality::ALL.len()],
+    length: usize,
+}
+
+impl Qualities {
+    /// Copies a provider's best-first levels. A provider can offer at most one of each level.
+    pub const fn new(offers: &[Offer]) -> Self {
+        assert!(offers.len() <= Quality::ALL.len());
+        let mut values = [Offer {
+            quality: Quality::Low,
+            encoding: Encoding::Mp3 { kbps: 0 },
+            up_to: false,
+        }; Quality::ALL.len()];
+        let mut at = 0;
+        while at < offers.len() {
+            values[at] = offers[at];
+            at += 1;
+        }
+        Self {
+            offers: values,
+            length: offers.len(),
+        }
+    }
+}
+
+impl std::ops::Deref for Qualities {
+    type Target = [Offer];
+
+    fn deref(&self) -> &Self::Target {
+        &self.offers[..self.length]
+    }
+}
+
+impl serde::Serialize for Qualities {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serde::Serialize::serialize(&self.offers[..self.length], serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Qualities {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let offers = <Vec<Offer> as serde::Deserialize>::deserialize(deserializer)?;
+        if offers.len() > Quality::ALL.len() {
+            return Err(serde::de::Error::custom("too many stream quality levels"));
+        }
+        Ok(Self::new(&offers))
+    }
+}
+
 /// What a stream or a file is encoded as: a lossless encoding with its bit depth, a lossy one
 /// with its bit rate in kilobits a second.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Encoding {
     /// FLAC at this bit depth and sample rate in hertz.
     Flac {
@@ -473,7 +537,7 @@ pub enum Encoding {
 
 /// What an engine knows about one track, reported as `PlaybackEvent::Signal` as it starts
 /// decoding it.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TrackSignal {
     /// How the provider encodes it, when it says.
     pub encoding: Option<Encoding>,
@@ -484,7 +548,7 @@ pub struct TrackSignal {
 }
 
 /// What loudness normalisation does to a track.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Normalisation {
     Off,
     /// A fixed gain in decibels, zero when nothing says how loud the track is.
@@ -496,7 +560,7 @@ pub enum Normalisation {
 
 /// What a server that converts audio on request is asked to send. Only Subsonic honours it, and
 /// the default leaves both choices to the server.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Transcode {
     pub codec: Option<Codec>,
     /// The highest bitrate to send, in kilobits per second.
@@ -519,7 +583,7 @@ impl Transcode {
 }
 
 /// A lossy format a streaming server can convert a track into before sending it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Codec {
     Mp3,
     Opus,
@@ -749,7 +813,7 @@ pub enum Catalog {
 /// a station Apple Music will not list or a play count Deezer does not keep. A capability that
 /// is off hides its button, its menu item and its column, rather than showing one that fails
 /// when pressed. A provider that gains one flips a flag here and the UI follows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Capabilities {
     /// Library playlists distinguish their creator from editing permission, and other owners
     /// represent saved playlists. Leave off for shared server lists or editability-only metadata.
@@ -772,7 +836,7 @@ pub struct Capabilities {
     pub downloads: bool,
     /// The stream levels the service serves, best first. Empty when there is nothing to choose
     /// between, so the setting stays hidden.
-    pub qualities: &'static [Offer],
+    pub qualities: Qualities,
     /// For a service that refuses a burst of downloads, the pause between them once it has refused
     /// one. Such a service downloads one track at a time, with no pause until it first refuses.
     /// Zero lets downloads run side by side.
@@ -793,7 +857,7 @@ impl Capabilities {
         transcode: false,
         keeps: true,
         downloads: true,
-        qualities: &[],
+        qualities: Qualities::new(&[]),
         download_gap: Duration::ZERO,
     };
 
@@ -807,7 +871,7 @@ impl Capabilities {
         transcode: false,
         keeps: false,
         downloads: false,
-        qualities: &[],
+        qualities: Qualities::new(&[]),
         download_gap: Duration::ZERO,
     };
 }
@@ -821,7 +885,7 @@ pub struct ProviderSession {
     pub capabilities: Capabilities,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SignIn {
     Default,
     Anonymous,
@@ -834,7 +898,7 @@ pub enum SignIn {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SignInProblem {
     Premium,
     Region,
@@ -876,14 +940,14 @@ impl std::fmt::Display for SignInFailure {
 
 impl std::error::Error for SignInFailure {}
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AccountChoice {
     pub id: String,
     pub name: String,
     pub detail: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SignInPrompt {
     Accounts(Vec<AccountChoice>),
     Code { code: String, url: String },

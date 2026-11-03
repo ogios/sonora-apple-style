@@ -16,7 +16,7 @@ use gpui::{
 };
 use music::{SharedTrack, Track};
 use router::Destination;
-use state::{Detail, History, Library, Network, Origin, Playback, Progress, Shelf, Sonora};
+use service::{Detail, History, Library, Network, Origin, Playback, Progress, Shelf, Sonora};
 use ui::{
     ArrowRing, Button, Cell, ColumnSpec, Menu, Pending, Pin, ROW_GROUP, Scrollbar, TableSource,
     TableState,
@@ -593,7 +593,7 @@ impl TableSource for TrackSource {
                 && !track
                     .id
                     .as_deref()
-                    .is_some_and(|id| state::downloaded(id, cx))
+                    .is_some_and(|id| service::downloaded(id, cx))
             {
                 return false;
             }

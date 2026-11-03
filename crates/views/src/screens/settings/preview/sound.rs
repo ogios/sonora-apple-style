@@ -11,7 +11,7 @@ use gpui::{
 };
 use i18n::t;
 use music::{Encoding, Normalisation};
-use state::{Following, SignalPath};
+use service::{Following, SignalPath};
 use ui::{ActiveTheme as _, Text, tabular};
 
 use crate::screens::settings::SettingsView;
@@ -42,7 +42,7 @@ struct Step {
 
 impl SoundPreview {
     pub(in crate::screens::settings) fn new(cx: &mut Context<SettingsView>) -> Self {
-        let signal = state::Sonora::global(cx).signal.clone();
+        let signal = service::Sonora::global(cx).signal.clone();
         cx.observe(&signal, |this, signal, cx| {
             let path = signal.read(cx).path().cloned();
             let preview = &this.previews.sound;
@@ -77,7 +77,7 @@ pub(in crate::screens::settings) fn preview(
     cx: &mut Context<SettingsView>,
 ) -> Option<AnyElement> {
     if state.following.borrow().is_none() {
-        let signal = state::Sonora::global(cx).signal.clone();
+        let signal = service::Sonora::global(cx).signal.clone();
         let following = signal.update(cx, |signal, cx| signal.follow(cx));
         state.path.replace(signal.read(cx).path().cloned());
         state.following.replace(Some(following));

@@ -2,7 +2,7 @@ use gpui::prelude::*;
 use gpui::{AnyElement, App, Context, SharedString, div, px};
 use i18n::t;
 use music::scrobble::{Link, Secret};
-use state::ScrobbleState;
+use service::ScrobbleState;
 use ui::{ActiveTheme as _, Button, Modal, Switch, Text};
 
 use super::{Group, SettingsView, Slot};

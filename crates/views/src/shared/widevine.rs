@@ -1,10 +1,10 @@
 //! The two questions before Google's Widevine module is installed: whether to download it,
-//! then whether its terms are accepted. Both are `state::Drm`'s to ask; this only draws them.
+//! then whether its terms are accepted. Both are `service::Drm`'s to ask; this only draws them.
 
 use gpui::prelude::*;
 use gpui::{Context, Entity, FocusHandle, Render, Window, div};
 use i18n::t;
-use state::{CdmState, Drm, Sonora};
+use service::{CdmState, Drm, Sonora};
 use ui::{ActiveTheme as _, Button, Dismiss, FORM_CONTEXT, Modal, Submit, Text};
 
 pub(crate) struct WidevinePrompt {

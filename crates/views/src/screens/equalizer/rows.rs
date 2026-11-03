@@ -5,7 +5,7 @@ use music::equalizer::{
     Curve, FREQUENCY_RANGE, Filter, GAIN_RANGE, Invalid, Kind, MAX_FILTERS, OCTAVES_RANGE,
     PREAMP_RANGE, Preamp, Q_RANGE, Width, apo,
 };
-use state::{Outcome, Toast, Toasts};
+use service::{Outcome, Toast, Toasts};
 use ui::{ActiveTheme as _, Button, Input, MenuItem, Picker, Switch, Text, vacant};
 
 use super::{EqualizerView, FILTERS_ICON, heading};

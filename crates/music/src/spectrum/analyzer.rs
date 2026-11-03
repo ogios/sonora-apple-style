@@ -53,7 +53,7 @@ struct Shared {
 }
 
 /// One frequency's level, in dBFS: a full-scale sine reads 0.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Level {
     pub frequency: f32,
     pub dbfs: f32,

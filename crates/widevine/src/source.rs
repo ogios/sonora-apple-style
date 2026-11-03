@@ -47,7 +47,7 @@ pub(crate) const ARCH: &str = "arm64";
 pub(crate) const ARCH: &str = "";
 
 /// How a CDM was come by.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Origin {
     /// Named by `SONORA_WIDEVINE_CDM`.
     Configured,

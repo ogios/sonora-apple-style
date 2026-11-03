@@ -80,7 +80,7 @@ fn session(client: DeezerClient, profile: crate::UserProfile) -> ProviderSession
         capabilities: Capabilities {
             playlist_ownership: true,
             playcounts: false,
-            qualities: client::QUALITIES,
+            qualities: crate::Qualities::new(client::QUALITIES),
             ..Capabilities::ALL
         },
     }

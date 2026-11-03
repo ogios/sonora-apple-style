@@ -5,7 +5,7 @@ use gpui::{AnyElement, App, Entity, TextAlign};
 use i18n::t;
 use music::Playlist;
 use router::Destination;
-use state::{Collection, Library, LibraryPart, Network, Origin, Playback, Shelf, Sonora};
+use service::{Collection, Library, LibraryPart, Network, Origin, Playback, Shelf, Sonora};
 use ui::rank::{ESSENTIAL, HANDY, NICE, SPARE};
 use ui::{Cell, ColumnSpec, Menu, Pin, TableSource, Width};
 

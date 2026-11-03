@@ -1,11 +1,10 @@
 use gpui::prelude::*;
-use gpui::{App, ClickEvent, ClipboardItem, Context, Entity, SharedString, Window};
+use gpui::{App, ClickEvent, Context, Entity, SharedString, Window};
 use i18n::t;
 use music::{Album, GenreItem, MediaKind, Playlist, SavedArtist, Track};
 use router::{Destination, navigate};
-use state::{
-    Addition, Collection, Detail, History, Library, Origin, Outcome, Playback, Progress, Shelf,
-    Sonora, Toasts,
+use service::{
+    Addition, Collection, Detail, History, Library, Origin, Playback, Progress, Shelf, Sonora,
 };
 use ui::{Menu, MenuItem, MenuSearch, Pin, PinKind, Scrollbar, SubmenuState};
 
@@ -1237,36 +1236,13 @@ fn saved_track(id: &str, cx: &App) -> Option<Track> {
         .cloned()
 }
 
-/// The Copy link item. The link is made while the menu is built, so an item with no link shows
-/// up disabled and says why on hover.
-fn copy_link_item(id: &'static str, kind: MediaKind, target: Option<&str>, cx: &App) -> MenuItem {
+/// Resolves the share address through the service when the user chooses Copy link.
+fn copy_link_item(id: &'static str, kind: MediaKind, target: Option<&str>, _cx: &App) -> MenuItem {
     let item = MenuItem::new(id, t!("menu-copy-link")).icon("icons/link.svg");
-    match share_link(kind, target, cx) {
-        Ok(url) => item.on_click(move |_, _, cx| {
-            cx.write_to_clipboard(ClipboardItem::new_string(url.clone()));
-            Toasts::show(Outcome::Done, "toast-link-copied", cx);
-        }),
-        Err(reason) => item.disabled().tooltip(reason),
-    }
-}
-
-/// The link that shares `id`, or the Fluent key of the reason there is none.
-fn share_link(kind: MediaKind, id: Option<&str>, cx: &App) -> Result<String, &'static str> {
-    let Some(id) = id else {
-        return Err("menu-copy-link-none");
+    let Some(target) = target.map(str::to_owned) else {
+        return item.disabled().tooltip("menu-copy-link-none");
     };
-    let local = music::is_local_id(id);
-    let session = Sonora::global(cx).session.read(cx);
-    let client = match local {
-        true => session.local_client(),
-        false => session.client(),
-    };
-    client
-        .and_then(|client| client.share_url(kind, id))
-        .ok_or(match local {
-            true => "menu-copy-link-local",
-            false => "menu-copy-link-none",
-        })
+    item.on_click(move |_, _, cx| service::client::copy_link(kind, target.clone(), cx))
 }
 
 fn playlist_library_item(playlist: Playlist, cx: &App) -> MenuItem {

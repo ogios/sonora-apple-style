@@ -4,7 +4,7 @@ use gpui::prelude::*;
 use gpui::{Context, Entity, Pixels, Window, div, px};
 use i18n::t;
 use music::output::DeviceOption;
-use state::Outputs;
+use service::Outputs;
 use ui::ActiveTheme as _;
 use ui::{Menu, MenuItem, Picker, Popovers, Scrollbar, Spinner, SubmenuState, Text};
 

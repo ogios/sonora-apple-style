@@ -1,6 +1,6 @@
 use gpui::prelude::*;
 use gpui::{Context, Entity, Pixels, Render, StyleRefinement, Window, div, px};
-use state::{AppSettings, Playback, Queue, SideTab, Sonora};
+use service::{AppSettings, Playback, Queue, SideTab, Sonora};
 use ui::{ActiveTheme as _, MIN_CONTENT, Panel, Room, Side};
 
 use crate::chrome::Aside;

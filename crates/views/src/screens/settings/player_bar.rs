@@ -1,7 +1,7 @@
 use gpui::prelude::*;
 use gpui::{AnyElement, App, Context, Div, Hsla, Pixels, Window, div, relative};
 use i18n::t;
-use state::PlayerBarLayout;
+use service::PlayerBarLayout;
 use ui::{ActiveTheme as _, OptionCard, Switch};
 
 use super::rows::grid;

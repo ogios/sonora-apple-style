@@ -14,7 +14,8 @@ embed = { path = "crates/embed" }
 i18n = { path = "crates/i18n" }
 icons = { path = "crates/icons" }
 music = { path = "crates/music" }
-state = { path = "crates/state" }
+protocol = { path = "crates/protocol" }
+service = { path = "crates/service" }
 storage = { path = "crates/storage" }
 input = { path = "crates/input" }
 router = { path = "crates/router" }
@@ -69,7 +70,7 @@ windows-sys = { version = "0.61", features = [
   "Win32_UI_WindowsAndMessaging",
 ] }
 webview2-com = "0.39"
-interprocess = "2.4"
+interprocess = { version = "2.4", features = ["tokio"] }
 widestring = "1.2"
 image = { version = "0.25", default-features = false, features = [
   "jpeg",
@@ -188,6 +189,7 @@ tokio = { version = "1.53", features = [
   "io-util",
   "macros",
   "sync",
+  "signal",
   "time",
 ] }
 time = { version = "0.3.55", features = ["parsing"] }

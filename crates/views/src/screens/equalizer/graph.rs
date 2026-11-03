@@ -8,7 +8,7 @@ use music::equalizer::{
     Curve, FREQUENCY_RANGE, Filter, GAIN_RANGE, Invalid, Kind, OCTAVES_RANGE, Q_RANGE, Response,
     Tone, Width,
 };
-use state::{AppSettings, Equalizer, Outputs, Signal};
+use service::{AppSettings, Equalizer, Outputs, Signal};
 use ui::{
     ActiveTheme as _, GraphEdit, ResponseAxes, ResponseGraph, ResponseGraphState, ResponseNode,
     ResponsePoint, Room, ease_out_cubic,

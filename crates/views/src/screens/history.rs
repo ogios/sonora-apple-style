@@ -4,7 +4,7 @@ use gpui::{
 };
 use i18n::t;
 use music::Track;
-use state::{History, HistoryState, Playback, Sonora};
+use service::{History, HistoryState, Playback, Sonora};
 use ui::{
     ActiveTheme as _, Button, Listing as _, Modal, Scrollbar, Scroller, TableDelegate, TableEvent,
     TableState, runtime, table, vacant,

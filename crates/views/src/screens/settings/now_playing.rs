@@ -1,7 +1,7 @@
 use gpui::prelude::*;
 use gpui::{AnyElement, App, Context, Pixels, Window, div, px, svg};
 use i18n::t;
-use state::FullscreenControlsAutohide;
+use service::FullscreenControlsAutohide;
 use ui::{ActiveTheme as _, Levels, OptionCard, Switch, Visualizer, VisualizerStyle};
 
 use super::rows::{grid, segmented};

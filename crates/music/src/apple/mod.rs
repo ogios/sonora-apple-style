@@ -109,7 +109,7 @@ fn session(client: AppleClient, profile: crate::UserProfile) -> ProviderSession 
             pins: true,
             keeps: true,
             downloads: true,
-            qualities: stream::QUALITIES,
+            qualities: crate::Qualities::new(stream::QUALITIES),
             ..Capabilities::NONE
         },
     }
