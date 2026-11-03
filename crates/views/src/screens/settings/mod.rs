@@ -1294,6 +1294,12 @@ impl Render for SettingsView {
             }
             _ => None,
         };
+        let qr = match self.session.read(cx).state() {
+            SessionState::Authorizing(Some(SignInPrompt::QrCode { url, scanned })) => {
+                Some((url.clone(), *scanned))
+            }
+            _ => None,
+        };
         if self.sign_in_running && !self.session.read(cx).is_pending() {
             self.sign_in_running = false;
             self.sign_in_for = None;
@@ -1309,6 +1315,7 @@ impl Render for SettingsView {
         // it, and the choice holds the veil until that prompt arrives
         let taken = accounts.is_some()
             || code.is_some()
+            || qr.is_some()
             || manual_secret.is_some()
             || self.credentials_for.is_some();
         let sign_in_for = self.sign_in_for.filter(|_| !taken);
@@ -1356,6 +1363,20 @@ impl Render for SettingsView {
         })
         .when_some(code, |this, (code, url)| {
             this.child(self.code_prompt(code, url, cx).into_any_element())
+        })
+        .when_some(qr, |this, (url, scanned)| {
+            this.child(
+                ui::Modal::new("settings-qr-prompt", t!("login-qr-title"))
+                    .close_button()
+                    .child(crate::shared::device_code::qr_code(url, scanned, cx))
+                    .action(
+                        ui::Button::new("settings-cancel-qr")
+                            .ghost()
+                            .label(t!("common-cancel"))
+                            .on_click(cx.listener(|this, _, _, cx| this.abandon(cx))),
+                    )
+                    .on_dismiss(cx.listener(|this, _, _, cx| this.abandon(cx))),
+            )
         })
         .when_some(manual_secret, |this, (slug, provider)| {
             this.child(self.secret_prompt(slug, provider, cx).into_any_element())

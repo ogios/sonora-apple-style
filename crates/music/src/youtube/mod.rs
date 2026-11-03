@@ -397,6 +397,7 @@ impl MusicProvider for YouTubeProvider {
                 let cookies = input.recv().await.context("sign-in was cancelled")?;
                 self.connect(&cookies, &prompt, &mut input).await
             }
+            SignIn::QrCode => Err(anyhow::anyhow!("youtube has no QR sign-in")),
             SignIn::Path(_) => Err(anyhow::anyhow!(
                 "youtube does not sign in with a folder path"
             )),

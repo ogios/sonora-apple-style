@@ -1,17 +1,24 @@
-//! Sign-in credentials for NetEase Cloud Music: the `MUSIC_U` session cookie from a browser,
-//! with the `__csrf` token beside it when there is one, kept in the provider's own cache folder.
+//! NetEase QR authorization and persisted `MUSIC_U` sessions, with their optional CSRF token.
 
 use std::path::PathBuf;
+use std::time::Duration;
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Context as _, Result, bail, ensure};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
-use crate::credentials;
+use crate::{PromptSink, SignInFailure, SignInProblem, SignInPrompt, credentials};
+
+use super::client;
 
 /// The cookie that proves a signed-in NetEase session.
 pub(crate) const PROOF: &[&str] = &["MUSIC_U"];
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+const QR_POLL: Duration = Duration::from_secs(2);
+const QR_LIFETIME: Duration = Duration::from_secs(180);
+
+/// The reusable session proof, kept on the server and never included in presentation snapshots.
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Credentials {
     /// The `MUSIC_U` cookie value alone, not the whole header.
     pub music_u: String,
@@ -19,6 +26,78 @@ pub(crate) struct Credentials {
     /// without it, so a pasted `MUSIC_U` alone still signs in.
     #[serde(default)]
     pub csrf: Option<String>,
+}
+
+/// Requests one QR key and polls it until approval, expiry or the caller drops the future.
+pub(crate) async fn qr(prompt: &PromptSink) -> Result<Credentials> {
+    let http = client::http()?;
+    let (key, _) = client::login_request(
+        &http,
+        "/login/qrcode/unikey",
+        json!({"type": 1, "noCheckToken": true, "csrf_token": ""}),
+    )
+    .await?;
+    ensure!(
+        key["code"] == 200,
+        "netease refused to create a QR login key"
+    );
+    let key = key["unikey"]
+        .as_str()
+        .filter(|key| !key.is_empty() && key.len() <= 256)
+        .context("the netease QR login key is missing or invalid")?;
+    let url = format!(
+        "https://music.163.com/login?codekey={}",
+        crate::escape::component(key)
+    );
+    prompt(SignInPrompt::QrCode {
+        url: url.clone(),
+        scanned: false,
+    });
+    let deadline = tokio::time::Instant::now() + QR_LIFETIME;
+    let mut scanned = false;
+    loop {
+        let poll = async {
+            tokio::time::sleep(QR_POLL).await;
+            client::login_request(
+                &http,
+                "/login/qrcode/client/login",
+                json!({"type": 1, "key": key, "noCheckToken": true, "csrf_token": ""}),
+            )
+            .await
+        };
+        let (answer, headers) = tokio::time::timeout_at(deadline, poll)
+            .await
+            .map_err(|_| SignInFailure(SignInProblem::Cancelled))
+            .context("the netease QR login expired")??;
+        match answer["code"].as_i64() {
+            Some(801) => {}
+            Some(802) if !scanned => {
+                scanned = true;
+                prompt(SignInPrompt::QrCode {
+                    url: url.clone(),
+                    scanned,
+                });
+            }
+            Some(802) => {}
+            Some(803) => {
+                let cookies = headers
+                    .get_all(reqwest::header::SET_COOKIE)
+                    .iter()
+                    .filter_map(|cookie| cookie.to_str().ok())
+                    .filter_map(|cookie| cookie.split(';').next())
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                return parse(&cookies)
+                    .context("the approved netease QR login has no valid session cookie");
+            }
+            Some(800) => {
+                return Err(SignInFailure(SignInProblem::Cancelled))
+                    .context("the netease QR login expired or was cancelled");
+            }
+            Some(code) => bail!("netease refused the QR login with code {code}"),
+            None => bail!("the netease QR login status is missing"),
+        }
+    }
 }
 
 fn path() -> PathBuf {

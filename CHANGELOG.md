@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Sign in to NetEase Cloud Music from a terminal by scanning a QR code with the mobile app.
+  The CLI waits for confirmation, saves the approved session, and cancels authorization on Ctrl+C.
+
 - Control playback from a TTY with `sonora-cli`: search, play files or songs, manage the queue,
   and authorize accounts without opening the GUI. Use JSON output to integrate with scripts.
 

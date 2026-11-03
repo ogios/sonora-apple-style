@@ -843,6 +843,24 @@ impl Session {
         }));
     }
 
+    /// Cancels only the QR challenge named by the caller, leaving any replacement sign-in alone.
+    pub fn cancel_qr_sign_in(&mut self, slug: &str, url: &str, cx: &mut Context<Self>) {
+        if crate::client::command(
+            "cancel_qr_sign_in",
+            vec![serde_json::json!(slug), serde_json::json!(url)],
+            cx,
+        ) {
+            return;
+        }
+        if self
+            .awaiting
+            .is_some_and(|index| self.providers[index].slug() == slug)
+            && matches!(&self.state, SessionState::Authorizing(Some(SignInPrompt::QrCode { url: current, .. })) if current == url)
+        {
+            self.cancel_sign_in(cx);
+        }
+    }
+
     pub fn cancel_sign_in(&mut self, cx: &mut Context<Self>) {
         if crate::client::command("cancel_sign_in", vec![], cx) {
             return;

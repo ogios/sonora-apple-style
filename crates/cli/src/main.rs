@@ -151,7 +151,7 @@ async fn execute(arguments: Arguments) -> Result<()> {
                 .as_array()
                 .context("the provider has no sign-in options")?;
             let method = match method.as_str() {
-                "Default" => ["Default", "Secret", "Anonymous"]
+                "Default" => ["Default", "QrCode", "Secret", "Anonymous"]
                     .into_iter()
                     .map(|method| json!(method))
                     .find(|method| options.contains(method))
@@ -173,24 +173,9 @@ async fn execute(arguments: Arguments) -> Result<()> {
                         .is_none_or(|prompt| !prompt.is_null())
             })
             .await?;
-            if let Some(failure) = session["providers"]
-                .as_array()
-                .and_then(|providers| providers.iter().find(|info| info["slug"] == provider))
-                .and_then(|info| info["error"].as_object())
-            {
-                bail!(
-                    "{}",
-                    failure
-                        .get("summary")
-                        .and_then(Value::as_str)
-                        .unwrap_or("sign-in failed")
-                );
-            }
-            if let Some(failure) = session["state"].get("Failed") {
-                bail!(
-                    "{}",
-                    failure["summary"].as_str().unwrap_or("sign-in failed")
-                );
+            authorization_error(&session, &provider)?;
+            if session["state"]["Authorizing"].get("QrCode").is_some() {
+                return follow_qr(&client, &provider, &session, json).await;
             }
             output::show("session", &session, json)
         }
@@ -221,6 +206,78 @@ async fn execute(arguments: Arguments) -> Result<()> {
 
 async fn invoke(client: &Client, call: Call) -> Result<Value> {
     client.call(call).await
+}
+
+/// Stays attached to a native QR approval and cancels that challenge on Ctrl+C.
+async fn follow_qr(client: &Client, provider: &str, initial: &Value, json: bool) -> Result<()> {
+    let url = initial["state"]["Authorizing"]["QrCode"]["url"]
+        .as_str()
+        .context("the QR authorization URL is missing")?;
+    output::show("session", initial, json)?;
+    io::stdout().flush().context("cannot flush CLI output")?;
+    let mut previous = initial["state"].clone();
+    let mut snapshots = client.snapshots();
+    let mut connection = client.connection_state();
+    loop {
+        {
+            let snapshot = snapshots.borrow_and_update();
+            let session = object(&snapshot, "session")?;
+            authorization_error(session, provider)?;
+            let state = &session["state"];
+            if state.get("SignedIn").is_some() && session["provider_slug"] == provider {
+                return output::show("session", session, json);
+            }
+            let challenge = &state["Authorizing"]["QrCode"];
+            let pending = session["providers"].as_array().is_some_and(|providers| {
+                providers
+                    .iter()
+                    .any(|info| info["slug"] == provider && info["pending"] == true)
+            });
+            ensure!(
+                pending && challenge["url"] == url,
+                "{}",
+                t!("cli-cancelled")
+            );
+            if state != &previous {
+                match json {
+                    true => output::show("session", session, true)?,
+                    false => output::qr_status(challenge["scanned"] == true)?,
+                }
+                io::stdout().flush().context("cannot flush CLI output")?;
+                previous = state.clone();
+            }
+        }
+        if let ConnectionState::Disconnected(reason) = &*connection.borrow_and_update() {
+            bail!("{reason}");
+        }
+        tokio::select! {
+            result = snapshots.changed() => result.context("the service state stream closed")?,
+            result = connection.changed() => result.context("the service connection closed")?,
+            result = tokio::signal::ctrl_c() => {
+                result.context("cannot listen for Ctrl+C")?;
+                invoke(client, Call::new("session", "cancel_qr_sign_in", vec![json!(provider), json!(url)])).await?;
+                bail!("{}", t!("cli-cancelled"));
+            }
+        }
+    }
+}
+
+/// Reports failures retained on the requested provider even when a previous account resumes.
+fn authorization_error(session: &Value, provider: &str) -> Result<()> {
+    let error = session["providers"]
+        .as_array()
+        .and_then(|providers| providers.iter().find(|info| info["slug"] == provider))
+        .and_then(|info| info["error"].as_object())
+        .and_then(|failure| failure.get("summary"))
+        .or_else(|| {
+            session["state"]
+                .get("Failed")
+                .and_then(|failure| failure.get("summary"))
+        });
+    if let Some(summary) = error.and_then(Value::as_str) {
+        bail!("{summary}");
+    }
+    Ok(())
 }
 
 fn object<'a>(snapshot: &'a Snapshot, name: &str) -> Result<&'a Value> {

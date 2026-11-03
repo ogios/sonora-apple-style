@@ -189,11 +189,7 @@ impl NetEaseClient {
     pub(crate) fn unopened(credentials: &Credentials, profile: UserProfile) -> Result<Self> {
         // No overall timeout here: the same client streams songs minutes long. API calls set
         // their own, and a stalled stream ends on the read timeout.
-        let http = reqwest::Client::builder()
-            .connect_timeout(CONNECT_TIMEOUT)
-            .read_timeout(READ_TIMEOUT)
-            .build()
-            .context("cannot build the netease http client")?;
+        let http = http()?;
         let mut cookie = format!("{CLIENT_COOKIES}; MUSIC_U={}", credentials.music_u);
         if let Some(csrf) = &credentials.csrf {
             cookie.push_str(&format!("; __csrf={csrf}"));
@@ -261,17 +257,7 @@ impl NetEaseClient {
                 )
             }
         };
-        let response = self
-            .inner
-            .http
-            .post(&url)
-            .header("Cookie", &self.inner.cookie)
-            .header("Referer", BASE)
-            .header("User-Agent", agent)
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .timeout(CALL_TIMEOUT)
-            .body(body)
-            .send()
+        let response = request(&self.inner.http, &url, &self.inner.cookie, agent, body)
             .await
             .with_context(|| format!("cannot reach netease for {path}"))?;
         let bytes = response
@@ -1137,6 +1123,62 @@ fn decode(bytes: &[u8]) -> Result<Value> {
         .read_to_end(&mut inflated)
         .context("the answer is neither json nor zlib")?;
     serde_json::from_slice(&inflated).context("the inflated answer is not json")
+}
+
+/// Builds a transport whose API deadlines are per request, allowing long-lived audio streams.
+pub(super) fn http() -> Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .connect_timeout(CONNECT_TIMEOUT)
+        .read_timeout(READ_TIMEOUT)
+        .build()
+        .context("cannot build the netease http client")
+}
+
+/// Sends a NetEase form request with a bounded API deadline.
+async fn request(
+    http: &reqwest::Client,
+    url: &str,
+    cookie: &str,
+    agent: &str,
+    body: String,
+) -> Result<reqwest::Response> {
+    http.post(url)
+        .header("Cookie", cookie)
+        .header("Referer", BASE)
+        .header("User-Agent", agent)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .timeout(CALL_TIMEOUT)
+        .body(body)
+        .send()
+        .await
+        .context("cannot reach netease")
+}
+
+/// Reads authorization status codes and response cookies without treating pending states as errors.
+pub(super) async fn login_request(
+    http: &reqwest::Client,
+    path: &str,
+    params: Value,
+) -> Result<(Value, reqwest::header::HeaderMap)> {
+    let response = request(
+        http,
+        &format!("{BASE}/weapi{path}"),
+        CLIENT_COOKIES,
+        AGENT,
+        crypto::weapi(&params.to_string()),
+    )
+    .await?
+    .error_for_status()
+    .context("netease refused the authorization request")?;
+    let headers = response.headers().clone();
+    let bytes = response
+        .bytes()
+        .await
+        .context("cannot read the netease authorization response")?;
+    Ok((
+        decode(&bytes).context("cannot decode the netease authorization response")?,
+        headers,
+    ))
 }
 
 /// Locks a mutex whose guarded value is still sound after a panic elsewhere.

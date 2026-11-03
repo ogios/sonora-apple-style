@@ -145,6 +145,7 @@ Use the same build profile and `SONORA_SOCKET` value for both processes.
 ```sh
 sonora-cli status
 sonora-cli account                         # list providers and stored accounts
+sonora-cli account login netease qr        # scan with the NetEase app and confirm on your phone
 sonora-cli account login netease secret    # print the manual cookie/token prompt
 sonora-cli account input < cookie.txt      # supply one line through stdin
 sonora-cli account status                  # check authorization completion
@@ -173,9 +174,11 @@ command is never automatically retried.
 When a provider returns a complete device verification URI, the CLI also draws a scannable
 QR code using terminal block characters. TIDAL supports this device flow; the QR code is shown
 only when its response includes that URI. Use a dark terminal background for scanning.
-Providers exposing only a browser URL or cookie input keep those prompts. The current NetEase
-adapter supports cookie input, so it does not advertise QR login. JSON output includes the
-provider's `qr_url` when available and never mixes terminal graphics into the JSON stream.
+NetEase uses its native QR flow with `account login netease` or `account login netease qr`.
+The command stays attached, reports when the code is scanned, and exits after the server verifies
+and saves the approved session. Ctrl+C cancels that challenge. Expired codes require a new login
+command. `account login netease secret` accepts cookies instead. JSON output emits authorization
+state updates including the QR URL, without terminal graphics or session cookies.
 
 ## Installation
 

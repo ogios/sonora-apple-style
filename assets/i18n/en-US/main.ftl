@@ -333,6 +333,10 @@ tool-sort = Sort
 tool-filters = Filters
 
 # login
+login-qr-title = Sign in with a QR code
+login-qr-scan = Scan with the NetEase Cloud Music app.
+cli-qr-scan = Scan with the NetEase Cloud Music app. Use a dark terminal background; press Ctrl+C to cancel.
+login-qr-confirm = Scanned. Confirm the sign-in in the NetEase Cloud Music app.
 login-signed-out = Sign in to load your music library
 login-restoring = Checking your saved session…
 login-authorizing = Waiting for authorization in your browser…
@@ -1379,7 +1383,7 @@ cli-help =
     queue remove INDEX             Remove an upcoming track (1-based index)
     search QUERY...                Search the active provider and saved library
     account [status]               Show providers, accounts and authorization prompts
-    account login PROVIDER [default|anonymous|secret]
+    account login PROVIDER [default|qr|anonymous|secret]
     account input                  Read one authorization response from standard input
     account switch PROVIDER        Restore a stored account
     account sign-out | cancel
@@ -1391,6 +1395,7 @@ cli-help =
     SONORA_SOCKET selects the server endpoint. Use the same build profile for both binaries.
     --json emits one JSON value per line. Mutations acknowledge acceptance, not completion.
     Commands are never replayed after a disconnect. Use -- before literal option-like arguments.
+    NetEase QR login waits for approval; Ctrl+C cancels it. Cookie login uses secret.
 cli-usage-error = Invalid command or arguments. Run sonora-cli --help for usage.
 cli-invalid-number = Expected a finite, nonnegative number.
 cli-invalid-volume = Volume must be between 0 and 100.

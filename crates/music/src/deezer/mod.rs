@@ -148,6 +148,7 @@ impl MusicProvider for DeezerProvider {
                 Self::connect(&cookies).await
             }
             SignIn::Anonymous => Err(anyhow::anyhow!("deezer has no anonymous sign-in")),
+            SignIn::QrCode => Err(anyhow::anyhow!("deezer has no QR sign-in")),
             SignIn::Path(_) => Err(anyhow::anyhow!(
                 "deezer does not sign in with a folder path"
             )),

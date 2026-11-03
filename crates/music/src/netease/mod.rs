@@ -1,4 +1,4 @@
-//! NetEase Cloud Music: sign-in with the browser's `MUSIC_U` cookie, the account's library,
+//! NetEase Cloud Music: QR or browser-cookie sign-in, the account's library,
 //! catalogue and plain MP3 or FLAC streams over the endpoints its web player uses, and synced
 //! lyrics from its public endpoints.
 //!
@@ -46,10 +46,15 @@ impl NetEaseProvider {
 
     async fn connect(cookies: &str) -> Result<ProviderSession> {
         let credentials = auth::parse(cookies)?;
-        let client = NetEaseClient::connect(&credentials)
+        Self::connect_credentials(&credentials).await
+    }
+
+    /// Verifies the account before replacing the stored sign-in.
+    async fn connect_credentials(credentials: &auth::Credentials) -> Result<ProviderSession> {
+        let client = NetEaseClient::connect(credentials)
             .await
             .context("cannot reach netease with that session")?;
-        auth::store(&credentials)?;
+        auth::store(credentials)?;
         Ok(session(client))
     }
 
@@ -112,7 +117,7 @@ impl MusicProvider for NetEaseProvider {
     }
 
     fn sign_in_options(&self) -> Vec<SignIn> {
-        vec![SignIn::Secret]
+        vec![SignIn::QrCode, SignIn::Secret]
     }
 
     fn stored(&self) -> bool {
@@ -135,7 +140,16 @@ impl MusicProvider for NetEaseProvider {
         mut input: InputSource,
     ) -> Result<ProviderSession> {
         match method {
-            SignIn::Secret | SignIn::Default => {
+            SignIn::Default | SignIn::QrCode => tokio::select! {
+                biased;
+                _ = input.recv() => Err(crate::SignInFailure(crate::SignInProblem::Cancelled))
+                    .context("the netease QR login was cancelled"),
+                result = async {
+                    let credentials = auth::qr(&prompt).await?;
+                    Self::connect_credentials(&credentials).await
+                } => result,
+            },
+            SignIn::Secret => {
                 prompt(SignInPrompt::Secret);
                 let cookies = input.recv().await.context("sign-in was cancelled")?;
                 Self::connect(&cookies).await

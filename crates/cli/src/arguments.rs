@@ -141,9 +141,10 @@ impl Arguments {
                 "account",
                 "login",
                 provider,
-                method @ ("default" | "anonymous" | "secret"),
+                method @ ("default" | "qr" | "anonymous" | "secret"),
             ] => {
                 let method = match *method {
+                    "qr" => "QrCode",
                     "anonymous" => "Anonymous",
                     "secret" => "Secret",
                     _ => "Default",

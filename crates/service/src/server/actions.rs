@@ -38,6 +38,7 @@ pub(super) fn dispatch(call: &Call, cx: &mut App) -> Result<Value> {
                 sign_in_manually(slug: String => &slug, method: music::SignIn => method),
                 sign_in_with_cookies(slug: String => &slug),
                 cancel_sign_in(),
+                cancel_qr_sign_in(slug: String => &slug, url: String => &url),
                 submit_input(text: String => text),
                 sign_out(),
                 go_offline(),

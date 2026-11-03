@@ -135,9 +135,17 @@ fn session(value: &Value) -> Result<()> {
         _ if value["state"].get("Offline").is_some() => t!("cli-account-offline").to_string(),
         _ => text(&value["state"]["Failed"]["summary"]),
     };
+    let provider = value["providers"]
+        .as_array()
+        .and_then(|providers| {
+            providers
+                .iter()
+                .find(|provider| provider["pending"] == true)
+        })
+        .map_or(&value["provider_name"], |provider| &provider["name"]);
     line(&t!(
         "cli-account-state",
-        provider = text(&value["provider_name"]),
+        provider = text(provider),
         state = state
     ))?;
     if let Some(providers) = value["providers"].as_array() {
@@ -165,6 +173,12 @@ fn session(value: &Value) -> Result<()> {
                 line(&t!("cli-auth-qr"))?;
                 qr(url)?;
             }
+        } else if let Some(code) = prompt.get("QrCode") {
+            qr_status(code["scanned"] == true)?;
+            line(&text(&code["url"]))?;
+            qr(code["url"]
+                .as_str()
+                .context("the QR authorization URL is missing")?)?;
         } else if let Some(url) = prompt.get("Url") {
             line(&t!("cli-auth-url", url = text(url)))?;
         } else if prompt == "Secret" {
@@ -175,6 +189,14 @@ fn session(value: &Value) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Shows the native QR flow's current step without repeating its module grid.
+pub fn qr_status(scanned: bool) -> Result<()> {
+    line(&match scanned {
+        true => t!("login-qr-confirm"),
+        false => t!("cli-qr-scan"),
+    })
 }
 
 fn track_row(track: &Value) -> String {

@@ -888,6 +888,8 @@ pub struct ProviderSession {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SignIn {
     Default,
+    /// A provider's native QR approval flow, completed on another device.
+    QrCode,
     Anonymous,
     Secret,
     Path(Vec<PathBuf>),
@@ -950,6 +952,11 @@ pub struct AccountChoice {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SignInPrompt {
     Accounts(Vec<AccountChoice>),
+    /// A native scan-to-authorize URL and whether the provider is waiting for confirmation.
+    QrCode {
+        url: String,
+        scanned: bool,
+    },
     Code {
         code: String,
         url: String,

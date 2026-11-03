@@ -173,6 +173,7 @@ impl MusicProvider for AppleProvider {
                 Self::connect(&cookies).await
             }
             SignIn::Anonymous => anyhow::bail!("apple music has no anonymous sign-in"),
+            SignIn::QrCode => anyhow::bail!("apple music has no QR sign-in"),
             SignIn::Path(_) => anyhow::bail!("apple music does not sign in with a folder path"),
             SignIn::Credentials { .. } => {
                 anyhow::bail!("apple music does not sign in with a server address")

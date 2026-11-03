@@ -61,7 +61,7 @@ pub(super) struct Guest {
 /// mode has a card of its own, and a stored account is asked for nothing.
 fn offered(method: &SignIn, stored: bool) -> bool {
     match method {
-        SignIn::Default | SignIn::Secret | SignIn::Credentials { .. } => !stored,
+        SignIn::Default | SignIn::QrCode | SignIn::Secret | SignIn::Credentials { .. } => !stored,
         SignIn::Anonymous | SignIn::Path(_) => false,
     }
 }
@@ -825,6 +825,7 @@ impl SettingsView {
                 format!("connect-{slug}"),
                 t!("login-sign-in", provider = provider),
             ),
+            SignIn::QrCode => (format!("connect-{slug}-qr"), t!("login-qr-title")),
             SignIn::Anonymous => (format!("connect-{slug}-guest"), t!("login-guest-use")),
             SignIn::Secret => (
                 format!("connect-{slug}-cookies"),

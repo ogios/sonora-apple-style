@@ -1,4 +1,4 @@
-use crate::shared::device_code::device_code;
+use crate::shared::device_code::{device_code, qr_code};
 use crate::shared::popups::{AccountPicker, CookiePrompt};
 use gpui::prelude::*;
 use gpui::{
@@ -191,11 +191,21 @@ impl LoginView {
                 });
                 options
             }
-            SignIn::Default | SignIn::Anonymous | SignIn::Path(_) | SignIn::Credentials { .. } => {
+            SignIn::Default
+            | SignIn::QrCode
+            | SignIn::Anonymous
+            | SignIn::Path(_)
+            | SignIn::Credentials { .. } => {
                 let (suffix, label, action, primary) = match method {
                     SignIn::Default => (
                         "",
                         t!("login-sign-in", provider = provider),
+                        LoginAction::SignIn(method.clone()),
+                        true,
+                    ),
+                    SignIn::QrCode => (
+                        "-qr",
+                        t!("login-qr-title"),
                         LoginAction::SignIn(method.clone()),
                         true,
                     ),
@@ -484,6 +494,12 @@ impl Render for LoginView {
             SessionState::Authorizing(Some(SignInPrompt::Url(url))) => Some(url.clone()),
             _ => None,
         };
+        let qr = match &state {
+            SessionState::Authorizing(Some(SignInPrompt::QrCode { url, scanned })) => {
+                Some((url.clone(), *scanned))
+            }
+            _ => None,
+        };
 
         let theme = *cx.theme();
         let asking = self.usage.read(cx).asking();
@@ -531,6 +547,9 @@ impl Render for LoginView {
                 this.child(self.code_prompt(code, url, cx).into_any_element())
             })
             .when_some(url, |this, url| this.child(self.url_prompt(url)))
+            .when_some(qr, |this, (url, scanned)| {
+                this.child(qr_code(url, scanned, cx))
+            })
             .child(TabBar::new("login-providers").flex_none().items(tabs))
             .when_some(column, |this, column| this.child(self.column(column, cx)))
             .when_some(guest, |this, slug| {
