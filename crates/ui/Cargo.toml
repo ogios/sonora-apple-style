@@ -7,7 +7,7 @@ license.workspace = true
 [dependencies]
 futures.workspace = true
 gpui.workspace = true
-i18n.workspace = true
+i18n = { workspace = true, features = ["gpui"] }
 icons.workspace = true
 image.workspace = true
 log.workspace = true

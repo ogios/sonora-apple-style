@@ -22,7 +22,7 @@ futures.workspace = true
 env_logger.workspace = true
 gpui.workspace = true
 gpui_platform.workspace = true
-i18n.workspace = true
+i18n = { workspace = true, features = ["gpui"] }
 icons.workspace = true
 image.workspace = true
 log.workspace = true

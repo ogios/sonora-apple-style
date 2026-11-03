@@ -135,7 +135,33 @@ pub struct Search {
     ranking: Option<Task<()>>,
 }
 
-remote_model!(Search, "search", true, { query, served, portraits, hits, loading, error });
+impl crate::client::Model for Search {
+    const KIND: &'static str = "search";
+    const DYNAMIC: bool = true;
+
+    fn remote_snapshot(&self, _cx: &gpui::App) -> serde_json::Value {
+        serde_json::json!({
+            "query": self.query,
+            "served": self.served,
+            "portraits": self.portraits,
+            "hits": self.hits,
+            "loading": self.loading,
+            "error": self.error,
+            "settled": !self.loading && self.ranking.is_none(),
+        })
+    }
+
+    fn apply_remote(&mut self, data: &serde_json::Value, cx: &mut Context<Self>) -> Result<()> {
+        self.query = serde_json::from_value(data["query"].clone())?;
+        self.served = serde_json::from_value(data["served"].clone())?;
+        self.portraits = serde_json::from_value(data["portraits"].clone())?;
+        self.hits = serde_json::from_value(data["hits"].clone())?;
+        self.loading = serde_json::from_value(data["loading"].clone())?;
+        self.error = serde_json::from_value(data["error"].clone())?;
+        cx.notify();
+        Ok(())
+    }
+}
 
 impl Search {
     pub fn new(

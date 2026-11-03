@@ -950,7 +950,13 @@ pub struct AccountChoice {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SignInPrompt {
     Accounts(Vec<AccountChoice>),
-    Code { code: String, url: String },
+    Code {
+        code: String,
+        url: String,
+        /// A provider-issued complete device verification URI that can be scanned on another device.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        qr_url: Option<String>,
+    },
     Url(String),
     Secret,
 }

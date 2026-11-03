@@ -1359,3 +1359,79 @@ response-graph-readout = { $frequency } · { $direction ->
         [down] -{ $gain }
        *[flat] { $gain }
     } dB
+### Terminal client
+
+cli-help =
+    Usage: sonora-cli [--json] COMMAND
+
+    status                         Show playback state (default command)
+    watch                          Stream playback changes; Ctrl+C to stop
+    play [TRACK_ID]                 Resume, or play a song from the active provider
+    enqueue TRACK_ID               Add a song to the queue
+    open FILE...                   Play local files (paths are relative to this terminal)
+    pause | toggle | next | previous
+    seek SECONDS                   Seek to an absolute position
+    volume [0..100]                 Show playback settings or set volume
+    repeat [off|all|one]            Show playback settings or set repeat
+    shuffle [on|off|toggle]         Show playback settings or set shuffle
+    queue [list|clear]             List or clear upcoming tracks
+    queue play INDEX               Play an upcoming track (1-based index)
+    queue remove INDEX             Remove an upcoming track (1-based index)
+    search QUERY...                Search the active provider and saved library
+    account [status]               Show providers, accounts and authorization prompts
+    account login PROVIDER [default|anonymous|secret]
+    account input                  Read one authorization response from standard input
+    account switch PROVIDER        Restore a stored account
+    account sign-out | cancel
+    local add FOLDER               Add a local music folder
+    local rescan                   Rescan configured local folders
+    --help | --version
+
+    Start sonora-server separately before using control commands. No GUI is required.
+    SONORA_SOCKET selects the server endpoint. Use the same build profile for both binaries.
+    --json emits one JSON value per line. Mutations acknowledge acceptance, not completion.
+    Commands are never replayed after a disconnect. Use -- before literal option-like arguments.
+cli-usage-error = Invalid command or arguments. Run sonora-cli --help for usage.
+cli-invalid-number = Expected a finite, nonnegative number.
+cli-invalid-volume = Volume must be between 0 and 100.
+cli-invalid-index = Expected an existing upcoming queue index starting at 1.
+cli-invalid-path = Expected an accessible file or folder of the requested kind.
+cli-connect-failed = Cannot connect to Sonora. Start sonora-server and check SONORA_SOCKET.
+cli-load-timeout = Timed out waiting for the provider. Check account status and try again.
+cli-track-unavailable = This track is unavailable. Check the song ID and active account.
+cli-empty-input = Authorization input cannot be empty.
+cli-account-busy = Account restoration or authorization is in progress. Check account status or cancel authorization.
+cli-unknown-provider = Unknown provider. Run sonora-cli account to list provider IDs.
+cli-unsupported-auth = This provider does not support the requested terminal authorization method.
+cli-account-not-stored = No stored account for this provider. Use account login first.
+cli-no-input-prompt = No account is waiting for text input. Check account status first.
+cli-cancelled = Cancelled.
+cli-accepted = Accepted.
+cli-state-playing = Playing
+cli-state-paused = Paused
+cli-state-loading = Loading
+cli-state-idle = Idle
+cli-state-failed = Playback failed: { $reason }
+cli-playback-details = { $position } / { $duration } · volume { $volume }% · repeat { $repeat } · shuffle { $shuffle }
+cli-on = on
+cli-off = off
+cli-repeat-all = all
+cli-repeat-one = one
+cli-empty = No entries.
+cli-queue-current = Current track:
+cli-queue-upcoming = Upcoming tracks:
+cli-kind-song = Song
+cli-kind-album = Album
+cli-kind-artist = Artist
+cli-kind-playlist = Playlist
+cli-account-state = { $provider }: { $state }
+cli-account-active = active
+cli-account-stored = stored
+cli-account-unsigned = signed out
+cli-account-authorizing = waiting for authorization
+cli-account-offline = offline
+cli-auth-code = Open { $url } on any device and enter { $code }.
+cli-auth-qr = Scan this code to authorize on another device (use a dark terminal background):
+cli-auth-url = Open { $url } on a device with a browser to authorize.
+cli-auth-secret = Send the provider's cookie or token using sonora-cli account input.
+cli-auth-choice = Send the chosen account ID using sonora-cli account input.

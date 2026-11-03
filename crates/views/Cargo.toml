@@ -6,7 +6,7 @@ license.workspace = true
 
 [dependencies]
 gpui.workspace = true
-i18n.workspace = true
+i18n = { workspace = true, features = ["gpui"] }
 icons.workspace = true
 jiff.workspace = true
 music.workspace = true

@@ -6,7 +6,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use fluent_bundle::concurrent::FluentBundle;
 use fluent_bundle::{FluentResource, FluentValue};
+#[cfg(feature = "gpui")]
 use gpui::SharedString;
+#[cfg(not(feature = "gpui"))]
+use std::string::String as SharedString;
 
 pub use fluent_bundle::FluentArgs;
 pub use language::{AUTO, Language, resolve};
@@ -49,6 +52,7 @@ impl<'a> Value<'a> for &'a String {
     }
 }
 
+#[cfg(feature = "gpui")]
 impl<'a> Value<'a> for &'a SharedString {
     fn value(self) -> FluentValue<'a> {
         FluentValue::from(self.as_ref())
@@ -89,7 +93,7 @@ pub fn lookup(key: &str, args: Option<&FluentArgs>) -> SharedString {
     {
         return text;
     }
-    SharedString::from(key.to_owned())
+    owned(key.to_owned())
 }
 
 pub fn translate(key: &str) -> SharedString {
@@ -102,7 +106,7 @@ pub fn translate(key: &str) -> SharedString {
     {
         return text;
     }
-    SharedString::from(key.to_owned())
+    owned(key.to_owned())
 }
 
 fn format(language: Language, key: &str, args: Option<&FluentArgs>) -> Option<SharedString> {
@@ -118,9 +122,30 @@ fn format(language: Language, key: &str, args: Option<&FluentArgs>) -> Option<Sh
     }
     // The bundles are never dropped, so a message with nothing to fill in is shared as is.
     Some(match text {
-        Cow::Borrowed(text) => SharedString::new_static(text),
-        Cow::Owned(text) => SharedString::from(text),
+        Cow::Borrowed(text) => {
+            #[cfg(feature = "gpui")]
+            {
+                SharedString::new_static(text)
+            }
+            #[cfg(not(feature = "gpui"))]
+            {
+                text.to_owned()
+            }
+        }
+        Cow::Owned(text) => owned(text),
     })
+}
+
+/// Converts owned translations to the string type selected by the consumer's feature set.
+fn owned(text: String) -> SharedString {
+    #[cfg(feature = "gpui")]
+    {
+        SharedString::from(text)
+    }
+    #[cfg(not(feature = "gpui"))]
+    {
+        text
+    }
 }
 
 fn bundle(language: Language) -> FluentBundle<FluentResource> {

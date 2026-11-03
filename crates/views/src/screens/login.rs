@@ -477,7 +477,7 @@ impl Render for LoginView {
             _ => None,
         };
         let code = match prompt {
-            Some(SignInPrompt::Code { code, url }) => Some((code, url)),
+            Some(SignInPrompt::Code { code, url, .. }) => Some((code, url)),
             _ => None,
         };
         let url = match &state {

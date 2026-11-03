@@ -35,6 +35,7 @@ pub(super) fn dispatch(call: &Call, cx: &mut App) -> Result<Value> {
                 switch(slug: String => &slug),
                 restore(),
                 sign_in(slug: String => &slug, method: music::SignIn => method),
+                sign_in_manually(slug: String => &slug, method: music::SignIn => method),
                 sign_in_with_cookies(slug: String => &slug),
                 cancel_sign_in(),
                 submit_input(text: String => text),

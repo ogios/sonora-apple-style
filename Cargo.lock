@@ -941,6 +941,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cli"
+version = "0.44.1"
+dependencies = [
+ "anyhow",
+ "i18n",
+ "protocol",
+ "qrcodegen",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "cmake"
 version = "0.1.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"

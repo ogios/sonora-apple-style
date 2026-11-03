@@ -11,6 +11,7 @@ crates/
   views/      screens, shells (Workspace, FullscreenView) and app chrome
   service/    sonora-server binary, authoritative music state and GUI read models
   protocol/   versioned local IPC framing, commands and ordered subscriptions
+  cli/        sonora-cli terminal client over protocol, with no GPUI dependency
   music/      provider traits and models in the root, one submodule per provider (no GPUI)
   storage/    the state.sqlite and cache.sqlite paths, schema and connection setup
   ui/         design system: theme, metrics, layout ladder and reusable elements
@@ -28,6 +29,7 @@ Dependency direction is strict. Do not create a back edge:
 ```
 sonora → views → service → music
 sonora, service → protocol
+         cli → protocol, i18n (without GPUI)
          service, music → storage
          service → webview
          music → widevine

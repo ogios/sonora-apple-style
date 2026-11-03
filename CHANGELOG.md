@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Control playback from a TTY with `sonora-cli`: search, play files or songs, manage the queue,
+  and authorize accounts without opening the GUI. Use JSON output to integrate with scripts.
+
 - Run playback in a separate `sonora-server` process and reopen the GUI without stopping music.
   On Linux, `run.sh` starts both processes and stops both with Ctrl+C.
 

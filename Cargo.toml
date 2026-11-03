@@ -11,7 +11,7 @@ repository = "https://github.com/sonorahq/sonora"
 
 [workspace.dependencies]
 embed = { path = "crates/embed" }
-i18n = { path = "crates/i18n" }
+i18n = { path = "crates/i18n", default-features = false }
 icons = { path = "crates/icons" }
 music = { path = "crates/music" }
 protocol = { path = "crates/protocol" }

@@ -1289,7 +1289,7 @@ impl Render for SettingsView {
             _ => None,
         };
         let code = match self.session.read(cx).state() {
-            SessionState::Authorizing(Some(SignInPrompt::Code { code, url })) => {
+            SessionState::Authorizing(Some(SignInPrompt::Code { code, url, .. })) => {
                 Some((code.clone(), url.clone()))
             }
             _ => None,

@@ -763,6 +763,18 @@ impl Session {
         self.start_sign_in(slug, SignIn::Secret, SecretInput::Manual, cx);
     }
 
+    /// Starts authorization with manual secret input; cookie prompts stay on IPC.
+    pub fn sign_in_manually(&mut self, slug: &str, method: SignIn, cx: &mut Context<Self>) {
+        if crate::client::command(
+            "sign_in_manually",
+            vec![serde_json::json!(slug), serde_json::json!(method)],
+            cx,
+        ) {
+            return;
+        }
+        self.start_sign_in(slug, method, SecretInput::Manual, cx);
+    }
+
     fn start_sign_in(
         &mut self,
         slug: &str,

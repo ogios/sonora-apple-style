@@ -18,7 +18,7 @@ futures.workspace = true
 log.workspace = true
 gpui.workspace = true
 gpui_platform.workspace = true
-i18n.workspace = true
+i18n = { workspace = true, features = ["gpui"] }
 icons.workspace = true
 music.workspace = true
 service.workspace = true
