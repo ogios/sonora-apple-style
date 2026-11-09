@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::App;
+use crate::runtime::App;
 use music::{LyricsProvider, MusicProvider};
 
 use crate::Io;

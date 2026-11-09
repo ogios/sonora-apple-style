@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use gpui::{Context, Entity, Task};
+use crate::runtime::{Context, Entity, Task};
 use music::{Genre, GenreDetail, GenreItem, GenreSection};
 use tokio::task::AbortHandle;
 
@@ -20,6 +20,7 @@ remote_model!(Genres, "genres", true, { genres, loading, error });
 
 impl Genres {
     pub fn new(session: Entity<Session>, io: Io, cx: &mut Context<Self>) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 genres: Rc::new(Vec::new()),
@@ -59,6 +60,7 @@ impl Genres {
     }
 
     pub fn adopt(&mut self, id: &str, cover: Option<String>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "adopt",
             vec![serde_json::json!(id), serde_json::json!(cover)],
@@ -82,6 +84,7 @@ impl Genres {
     }
 
     pub fn forget(&mut self, id: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("forget", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -102,6 +105,7 @@ impl Genres {
     }
 
     pub fn load(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("load", vec![], cx) {
             return;
         }
@@ -156,6 +160,7 @@ impl GenreDetails {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 id: None,
@@ -221,6 +226,7 @@ impl GenreDetails {
     }
 
     pub fn open(&mut self, id: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("open", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -246,6 +252,7 @@ impl GenreDetails {
     /// Drops the page and fetches it again from the provider, past the catalog cache, so it
     /// shows its loading state until the new sections land.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("refresh", vec![], cx) {
             return;
         }

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use gpui::{App, Context, Entity, Task};
+use crate::runtime::{App, Context, Entity, Task};
 use music::{
     Album, AlbumCatalogue, AlbumDetail, ArtistRef, Contributor, Playlist, PlaylistDetail,
     ReleaseType, SavedArtist, SharedTrack, Track,
@@ -140,6 +140,7 @@ impl Detail {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 id: None,
@@ -358,6 +359,7 @@ impl Detail {
 
     /// Fetches one continuation when the visible list needs more rows.
     pub fn load_more(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("load_more", vec![], cx) {
             return;
         }
@@ -416,6 +418,7 @@ impl Detail {
     }
 
     pub fn remove_from_playlist(&mut self, track_id: String, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "remove_from_playlist",
             vec![serde_json::json!(track_id)],
@@ -430,6 +433,7 @@ impl Detail {
     /// Takes every copy of the named tracks out of the playlist on the page. The library is
     /// told about each row the page shows of them, so its count and Undo cover every copy.
     pub fn remove_tracks_from_playlist(&mut self, track_ids: Vec<String>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "remove_tracks_from_playlist",
             vec![serde_json::json!(track_ids)],
@@ -467,6 +471,7 @@ impl Detail {
 
     /// Loads what the page already shows again, which is how a screen retries after a failure.
     pub fn reload(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("reload", vec![], cx) {
             return;
         }
@@ -483,6 +488,7 @@ impl Detail {
     /// Drops the page and fetches it again from the provider, past the catalog cache, so it
     /// shows its loading state until the new header and rows land.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("refresh", vec![], cx) {
             return;
         }
@@ -497,6 +503,7 @@ impl Detail {
     }
 
     pub fn open_album(&mut self, id: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("open_album", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -510,6 +517,7 @@ impl Detail {
     }
 
     pub fn open_playlist(&mut self, id: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("open_playlist", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -649,7 +657,7 @@ impl Detail {
         let id = playlist.id.clone();
         let stamp = playlist.track_count;
         let io = self.io.clone();
-        let http = cx.http_client();
+        let http = reqwest::Client::new();
         self.mosaic = Some(cx.spawn(async move |this, cx| {
             let built =
                 join(io.owned(async move { mosaic::build(http, &id, stamp, covers).await })).await;

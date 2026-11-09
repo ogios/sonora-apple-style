@@ -3946,6 +3946,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
+name = "locale"
+version = "0.44.1"
+dependencies = [
+ "fluent-bundle",
+ "log",
+ "sys-locale",
+ "unic-langid",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6927,6 +6937,43 @@ dependencies = [
  "async-trait",
  "dirs",
  "discord-rich-presence",
+ "env_logger",
+ "fastrand",
+ "futures",
+ "image",
+ "interprocess",
+ "libc",
+ "locale",
+ "log",
+ "moka",
+ "mpris-server",
+ "music",
+ "notify",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "protocol",
+ "reqwest 0.13.4",
+ "rusqlite",
+ "rustls 0.23.43",
+ "serde",
+ "serde_json",
+ "service-runtime",
+ "sha2",
+ "storage",
+ "tempfile",
+ "tokio",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "service-client"
+version = "0.44.1"
+dependencies = [
+ "anyhow",
+ "ashpd",
+ "async-trait",
+ "dirs",
+ "discord-rich-presence",
  "embed",
  "env_logger",
  "fastrand",
@@ -6959,6 +7006,21 @@ dependencies = [
  "ui",
  "webview",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "service-runtime"
+version = "0.44.1"
+dependencies = [
+ "anyhow",
+ "futures",
+ "objc2-core-foundation",
+ "objc2-security",
+ "oo7",
+ "serde",
+ "thiserror 2.0.19",
+ "tokio",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -7182,7 +7244,7 @@ dependencies = [
  "reqwest 0.13.4",
  "resvg",
  "router",
- "service",
+ "service-client",
  "sha2",
  "tokio",
  "tray-icon",
@@ -8532,7 +8594,7 @@ dependencies = [
  "music",
  "open",
  "router",
- "service",
+ "service-client",
  "ui",
 ]
 

@@ -13,9 +13,11 @@ repository = "https://github.com/sonorahq/sonora"
 embed = { path = "crates/embed" }
 i18n = { path = "crates/i18n", default-features = false }
 icons = { path = "crates/icons" }
+locale = { path = "crates/locale" }
 music = { path = "crates/music" }
 protocol = { path = "crates/protocol" }
-service = { path = "crates/service" }
+service = { package = "service-client", path = "crates/service-client" }
+service-runtime = { path = "crates/service-runtime" }
 storage = { path = "crates/storage" }
 input = { path = "crates/input" }
 router = { path = "crates/router" }
@@ -96,6 +98,7 @@ notify = "8.2"
 num-bigint = "0.4"
 oauth2 = "5.0"
 open = "5.4"
+oo7 = { version = "0.6", default-features = false, features = ["async-std", "native_crypto"] }
 block2 = "0.6"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std"] }
@@ -127,6 +130,8 @@ objc2-core-foundation = { version = "0.3", default-features = false, features = 
   "std",
   "CFString",
 ] }
+objc2-security = { version = "0.3.2", default-features = false, features = ["std", "SecBase", "SecItem"] }
+thiserror = "2.0"
 objc2-io-kit = { version = "0.3", default-features = false, features = [
   "std",
   "pwr_mgt",

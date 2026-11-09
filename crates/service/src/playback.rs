@@ -4,16 +4,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
+use crate::preferences::{Pin, PinKind};
+#[cfg(sonora_gui)]
+use crate::runtime::AppContext as _;
+use crate::runtime::{App, Context, Entity, EventEmitter, SharedString, Task, WeakEntity};
 use anyhow::Result;
 use futures::future::BoxFuture;
-use gpui::{App, AppContext as _, Context, Entity, EventEmitter, SharedString, Task, WeakEntity};
 use music::connect::{self, Command};
 use music::vault::Vault;
 use music::{
     Analyzer, Meter, MusicApi, PlaybackConfig, PlaybackEvent as BackendEvent, PlaybackEvents,
     PlaybackFactory, Player, Quality, SharedTrack, Spectrum, Track, TrackSignal, Transcode,
 };
-use ui::{Pin, PinKind};
 
 type Fetch = std::pin::Pin<Box<dyn Future<Output = Result<Vec<Track>>> + Send>>;
 /// A collection fetched to become the queue, with the continuation a station goes on from.
@@ -541,12 +543,14 @@ pub struct Playback {
     /// Whether the call being carried out is this app's own doing, which never steers.
     local: bool,
     /// Server transport data for a GUI read model, with no local player or vault.
+    #[cfg(sonora_gui)]
     remote: Option<RemotePlayback>,
 }
 
 impl EventEmitter<PlaybackEvent> for Playback {}
 
 /// The server's transport sample, retained so GUI getters never consult local audio resources.
+#[cfg(sonora_gui)]
 #[derive(serde::Deserialize)]
 struct RemotePlayback {
     clock_generation: u64,
@@ -581,6 +585,7 @@ struct RemotePlayback {
 }
 
 /// A GUI seek preview held until the server publishes the requested clock discontinuity.
+#[cfg(sonora_gui)]
 struct RemoteSeek {
     target: Duration,
     generation: u64,
@@ -588,9 +593,12 @@ struct RemoteSeek {
 }
 
 impl crate::client::Model for Playback {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "playback";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
+    #[cfg(sonora_gui)]
     fn apply_signal(
         &mut self,
         data: &serde_json::Value,
@@ -600,10 +608,12 @@ impl crate::client::Model for Playback {
         Ok(())
     }
 
-    fn remote_snapshot(&self, cx: &gpui::App) -> serde_json::Value {
+    #[cfg(not(sonora_gui))]
+    fn remote_snapshot(&self, cx: &crate::runtime::App) -> serde_json::Value {
         self.snapshot(cx)
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -676,6 +686,7 @@ impl crate::client::Model for Playback {
 
 impl Playback {
     /// Releases this process's engines and records their final position for server shutdown.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn shutdown(&mut self, cx: &mut Context<Self>) {
         self.position = self.live_position();
         self.remember(true, cx);
@@ -693,6 +704,7 @@ impl Playback {
     }
 
     /// Samples the displayed transport and its local counterpart on the service thread.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn snapshot(&self, cx: &App) -> serde_json::Value {
         let (position, duration) = self.shown_time(cx);
         let steered = self.steered(cx);
@@ -735,6 +747,7 @@ impl Playback {
         equalizer: &Entity<Equalizer>,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 state: PlaybackState::Idle,
@@ -796,6 +809,7 @@ impl Playback {
                 open: None,
                 devices: None,
                 local: false,
+                #[cfg(sonora_gui)]
                 remote: None,
             };
         }
@@ -927,6 +941,7 @@ impl Playback {
             open: None,
             devices: None,
             local: false,
+            #[cfg(sonora_gui)]
             remote: None,
         };
         // Start the local engine at startup so files can play before the first scan.
@@ -967,6 +982,7 @@ impl Playback {
 
     /// The other device that has playback, which is shown in place of this app's own track.
     pub fn steered(&self, cx: &App) -> Option<Steered> {
+        #[cfg(sonora_gui)]
         if let Some(remote) = &self.remote {
             return remote.steered.clone().map(|mut steered| {
                 if steered.playing {
@@ -983,6 +999,7 @@ impl Playback {
 
     /// The track the player shows: the other device's while one is steered, else this app's own.
     pub fn shown_track(&self, cx: &App) -> Option<Track> {
+        #[cfg(sonora_gui)]
         if let Some(remote) = &self.remote {
             return remote.track.clone();
         }
@@ -994,6 +1011,7 @@ impl Playback {
 
     /// How far into the shown track playback is, and how long that track is.
     pub fn shown_time(&self, cx: &App) -> (Duration, Duration) {
+        #[cfg(sonora_gui)]
         if let Some(remote) = &self.remote {
             let position = match remote.steered.as_ref() {
                 Some(steered) if steered.playing => remote.position + remote.received.elapsed(),
@@ -1025,6 +1043,7 @@ impl Playback {
 
     /// The volume the controls show and change, on the other device while one is steered.
     pub fn shown_volume(&self, cx: &App) -> f32 {
+        #[cfg(sonora_gui)]
         if let Some(remote) = &self.remote {
             return remote.volume;
         }
@@ -1077,6 +1096,7 @@ impl Playback {
 
     /// Plays a track the user picked, from its start.
     pub fn play(&mut self, track: &Track, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play", vec![serde_json::json!(track)], cx) {
             return;
         }
@@ -1105,6 +1125,7 @@ impl Playback {
     /// The playing engine's spectrum, set to hear the track before or after the volume as the
     /// visualizer setting asks. Unavailable while another device has playback.
     pub fn spectrum(&self, cx: &App) -> Option<Spectrum> {
+        #[cfg(sonora_gui)]
         if self.remote.is_some() {
             return crate::Sonora::global(cx).signal.read(cx).spectrum();
         }
@@ -1270,6 +1291,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "start",
             vec![
@@ -1298,6 +1320,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "start_shared",
             vec![
@@ -1364,6 +1387,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "start_any",
             vec![serde_json::json!(tracks), serde_json::json!(origin)],
@@ -1383,6 +1407,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "shuffle_any",
             vec![serde_json::json!(tracks), serde_json::json!(origin)],
@@ -1403,6 +1428,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "start_any_shared",
             vec![serde_json::json!(tracks), serde_json::json!(origin)],
@@ -1424,6 +1450,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "shuffle_any_shared",
             vec![serde_json::json!(tracks), serde_json::json!(origin)],
@@ -1457,6 +1484,7 @@ impl Playback {
 
     /// Plays `seed` now and fills the queue behind it with its radio once that arrives.
     pub fn play_radio(&mut self, seed: &Track, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_radio", vec![serde_json::json!(seed)], cx) {
             return;
         }
@@ -1527,6 +1555,7 @@ impl Playback {
 
     /// Appends a track, or starts playing it when nothing is queued.
     pub fn enqueue(&mut self, track: Track, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("enqueue", vec![serde_json::json!(track)], cx) {
             return;
         }
@@ -1535,6 +1564,7 @@ impl Playback {
     }
 
     pub fn play_next(&mut self, track: Track, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_next", vec![serde_json::json!(track)], cx) {
             return;
         }
@@ -1550,6 +1580,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "enqueue_all",
             vec![serde_json::json!(tracks), serde_json::json!(origin)],
@@ -1569,6 +1600,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "play_next_all",
             vec![serde_json::json!(tracks), serde_json::json!(origin)],
@@ -1582,6 +1614,7 @@ impl Playback {
 
     /// Queues a track after everything already lined up, or starts playing it when nothing is.
     pub fn play_last(&mut self, track: Track, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_last", vec![serde_json::json!(track)], cx) {
             return;
         }
@@ -1597,6 +1630,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "play_last_all",
             vec![serde_json::json!(tracks), serde_json::json!(origin)],
@@ -1703,6 +1737,7 @@ impl Playback {
     /// right after whatever is already playing, whichever provider it came from — or start right
     /// away if nothing is.
     pub fn open_paths(&mut self, paths: Vec<PathBuf>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("open_paths", vec![serde_json::json!(paths)], cx) {
             return;
         }
@@ -1762,6 +1797,7 @@ impl Playback {
         origin: Option<Origin>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "insert_all",
             vec![
@@ -1780,6 +1816,7 @@ impl Playback {
     /// Fetches a pinned collection and inserts it `gap` tracks ahead, or at the end. A pinned
     /// song goes in on its own, without an origin.
     pub fn enqueue_pin(&mut self, pin: &Pin, gap: Option<usize>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "enqueue_pin",
             vec![serde_json::json!(pin), serde_json::json!(gap)],
@@ -1823,6 +1860,7 @@ impl Playback {
     }
 
     pub fn enqueue_album(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("enqueue_album", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -1831,6 +1869,7 @@ impl Playback {
     }
 
     pub fn play_album_next(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_album_next", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -1839,6 +1878,7 @@ impl Playback {
     }
 
     pub fn play_album_last(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_album_last", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -1884,6 +1924,7 @@ impl Playback {
     }
 
     pub fn play_artist_next(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_artist_next", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -1892,6 +1933,7 @@ impl Playback {
     }
 
     pub fn enqueue_artist(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("enqueue_artist", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -1900,6 +1942,7 @@ impl Playback {
     }
 
     pub fn play_artist_last(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_artist_last", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -1921,6 +1964,7 @@ impl Playback {
     }
 
     pub fn enqueue_playlist(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("enqueue_playlist", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -1929,6 +1973,7 @@ impl Playback {
     }
 
     pub fn play_playlist_next(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_playlist_next", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -1937,6 +1982,7 @@ impl Playback {
     }
 
     pub fn play_playlist_last(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_playlist_last", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -2153,6 +2199,7 @@ impl Playback {
 
     /// Skips to the next playable track, wrapping at the end when either repeat mode is on.
     pub fn next(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("next", vec![], cx) {
             return;
         }
@@ -2167,6 +2214,7 @@ impl Playback {
 
     /// Whether Next can reach a playable track, including a wrap of the current queue.
     pub fn has_next(&self, cx: &App) -> bool {
+        #[cfg(sonora_gui)]
         if let Some(remote) = &self.remote {
             return remote.has_next;
         }
@@ -2180,6 +2228,7 @@ impl Playback {
 
     /// Removing tracks from queue
     pub fn remove_from_queue(&mut self, ids: &[String], cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove_from_queue", vec![serde_json::json!(ids)], cx) {
             return;
         }
@@ -2252,6 +2301,7 @@ impl Playback {
     }
 
     pub fn toggle_radio(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle_radio", vec![], cx) {
             return;
         }
@@ -2268,6 +2318,7 @@ impl Playback {
 
     /// Plays one of the suggested similar tracks, making the suggestions the queue.
     pub fn play_similar(&mut self, index: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_similar", vec![serde_json::json!(index)], cx) {
             return;
         }
@@ -2458,6 +2509,7 @@ impl Playback {
 
     /// Switches the repeat mode and remembers it in settings.
     pub fn set_repeat(&mut self, repeat: Repeat, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_repeat", vec![serde_json::json!(repeat)], cx) {
             return;
         }
@@ -2475,6 +2527,7 @@ impl Playback {
     }
 
     pub fn cycle_repeat(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("cycle_repeat", vec![], cx) {
             return;
         }
@@ -2490,6 +2543,7 @@ impl Playback {
     /// A binary on/off flip for surfaces (tray, dock menu) that do not fit the three-way
     /// cycle the player bar's button drives; `One` counts as on and flips straight to `Off`.
     pub fn toggle_repeat(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle_repeat", vec![], cx) {
             return;
         }
@@ -2510,6 +2564,7 @@ impl Playback {
 
     /// Turns shuffle on or off, on the other device when one has playback.
     pub fn set_shuffle(&mut self, on: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_shuffle", vec![serde_json::json!(on)], cx) {
             return;
         }
@@ -2522,6 +2577,7 @@ impl Playback {
 
     /// Flips shuffle from what the player shows, which is the other device's when it has playback.
     pub fn toggle_shuffle(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle_shuffle", vec![], cx) {
             return;
         }
@@ -2639,6 +2695,7 @@ impl Playback {
     }
 
     pub fn has_previous(&self, cx: &App) -> bool {
+        #[cfg(sonora_gui)]
         if let Some(remote) = &self.remote {
             return remote.has_previous;
         }
@@ -2653,6 +2710,7 @@ impl Playback {
     }
 
     pub fn previous(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("previous", vec![], cx) {
             return;
         }
@@ -2672,6 +2730,7 @@ impl Playback {
     }
 
     pub fn play_past(&mut self, index: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_past", vec![serde_json::json!(index)], cx) {
             return;
         }
@@ -2687,6 +2746,7 @@ impl Playback {
     }
 
     pub fn play_upcoming(&mut self, index: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_upcoming", vec![serde_json::json!(index)], cx) {
             return;
         }
@@ -2704,6 +2764,7 @@ impl Playback {
     /// Plays on. A restored track the engine does not hold yet, or one paused for longer than
     /// `STALE_PAUSE`, is loaded afresh at its position.
     pub fn resume(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("resume", vec![], cx) {
             return;
         }
@@ -2820,6 +2881,7 @@ impl Playback {
     }
 
     pub fn pause(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("pause", vec![], cx) {
             return;
         }
@@ -2836,6 +2898,7 @@ impl Playback {
     }
 
     pub fn toggle_play(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle_play", vec![], cx) {
             return;
         }
@@ -2860,6 +2923,7 @@ impl Playback {
     /// Replaces the active sleep request, dropping its timer task when cancelled or superseded.
     /// A timer that runs out while music plays pauses it and says so on a toast.
     pub fn set_sleep(&mut self, sleep: Option<Sleep>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_sleep", vec![serde_json::json!(sleep)], cx) {
             return;
         }
@@ -2940,6 +3004,7 @@ impl Playback {
     /// is play, and pressing either goes to `toggle_play`. `None` means nothing is loaded that a
     /// press could resume, so the button starts its tracks instead.
     pub fn control(&self) -> Option<bool> {
+        #[cfg(sonora_gui)]
         if let Some(remote) = &self.remote {
             return remote.control;
         }
@@ -2947,6 +3012,7 @@ impl Playback {
     }
 
     pub fn play_origin(&mut self, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_origin", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -2964,6 +3030,7 @@ impl Playback {
     /// The play button of a collection page: pauses or resumes when the queue came from it,
     /// starts it otherwise.
     pub fn toggle_origin(&mut self, origin: &Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle_origin", vec![serde_json::json!(origin)], cx) {
             return;
         }
@@ -2978,6 +3045,7 @@ impl Playback {
     /// audio from it, and a second seek meanwhile waits for the first to land. A restored track
     /// not yet held by the engine only moves its resume point.
     pub fn seek(&mut self, position: Duration, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if let Some(accepted) = crate::client::submit("seek", vec![serde_json::json!(position)], cx)
         {
             if accepted {
@@ -3024,6 +3092,7 @@ impl Playback {
     }
 
     /// Parks the GUI at a seek target while its command and authoritative clock sample arrive.
+    #[cfg(sonora_gui)]
     fn preview_seek(&mut self, target: Duration, cx: &mut Context<Self>) {
         let total = self.shown_time(cx).1;
         let target = match total.is_zero() {
@@ -3048,6 +3117,7 @@ impl Playback {
     }
 
     /// Restores the latest authoritative clock after a GUI seek command fails.
+    #[cfg(sonora_gui)]
     pub(crate) fn cancel_remote_seek(&mut self, cx: &mut Context<Self>) {
         let Some(remote) = &mut self.remote else {
             return;
@@ -3066,13 +3136,14 @@ impl Playback {
 
     /// Whether a seek is waiting for the authoritative playback clock to land.
     pub fn seeking(&self) -> bool {
-        match &self.remote {
-            Some(remote) => remote
+        #[cfg(sonora_gui)]
+        if let Some(remote) = &self.remote {
+            return remote
                 .seek
                 .as_ref()
-                .is_some_and(|seek| seek.requested.elapsed() < ECHO_WINDOW),
-            None => self.seek_in_flight.is_some(),
+                .is_some_and(|seek| seek.requested.elapsed() < ECHO_WINDOW);
         }
+        self.seek_in_flight.is_some()
     }
 
     fn send_seek(&self, position: Duration) {
@@ -3099,6 +3170,7 @@ impl Playback {
 
     /// Seeks to a share of the track, as the progress bar asks.
     pub fn seek_fraction(&mut self, fraction: f32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if let Some(accepted) =
             crate::client::submit("seek_fraction", vec![serde_json::json!(fraction)], cx)
         {
@@ -3175,6 +3247,7 @@ impl Playback {
     }
 
     pub fn set_volume(&mut self, level: f32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_volume", vec![serde_json::json!(level)], cx) {
             return;
         }
@@ -3230,6 +3303,7 @@ impl Playback {
 
     /// Measures what the cache and the downloads take on disk, off the main thread.
     pub fn measure_storage(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("measure_storage", vec![], cx) {
             return;
         }
@@ -3250,6 +3324,7 @@ impl Playback {
 
     /// Removes every cached track, downloads aside, and measures the vault again after.
     pub fn clear_cache(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("clear_cache", vec![], cx) {
             return;
         }
@@ -3283,6 +3358,7 @@ impl Playback {
     /// the least recently played tracks right away. Downloads do not count toward it, and
     /// Spotify's own files do but only follow a new limit at its next sign-in.
     pub fn set_cache_gb(&mut self, gb: u32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_cache_gb", vec![serde_json::json!(gb)], cx) {
             return;
         }
@@ -3344,6 +3420,7 @@ impl Playback {
     /// Turns caching played tracks on or off. Turning it off also removes every cached track,
     /// and downloads stay. Spotify keeps its own files and follows at its next sign-in.
     pub fn set_keep_tracks(&mut self, on: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_keep_tracks", vec![serde_json::json!(on)], cx) {
             return;
         }
@@ -3363,6 +3440,7 @@ impl Playback {
     }
 
     pub fn set_gapless(&mut self, on: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_gapless", vec![serde_json::json!(on)], cx) {
             return;
         }
@@ -3379,6 +3457,7 @@ impl Playback {
     /// Changes how a converting server is asked to send tracks. The streaming engine restarts,
     /// so the current track reloads in the new format where it was.
     pub fn set_transcode(&mut self, transcode: Transcode, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_transcode", vec![serde_json::json!(transcode)], cx) {
             return;
         }
@@ -3395,6 +3474,7 @@ impl Playback {
     /// Changes the stream level asked of a streaming service. The streaming engine restarts, so
     /// the current track reloads at the new level where it was.
     pub fn set_quality(&mut self, quality: Quality, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_quality", vec![serde_json::json!(quality)], cx) {
             return;
         }
@@ -3409,6 +3489,7 @@ impl Playback {
     }
 
     pub fn set_normalisation(&mut self, on: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_normalisation", vec![serde_json::json!(on)], cx) {
             return;
         }

@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use crate::preferences::{Layout, Mode, Pace, Pin, Rounding, Saver, Sorting, Stillness, ThemeKind};
+use crate::runtime::{App, Entity};
 use crate::{DeviceRule, RuleDevice};
 use anyhow::{Context as _, Result, bail};
-use gpui::{App, Entity};
 use music::equalizer::{Curve, Tone};
 use music::scrobble::Account;
 use music::{Quality, Transcode, WritingSystem};
 use protocol::Call;
 use serde_json::Value;
-use ui::{Layout, Mode, Pace, Pin, Rounding, Saver, Sorting, Stillness, ThemeKind};
 
 use super::Arguments;
 use crate::settings::Frame;
@@ -104,13 +104,13 @@ pub(super) fn dispatch(call: &Call, entity: &Entity<AppSettings>, cx: &mut App) 
         set_startup(screen: String => screen),
         set_provider(provider: String => provider),
         set_theme(theme: String => theme),
-        set_theme_family(family: String => &family),
+        set_theme_choice(theme: String => theme, family: Option<String> => family),
         set_adaptive_theme(adaptive: bool => adaptive),
         set_ambient(ambient: bool => ambient),
         set_player_bar_layout(layout: PlayerBarLayout => layout),
         set_player_bar_transparent(transparent: bool => transparent),
         set_ambient_motion(motion: bool => motion),
-        set_visualizer_style(style: ui::VisualizerStyle => style),
+        set_visualizer_style(style: crate::preferences::VisualizerStyle => style),
         set_visualizer_absolute(absolute: bool => absolute),
         set_icons(pack: String => pack),
         set_rounding(rounding: String => rounding),

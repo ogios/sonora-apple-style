@@ -2,13 +2,9 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use anyhow::{Context as _, Result, bail};
-use gpui::QuitMode;
 use service::{Io, Sonora};
 
 fn main() -> ExitCode {
-    if let Some(code) = webview::probed() {
-        return ExitCode::from(code as u8);
-    }
     if let Some(module) = music::drm::hosted() {
         return match music::drm::host(&module) {
             Ok(()) => ExitCode::SUCCESS,
@@ -54,18 +50,17 @@ fn run() -> Result<()> {
         let _entered = handle.enter();
         protocol::listen().context("cannot bind the service socket")?
     };
-    gpui_platform::headless()
-        .with_quit_mode(QuitMode::Explicit)
-        .run(move |cx| {
-            service::start(io, cx);
-            service::server::attach(listener, cx);
-            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-            service::attach_remote(None, cx);
-            let session = Sonora::global(cx).session.clone();
-            session.update(cx, |session, cx| session.restore(cx));
-            service::server::shutdown_on_signal(cx);
-            log::info!("server: ready");
-        });
+    let runtime = io.clone();
+    service_runtime::App::run(runtime.handle(), move |cx| {
+        service::start(io, cx);
+        service::server::attach(listener, cx);
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+        service::attach_remote(None, cx);
+        let session = Sonora::global(cx).session.clone();
+        session.update(cx, |session, cx| session.restore(cx));
+        service::server::shutdown_on_signal(cx);
+        log::info!("server: ready");
+    });
     Ok(())
 }
 

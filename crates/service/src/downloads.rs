@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use crate::runtime::{App, Context, Entity, EventEmitter, SharedString, Task};
 use anyhow::{Context as _, Result};
-use gpui::{App, Context, Entity, EventEmitter, SharedString, Task};
 use music::{Album, AlbumDetail, Fraction, Playlist, PlaylistDetail, Track};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
@@ -221,9 +221,12 @@ pub struct Downloads {
 }
 
 impl crate::client::Model for Downloads {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "downloads";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
+    #[cfg(sonora_gui)]
     fn apply_signal(
         &mut self,
         data: &serde_json::Value,
@@ -233,6 +236,7 @@ impl crate::client::Model for Downloads {
         Ok(())
     }
 
+    #[cfg(not(sonora_gui))]
     fn remote_snapshot(&self, _: &App) -> serde_json::Value {
         serde_json::json!({
             "provider": self.provider, "tracks": self.tracks,
@@ -243,6 +247,7 @@ impl crate::client::Model for Downloads {
         })
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -303,6 +308,7 @@ impl Downloads {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 session,
@@ -509,6 +515,7 @@ impl Downloads {
 
     /// Downloads tracks the listener picked one by one.
     pub fn download_tracks(&mut self, tracks: Vec<Track>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("download_tracks", vec![serde_json::json!(tracks)], cx) {
             return;
         }
@@ -541,6 +548,7 @@ impl Downloads {
 
     /// Downloads an album whose tracks are already loaded.
     pub fn download_album(&mut self, detail: AlbumDetail, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("download_album", vec![serde_json::json!(detail)], cx) {
             return;
         }
@@ -551,6 +559,7 @@ impl Downloads {
 
     /// Downloads a playlist whose tracks are already loaded.
     pub fn download_playlist(&mut self, detail: PlaylistDetail, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("download_playlist", vec![serde_json::json!(detail)], cx) {
             return;
         }
@@ -562,6 +571,7 @@ impl Downloads {
     /// Downloads an album named from a menu, fetching its tracks first. Its toast is up while
     /// they are fetched.
     pub fn download_album_by_id(&mut self, album: &Album, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("download_album_by_id", vec![serde_json::json!(album)], cx) {
             return;
         }
@@ -600,6 +610,7 @@ impl Downloads {
     /// Downloads a playlist named from a menu, fetching all of its tracks first. Its toast is up
     /// while they are fetched.
     pub fn download_playlist_by_id(&mut self, playlist: &Playlist, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "download_playlist_by_id",
             vec![serde_json::json!(playlist)],
@@ -642,6 +653,7 @@ impl Downloads {
     /// Removes the downloads of tracks, and takes them out of any downloaded album or playlist
     /// that held them. A set left with no tracks stops being downloaded.
     pub fn remove_tracks(&mut self, ids: &[String], cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove_tracks", vec![serde_json::json!(ids)], cx) {
             return;
         }
@@ -682,6 +694,7 @@ impl Downloads {
 
     /// Removes a downloaded album or playlist, and every track of it nothing else keeps.
     pub fn remove_set(&mut self, kind: Collection, id: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "remove_set",
             vec![serde_json::json!(kind), serde_json::json!(id)],
@@ -716,6 +729,7 @@ impl Downloads {
     /// Removes every download of every provider, files and lists alike. The ones under way are
     /// removed again as they end.
     pub fn remove_all(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove_all", vec![], cx) {
             return;
         }

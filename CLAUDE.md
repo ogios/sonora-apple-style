@@ -9,7 +9,10 @@ A native music streaming client, built with Rust and [GPUI](https://github.com/z
 crates/
   sonora/     GUI binary: main, window, actions, asset registry, HTTP client shim, tray, dock
   views/      screens, shells (Workspace, FullscreenView) and app chrome
-  service/    sonora-server binary, authoritative music state and GUI read models
+  service/    sonora-server binary and authoritative music state, without GUI dependencies
+  service-client/ GPUI read models and IPC client, built from the shared service model sources
+  service-runtime/ ordered service entities, subscriptions and tasks on Tokio
+  locale/     localization for processes without GPUI, sharing the i18n sources
   protocol/   versioned local IPC framing, commands and ordered subscriptions
   cli/        sonora-cli terminal client over protocol, with no GPUI dependency
   music/      provider traits and models in the root, one submodule per provider (no GPUI)
@@ -27,11 +30,12 @@ crates/
 Dependency direction is strict. Do not create a back edge:
 
 ```
-sonora → views → service → music
-sonora, service → protocol
+sonora → views → service-client → music
+         service → music, protocol, service-runtime, locale
+sonora, service-client → protocol
          cli → protocol, i18n (without GPUI)
          service, music → storage
-         service → webview
+         service-client → webview
          music → widevine
          all ui-side crates → ui, router, input → ui → gpui
          every ui-side crate → i18n, icons → gpui
@@ -40,9 +44,15 @@ sonora, service → protocol
 - Only `service/src/bootstrap.rs` constructs concrete music and lyrics providers. Views and the
   rest of the service use the traits and models in the root of `music`.
 - `sonora` connects to `sonora-server` through `protocol`; it never starts an embedded music
-  service. Server-owned GPUI entities manage providers, playback, queues, lyrics and persistence.
+  service. Server-owned entities in `service-runtime` manage providers, playback, queues, lyrics
+  and persistence. The server and its transitive dependencies must not include GPUI, windowing,
+  fonts, icons, rendering or native WebView code.
   GUI entities mirror presentation data and forward commands. Their constructors must not open
   databases, create playback engines, restore accounts or start provider tasks.
+- Native browser windows for sign-in and PO tokens belong to the GUI. The server sends browser
+  requests over `protocol` and accepts acknowledged results only from the assigned connection.
+  Browser credentials are excluded from snapshots and logs. Presentation preferences are
+  persisted as data by the server; only the GUI loads themes, resolves fonts and applies effects.
 - Linux MPRIS, Discord, download jobs and audio analysis belong to the server. GUI subscriptions
   are released on page drop or disconnect. Accepted mutations are never replayed on reconnect.
   The service never depends on `sonora` or `views`.

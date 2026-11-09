@@ -1,7 +1,7 @@
 use std::time::Duration;
 
+use crate::runtime::{App, Context, Entity, Task};
 use anyhow::Result;
-use gpui::{App, Context, Entity, Task};
 use music::output::{self, DeviceInfo, DeviceOption, Failure, Opened, OutputId, Sink};
 
 use crate::{AppSettings, Io, Outcome, Playback, Toasts, join};
@@ -58,6 +58,7 @@ impl Outputs {
         playback: Entity<Playback>,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 settings: settings.clone(),
@@ -213,6 +214,7 @@ impl Outputs {
     /// Opens the device at `rate` from now on, and saves it. The engines reopen at it, paused or
     /// not.
     pub fn set_rate(&mut self, rate: u32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_rate", vec![serde_json::json!(rate)], cx) {
             return;
         }
@@ -238,6 +240,7 @@ impl Outputs {
     /// Asks the device for a buffer of `frames` from now on, and saves it. The engines reopen
     /// with it, paused or not.
     pub fn set_buffer(&mut self, frames: u32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_buffer", vec![serde_json::json!(frames)], cx) {
             return;
         }
@@ -258,6 +261,7 @@ impl Outputs {
     /// it, paused or not, and saves it. A device that will not open leaves playback and the saved
     /// device as they were, with a toast saying so.
     pub fn choose(&mut self, id: Option<String>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("choose", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -374,6 +378,7 @@ impl Outputs {
     /// ALSA device saved before a sound server played, is forgotten here, and the system's
     /// default plays in its place.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("refresh", vec![], cx) {
             return;
         }

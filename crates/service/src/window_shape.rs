@@ -5,8 +5,8 @@
 //! depends on the other's platform bindings. Linux and FreeBSD round their own chrome in `views`
 //! instead, since there it is ordinary element styling rather than a platform call.
 
-use gpui::{App, Global, Window};
-use ui::Rounding;
+use crate::preferences::Rounding;
+use crate::runtime::{App, Global, Window};
 
 type Apply = Box<dyn Fn(&Window, Rounding)>;
 

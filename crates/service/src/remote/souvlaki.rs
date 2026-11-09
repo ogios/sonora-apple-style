@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::time::Duration;
 
+use crate::runtime::App;
 use anyhow::{Result, anyhow};
-use gpui::App;
 use music::Track;
 use souvlaki::{
     MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig,

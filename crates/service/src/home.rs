@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use gpui::{App, Context, Entity, Task};
+use crate::runtime::{App, Context, Entity, Task};
 use music::{GenreItem, GenreSection, HomeFeed, MusicApi, Track};
 
 use crate::{Io, Library, LibraryPart, LibraryState, Network, Session, SessionEvent, Shelf, join};
@@ -64,6 +64,7 @@ impl Home {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 library,
@@ -150,6 +151,7 @@ impl Home {
 
     /// Asks for the feed again after a failure, with the pauses between tries started over.
     pub fn retry(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("retry", vec![], cx) {
             return;
         }
@@ -196,6 +198,7 @@ impl Home {
 
     /// Drops the feed and asks the provider for it again, showing the loading shelves meanwhile.
     pub fn reload(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("reload", vec![], cx) {
             return;
         }
@@ -208,6 +211,7 @@ impl Home {
     /// Fetches the feed again from the provider and refreshes the library shelf it mixes Quick
     /// picks from. The page shows its loading shelves until the new feed lands.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("refresh", vec![], cx) {
             return;
         }
@@ -219,6 +223,7 @@ impl Home {
     }
 
     pub fn feed(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("feed", vec![], cx) {
             return;
         }
@@ -357,6 +362,7 @@ impl Home {
     /// Tells the feed whether the home page is on screen. Leaving it lands whatever was held
     /// back while it was, so the page comes back changed rather than changing in view.
     pub fn set_visible(&mut self, visible: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_visible", vec![serde_json::json!(visible)], cx) {
             return;
         }

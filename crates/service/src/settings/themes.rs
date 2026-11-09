@@ -9,9 +9,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
+use crate::preferences::{Theme, ThemeKind, ThemeOverrides};
 use anyhow::{Context as _, Result};
 use serde::Deserialize;
-use ui::{Theme, ThemeKind, ThemeOverrides};
 
 include!(concat!(env!("OUT_DIR"), "/themes.rs"));
 

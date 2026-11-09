@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use gpui::{App, Context, Entity, EventEmitter, Task};
+use crate::runtime::{App, Context, Entity, EventEmitter, Task};
 
 use crate::library::Shelf;
 use crate::session::Session;
@@ -48,6 +48,7 @@ impl Network {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         crate::client::register::<Self>(cx);
         let offline = settings.read(cx).offline_mode();
         Self {
@@ -93,6 +94,7 @@ impl Network {
     /// the live account. Going online with the network there raises [`Reconnected`], so every
     /// screen and the account load again.
     pub fn set_offline(&mut self, offline: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_offline", vec![serde_json::json!(offline)], cx) {
             return;
         }
@@ -111,6 +113,7 @@ impl Network {
         self.settings
             .update(cx, |settings, cx| settings.set_offline_mode(offline, cx));
         cx.notify();
+        #[cfg(sonora_gui)]
         cx.refresh_windows();
         match offline {
             true => self
@@ -141,6 +144,7 @@ impl Network {
             this.lost = true;
             this.watch(cx);
             cx.notify();
+            #[cfg(sonora_gui)]
             cx.refresh_windows();
         });
     }
@@ -164,6 +168,7 @@ impl Network {
         self.lost = false;
         self.probe = None;
         cx.notify();
+        #[cfg(sonora_gui)]
         cx.refresh_windows();
         // In offline mode nothing is let back on the network until the listener goes online.
         if !self.offline {

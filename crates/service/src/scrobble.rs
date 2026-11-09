@@ -7,7 +7,7 @@
 
 use std::time::{Duration, SystemTime};
 
-use gpui::{App, Context, Entity, SharedString, Task};
+use crate::runtime::{App, Context, Entity, SharedString, Task};
 use music::scrobble::{self, Account, Link, Play, Secret, Service};
 use music::{MusicApi, Report, Track};
 use std::sync::Arc;
@@ -100,9 +100,12 @@ pub struct Scrobbling {
 }
 
 impl crate::client::Model for Scrobbling {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "scrobbling";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
+    #[cfg(not(sonora_gui))]
     fn remote_snapshot(&self, _: &App) -> serde_json::Value {
         serde_json::json!(
             self.rows
@@ -112,6 +115,7 @@ impl crate::client::Model for Scrobbling {
         )
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -137,6 +141,7 @@ impl Scrobbling {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             let (reports, _) = mpsc::unbounded_channel();
             return Self {
@@ -206,6 +211,7 @@ impl Scrobbling {
 
     /// Turns submissions to one service on or off. The link survives either way.
     pub fn set_enabled(&mut self, service: &str, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_enabled",
             vec![serde_json::json!(service), serde_json::json!(enabled)],
@@ -223,6 +229,7 @@ impl Scrobbling {
     /// Runs one service's link. A `Link::Browser` or `Link::Keys` service opens the browser from
     /// inside the task, so the row sits in `Linking` until the user comes back or the wait ends.
     pub fn connect(&mut self, service: &str, secret: Secret, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "connect",
             vec![serde_json::json!(service), serde_json::json!(secret)],
@@ -270,6 +277,7 @@ impl Scrobbling {
 
     /// Forgets one service's account. A link still running is dropped first.
     pub fn disconnect(&mut self, service: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("disconnect", vec![serde_json::json!(service)], cx) {
             return;
         }
@@ -284,6 +292,7 @@ impl Scrobbling {
     /// Gives up on a link that is still waiting, so the user is not stuck watching a browser tab
     /// they already closed. The row falls back to whatever is stored for it.
     pub fn cancel(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("cancel", vec![], cx) {
             return;
         }

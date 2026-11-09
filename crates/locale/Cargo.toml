@@ -1,0 +1,16 @@
+[package]
+name = "locale"
+description = "Sonora localization for processes without a GUI dependency"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "../i18n/build.rs"
+
+[lib]
+path = "../i18n/src/lib.rs"
+
+[dependencies]
+fluent-bundle.workspace = true
+log.workspace = true
+sys-locale.workspace = true
+unic-langid.workspace = true

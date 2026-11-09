@@ -4,8 +4,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::sync::{Mutex, OnceLock};
 
+use crate::runtime::{App, Context, Global, Task};
 use anyhow::{Context as _, Result};
-use gpui::{App, Context, Global, Task};
 use protocol::{Call, Snapshot};
 use serde_json::Value;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
@@ -120,7 +120,6 @@ pub(crate) trait Model: 'static {
     {
         anyhow::bail!("the read model does not accept semantic events")
     }
-    fn remote_snapshot(&self, _cx: &gpui::App) -> Value;
     fn apply_remote(&mut self, data: &Value, cx: &mut Context<Self>) -> Result<()>
     where
         Self: Sized;
@@ -210,7 +209,12 @@ pub fn start(
         Arc::new(local),
         Vec::new(),
     );
+    crate::Sonora::global(cx)
+        .settings
+        .clone()
+        .update(cx, |settings, cx| settings.watch_files(cx));
     crate::Toasts::entity(cx);
+    crate::browser::attach(cx);
     apply(snapshot, cx)?;
     let updates = cx.spawn(async move |cx| {
         loop {
@@ -356,7 +360,7 @@ pub fn copy_link(kind: music::MediaKind, id: String, cx: &mut App) {
             .await;
         cx.update(|cx| match result {
             Ok(Ok(Some(url))) => {
-                cx.write_to_clipboard(gpui::ClipboardItem::new_string(url));
+                cx.write_to_clipboard(crate::runtime::ClipboardItem::new_string(url));
                 crate::Toasts::show(crate::Outcome::Done, "toast-link-copied", cx);
             }
             _ => crate::Toasts::show(crate::Outcome::Failed, "toast-link-unreadable", cx),
@@ -447,6 +451,24 @@ fn apply_notice(event: protocol::Notice, cx: &mut App) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Sends a browser result with protocol backpressure and retains it until acknowledgement.
+pub(crate) fn browser_reply(
+    id: u64,
+    reply: protocol::browser::Reply,
+    cx: &App,
+) -> crate::IoTask<Result<Value>> {
+    let connection = cx.global::<Remote>().connection.clone();
+    crate::Io::global(cx).owned(async move {
+        connection
+            .call(Call::new(
+                "browser",
+                "reply",
+                vec![serde_json::json!(id), serde_json::json!(reply)],
+            ))
+            .await
+    })
 }
 
 /// Whether this application mirrors an external server instead of owning music playback.
@@ -590,7 +612,10 @@ fn enqueue(object: &str, method: &str, arguments: Vec<Value>, cx: &mut App) -> b
             .reopen
             .insert(object.to_owned(), opening);
     }
-    if object == "wake" || (object == "toasts" && method == "pause") {
+    if object == "wake"
+        || (object == "toasts" && method == "pause")
+        || (object == "browser" && method == "attach")
+    {
         cx.global_mut::<Remote>().presentation.insert(
             format!("{object}.{method}"),
             Call::new(object, method, arguments.clone()),
@@ -649,16 +674,14 @@ macro_rules! remote_model {
         impl crate::client::Model for $type {
             const KIND: &'static str = $kind;
             const DYNAMIC: bool = $dynamic;
-            $(fn apply_signal(&mut self, data: &serde_json::Value, cx: &mut gpui::Context<Self>) -> anyhow::Result<()> {
+            $(fn apply_signal(&mut self, data: &serde_json::Value, cx: &mut crate::runtime::Context<Self>) -> anyhow::Result<()> {
                 cx.emit(serde_json::from_value::<$event>(data.clone())?);
                 Ok(())
             })?
 
-            fn remote_snapshot(&self, _cx: &gpui::App) -> serde_json::Value {
-                serde_json::json!({$(stringify!($field): &self.$field),+})
-            }
 
-            fn apply_remote(&mut self, data: &serde_json::Value, cx: &mut gpui::Context<Self>) -> anyhow::Result<()> {
+
+            fn apply_remote(&mut self, data: &serde_json::Value, cx: &mut crate::runtime::Context<Self>) -> anyhow::Result<()> {
                 $(let $field = serde_json::from_value(data.get(stringify!($field)).cloned()
                     .ok_or_else(|| anyhow::anyhow!("the read model is missing {}", stringify!($field)))?)?;)+
                 $(self.$field = $field;)+

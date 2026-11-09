@@ -6,9 +6,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use fluent_bundle::concurrent::FluentBundle;
 use fluent_bundle::{FluentResource, FluentValue};
-#[cfg(feature = "gpui")]
+#[cfg(sonora_gui)]
 use gpui::SharedString;
-#[cfg(not(feature = "gpui"))]
+#[cfg(not(sonora_gui))]
 use std::string::String as SharedString;
 
 pub use fluent_bundle::FluentArgs;
@@ -52,7 +52,7 @@ impl<'a> Value<'a> for &'a String {
     }
 }
 
-#[cfg(feature = "gpui")]
+#[cfg(sonora_gui)]
 impl<'a> Value<'a> for &'a SharedString {
     fn value(self) -> FluentValue<'a> {
         FluentValue::from(self.as_ref())
@@ -123,11 +123,11 @@ fn format(language: Language, key: &str, args: Option<&FluentArgs>) -> Option<Sh
     // The bundles are never dropped, so a message with nothing to fill in is shared as is.
     Some(match text {
         Cow::Borrowed(text) => {
-            #[cfg(feature = "gpui")]
+            #[cfg(sonora_gui)]
             {
                 SharedString::new_static(text)
             }
-            #[cfg(not(feature = "gpui"))]
+            #[cfg(not(sonora_gui))]
             {
                 text.to_owned()
             }
@@ -138,11 +138,11 @@ fn format(language: Language, key: &str, args: Option<&FluentArgs>) -> Option<Sh
 
 /// Converts owned translations to the string type selected by the consumer's feature set.
 fn owned(text: String) -> SharedString {
-    #[cfg(feature = "gpui")]
+    #[cfg(sonora_gui)]
     {
         SharedString::from(text)
     }
-    #[cfg(not(feature = "gpui"))]
+    #[cfg(not(sonora_gui))]
     {
         text
     }

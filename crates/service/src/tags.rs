@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::{Context, Entity, SharedString, Task};
+use crate::runtime::{Context, Entity, SharedString, Task};
 use music::{MusicApi, Track, TrackTags};
 
 use crate::{Io, Library, Outcome, Session, Target, Toasts, join};
@@ -31,6 +31,7 @@ impl Tags {
         io: Io,
         _cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(_cx) {
             return Self {
                 session,
@@ -67,6 +68,7 @@ impl Tags {
     }
 
     pub fn close(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("close", vec![], cx) {
             return;
         }
@@ -81,6 +83,7 @@ impl Tags {
     }
 
     pub fn open(&mut self, track: Track, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("open", vec![serde_json::json!(track)], cx) {
             return;
         }
@@ -124,6 +127,7 @@ impl Tags {
     }
 
     pub fn save(&mut self, tags: TrackTags, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("save", vec![serde_json::json!(tags)], cx) {
             return;
         }

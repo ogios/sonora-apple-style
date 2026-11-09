@@ -13,8 +13,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+#[cfg(sonora_gui)]
+use crate::runtime::AppContext as _;
+use crate::runtime::{App, AsyncApp, Task};
 use anyhow::{Context as _, Result, bail};
-use gpui::{App, AppContext as _, AsyncApp, Task};
 use music::vault::{MASTER, Vault};
 
 /// The keychain entry the master key is stored under.

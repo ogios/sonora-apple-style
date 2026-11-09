@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use gpui::{Context, Entity, Task};
+use crate::runtime::{Context, Entity, Task};
 use music::{Playlist, UserDetail};
 use tokio::task::AbortHandle;
 
@@ -23,6 +23,7 @@ remote_model!(Profile, "profile", true, { id, user, loading, error });
 
 impl Profile {
     pub fn new(session: Entity<Session>, io: Io, cx: &mut Context<Self>) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 id: None,
@@ -89,6 +90,7 @@ impl Profile {
     }
 
     pub fn open(&mut self, id: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("open", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -140,6 +142,7 @@ impl Profile {
     /// Drops the profile and fetches it again, so the page shows its loading state until the
     /// new one lands.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("refresh", vec![], cx) {
             return;
         }
@@ -215,7 +218,7 @@ impl Profile {
         }
 
         let io = self.io.clone();
-        let http = cx.http_client();
+        let http = reqwest::Client::new();
         let built_for = id.clone();
         let key = id.clone();
         let task = cx.spawn(async move |this, cx| {

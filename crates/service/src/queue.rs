@@ -4,7 +4,7 @@ use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use gpui::{App, Context, Entity};
+use crate::runtime::{App, Context, Entity};
 use music::{ArtistRef, SharedTrack, Track};
 use serde::{Deserialize, Serialize};
 
@@ -412,6 +412,7 @@ remote_model!(Queue, "queue", false, { past, current, upcoming, source, manual, 
 
 impl Queue {
     /// Captures occurrence identities and order together for remote clients.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn snapshot(&self, cx: &App) -> serde_json::Value {
         crate::client::Model::remote_snapshot(self, cx)
     }
@@ -421,6 +422,7 @@ impl Queue {
         settings: Entity<AppSettings>,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 past: Vec::new(),
@@ -472,6 +474,7 @@ impl Queue {
     }
 
     pub fn set_shuffle(&mut self, on: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_shuffle", vec![serde_json::json!(on)], cx) {
             return;
         }
@@ -496,6 +499,7 @@ impl Queue {
     }
 
     pub fn toggle_shuffle(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle_shuffle", vec![], cx) {
             return;
         }
@@ -638,6 +642,7 @@ impl Queue {
 
     /// Replaces the suggestions with `tracks` from the radio `origin`.
     pub fn suggest(&mut self, tracks: Vec<Track>, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "suggest",
             vec![serde_json::json!(tracks), serde_json::json!(origin)],
@@ -656,6 +661,7 @@ impl Queue {
     /// Adds suggestions after the ones already there, for a station topped up before the queue
     /// has played through it.
     pub fn extend_similar(&mut self, tracks: Vec<Track>, origin: Origin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "extend_similar",
             vec![serde_json::json!(tracks), serde_json::json!(origin)],
@@ -673,6 +679,7 @@ impl Queue {
     }
 
     pub fn clear_similar(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("clear_similar", vec![], cx) {
             return;
         }
@@ -696,6 +703,7 @@ impl Queue {
     }
 
     pub fn remove_tracks(&mut self, ids: &[String], cx: &mut Context<Self>) -> bool {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove_tracks", vec![serde_json::json!(ids)], cx) {
             return false;
         }
@@ -759,6 +767,7 @@ impl Queue {
     /// Drops everything queued, keeping the suggestions, and posts a toast whose Undo puts it
     /// back. Every clear gets a toast and an Undo of its own.
     pub fn clear_upcoming(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("clear_upcoming", vec![], cx) {
             return;
         }
@@ -816,6 +825,7 @@ impl Queue {
     }
 
     pub fn clear(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("clear", vec![], cx) {
             return;
         }
@@ -840,6 +850,7 @@ impl Queue {
     }
 
     pub fn reset(&mut self, cx: &mut Context<Self>) -> Option<Track> {
+        #[cfg(sonora_gui)]
         if crate::client::command("reset", vec![], cx) {
             return None;
         }
@@ -970,6 +981,7 @@ impl Queue {
     /// Moves an upcoming track. Landing inside or right after the hand-queued run joins it, and
     /// leaving that run for the source's tracks leaves it.
     pub fn move_upcoming(&mut self, from: usize, to: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "move_upcoming",
             vec![serde_json::json!(from), serde_json::json!(to)],
@@ -988,6 +1000,7 @@ impl Queue {
     }
 
     pub fn move_upcoming_to_gap(&mut self, from: usize, gap: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "move_upcoming_to_gap",
             vec![serde_json::json!(from), serde_json::json!(gap)],
@@ -1003,6 +1016,7 @@ impl Queue {
     /// Removes one queued track and reports it on the toast that counts removals, whose Undo
     /// puts it back.
     pub fn remove_upcoming(&mut self, index: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove_upcoming", vec![serde_json::json!(index)], cx) {
             return;
         }
@@ -1024,6 +1038,7 @@ impl Queue {
 
     /// Removes one suggestion and reports it the way `remove_upcoming` does.
     pub fn remove_similar(&mut self, index: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove_similar", vec![serde_json::json!(index)], cx) {
             return;
         }
@@ -1123,6 +1138,7 @@ impl Queue {
     }
 
     pub fn next(&mut self, cx: &mut Context<Self>) -> Option<Track> {
+        #[cfg(sonora_gui)]
         if crate::client::command("next", vec![], cx) {
             return None;
         }
@@ -1138,6 +1154,7 @@ impl Queue {
     }
 
     pub fn rewind(&mut self, cx: &mut Context<Self>) -> Option<Track> {
+        #[cfg(sonora_gui)]
         if crate::client::command("rewind", vec![], cx) {
             return None;
         }
@@ -1151,6 +1168,7 @@ impl Queue {
     }
 
     pub fn previous(&mut self, cx: &mut Context<Self>) -> Option<Track> {
+        #[cfg(sonora_gui)]
         if crate::client::command("previous", vec![], cx) {
             return None;
         }
@@ -1162,6 +1180,7 @@ impl Queue {
     /// Replays a track from the history. What was playing and anything after it in the history
     /// line up ahead of the hand-queued run, so Next returns to where the listener was.
     pub fn play_past(&mut self, index: usize, cx: &mut Context<Self>) -> Option<Track> {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_past", vec![serde_json::json!(index)], cx) {
             return None;
         }
@@ -1178,6 +1197,7 @@ impl Queue {
     /// Jumps to an upcoming track. Hand-queued tracks it skips go to the history, but picking a
     /// track from the source keeps the hand-queued run for afterwards.
     pub fn play_upcoming(&mut self, index: usize, cx: &mut Context<Self>) -> Option<Track> {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_upcoming", vec![serde_json::json!(index)], cx) {
             return None;
         }
@@ -1201,6 +1221,7 @@ impl Queue {
     }
 
     pub fn play_similar(&mut self, index: usize, cx: &mut Context<Self>) -> Option<Track> {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_similar", vec![serde_json::json!(index)], cx) {
             return None;
         }

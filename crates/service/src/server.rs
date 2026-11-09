@@ -5,8 +5,10 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[cfg(sonora_gui)]
+use crate::runtime::StateContext as _;
+use crate::runtime::{App, Entity, Global, Subscription, Task};
 use anyhow::{Context as _, Result, bail, ensure};
-use gpui::{App, AppContext as _, Entity, Global, Subscription, Task};
 use interprocess::local_socket::tokio::{Listener, Stream};
 use interprocess::local_socket::traits::tokio::Listener as _;
 use music::{Quality, Track, Transcode};
@@ -41,6 +43,7 @@ struct Server {
     signal_watch: Option<Task<()>>,
     signal_follow: Option<crate::Following>,
     telemetry: Option<Task<()>>,
+    _browser: Task<()>,
     paused_toasts: HashSet<u64>,
     presentations: HashMap<u64, (bool, bool)>,
 }
@@ -184,6 +187,7 @@ pub fn attach(listener: Listener, cx: &mut App) {
             cx.update(|cx| receive(incoming, cx));
         }
     });
+    let browser = crate::browser::attach(cx);
     cx.set_global(Server {
         instance,
         revision: 0,
@@ -203,6 +207,7 @@ pub fn attach(listener: Listener, cx: &mut App) {
         signal_watch: None,
         signal_follow: None,
         telemetry: None,
+        _browser: browser,
     });
     let sonora = Sonora::global(cx);
     let playback = sonora.playback.clone();
@@ -438,6 +443,7 @@ fn receive(incoming: Incoming, cx: &mut App) {
     } = incoming
     else {
         if let Incoming::Disconnected(peer) = incoming {
+            crate::browser::disconnect(peer);
             let server = cx.global_mut::<Server>();
             server.peers.remove(&peer);
             server.pages.retain(|(owner, _), _| *owner != peer);
@@ -476,6 +482,7 @@ fn snapshot(peer_id: u64, cx: &App) -> Snapshot {
         instance: server.instance.clone(),
         revision: server.revision,
         objects: [
+            "browser",
             "playback",
             "queue",
             "lyrics",
@@ -516,6 +523,7 @@ fn snapshot(peer_id: u64, cx: &App) -> Snapshot {
 fn object(name: &str, cx: &App) -> Value {
     let sonora = Sonora::global(cx);
     match name {
+        "browser" => crate::browser::snapshot(),
         "playback" => sonora.playback.read(cx).snapshot(cx),
         "queue" => sonora.queue.read(cx).snapshot(cx),
         "lyrics" => sonora.lyrics.read(cx).snapshot(),
@@ -571,6 +579,11 @@ fn publish_signal(
             }
         }
     }
+}
+
+pub(crate) fn browser_changed(cx: &mut App) {
+    dirty("browser", cx);
+    dirty("session", cx);
 }
 
 fn dirty(name: &'static str, cx: &mut App) {
@@ -663,6 +676,21 @@ fn refresh_telemetry(cx: &mut App) {
 }
 
 fn dispatch(call: &Call, peer_id: u64, peer: &Peer, cx: &mut App) -> Result<Value> {
+    if call.object == "browser" {
+        match call.method.as_str() {
+            "attach" => {
+                let mut arguments = Arguments::new(call, 1)?;
+                crate::browser::connect(peer_id, arguments.next()?)?;
+            }
+            "reply" => {
+                let mut arguments = Arguments::new(call, 2)?;
+                crate::browser::reply(peer_id, arguments.next()?, arguments.next()?)?;
+            }
+            _ => bail!("the service does not support this browser command"),
+        }
+        return Ok(Value::Null);
+    }
+
     if let Some((kind, _)) = call.object.split_once(':') {
         let key = (peer_id, call.object.clone());
         if call.method == "release" {
@@ -814,7 +842,7 @@ fn dispatch(call: &Call, peer_id: u64, peer: &Peer, cx: &mut App) -> Result<Valu
                 play_last_all(tracks: Vec<Track> => tracks, origin: Option<Origin> => origin),
                 open_paths(paths: Vec<PathBuf> => paths),
                 insert_all(tracks: Vec<Track> => tracks, gap: usize => gap, origin: Option<Origin> => origin),
-                enqueue_pin(pin: ui::Pin => &pin, gap: Option<usize> => gap),
+                enqueue_pin(pin: crate::preferences::Pin => &pin, gap: Option<usize> => gap),
                 play_radio(seed: Track => &seed),
                 play_origin(origin: Origin => origin),
                 toggle_origin(origin: Origin => &origin),
@@ -874,7 +902,7 @@ fn create_page(kind: &str, name: &str, peer_id: u64, peer: &Peer, cx: &mut App) 
     let io = Io::global(cx);
     macro_rules! page {
         ($variant:ident, $build:expr) => {{
-            let entity = cx.new($build);
+            let entity = cx.create($build);
             let name = name.to_owned();
             let peer = peer.clone();
             let subscription = cx.observe(&entity, move |entity, cx| {
@@ -959,7 +987,7 @@ fn peer_genres(peer_id: u64, cx: &mut App) -> Entity<crate::Genres> {
     }
     let session = Sonora::global(cx).session.clone();
     let io = Io::global(cx);
-    let genres = cx.new(|cx| crate::Genres::new(session, io, cx));
+    let genres = cx.create(|cx| crate::Genres::new(session, io, cx));
     cx.global_mut::<Server>()
         .genres
         .insert(peer_id, genres.clone());

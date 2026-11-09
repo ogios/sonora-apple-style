@@ -3,8 +3,10 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+#[cfg(sonora_gui)]
+use crate::runtime::StateContext as _;
+use crate::runtime::{App, Context, Entity, Global, Task};
 use anyhow::{Context as _, Result};
-use gpui::{App, AppContext as _, Context, Entity, Global, Task};
 use music::Track;
 use tokio::sync::mpsc;
 
@@ -71,7 +73,7 @@ pub fn attach(hwnd: Option<*mut c_void>, cx: &mut App) {
     let queue = sonora.queue.clone();
     let cover = sonora.cover.clone();
     let io = Io::global(cx);
-    let remote = cx.new(|cx| Remote::new(controls, receiver, playback, queue, cover, io, cx));
+    let remote = cx.create(|cx| Remote::new(controls, receiver, playback, queue, cover, io, cx));
     remote.update(cx, |remote, cx| remote.publish(cx));
     cx.set_global(Attached { _remote: remote });
 }

@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use gpui::{App, Context, Entity, Task};
+use crate::runtime::{App, Context, Entity, Task};
 use music::progress::Progress;
 
 use crate::{Outcome, Session, Toast, Toasts};
@@ -30,13 +30,17 @@ pub struct Scan {
 }
 
 impl crate::client::Model for Scan {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "scan";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
-    fn remote_snapshot(&self, _: &gpui::App) -> serde_json::Value {
+    #[cfg(not(sonora_gui))]
+    fn remote_snapshot(&self, _: &crate::runtime::App) -> serde_json::Value {
         serde_json::json!({ "progress": self.progress(), "running": self.running, "done": self.done })
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -55,6 +59,7 @@ impl crate::client::Model for Scan {
 
 impl Scan {
     pub fn new(session: Entity<Session>, cx: &mut Context<Self>) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 running: false,
@@ -111,6 +116,7 @@ impl Scan {
     /// Follows the settings page: arriving marks a finished scan as shown, leaving forgets it.
     /// Switching category counts as arriving, so only leaving the page clears the note.
     pub fn viewing_settings(&mut self, viewing: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("viewing_settings", vec![serde_json::json!(viewing)], cx) {
             return;
         }

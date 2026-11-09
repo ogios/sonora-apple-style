@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[cfg(sonora_gui)]
+use crate::runtime::StateContext as _;
+use crate::runtime::{App, Context, Entity, Global, Task};
 use discord_rich_presence::{DiscordIpc, activity};
-use gpui::{App, AppContext as _, Context, Entity, Global, Task};
 use music::artwork::{ArtworkQuery, ArtworkSearch};
 use music::{MediaKind, MusicProvider, Track};
 use tokio::sync::watch;
@@ -42,7 +44,7 @@ pub(crate) fn attach(
     io: Io,
     cx: &mut App,
 ) {
-    let discord = cx.new(|cx| Discord::new(playback, settings, session, cover, devices, io, cx));
+    let discord = cx.create(|cx| Discord::new(playback, settings, session, cover, devices, io, cx));
     cx.set_global(Attached { _discord: discord });
 }
 

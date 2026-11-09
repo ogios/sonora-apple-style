@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use gpui::{Context, Entity, Task};
+use crate::runtime::{Context, Entity, Task};
 
 use crate::{Io, Playback, Session, SessionEvent, join};
 
@@ -23,6 +23,7 @@ impl Cover {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 session,

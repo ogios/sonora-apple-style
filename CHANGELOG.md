@@ -118,6 +118,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Run standalone playback without loading a GUI framework, fonts or graphics components in the
+  server. Browser sign-ins and YouTube token pages run in the GUI.
+
 - Build optional profile-guided Linux releases from local browsing and playback workloads.
 - Scrolling cover grids uses less CPU time to prepare GPU draws, preserving artwork quality and
   transitions.

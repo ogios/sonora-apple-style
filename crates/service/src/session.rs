@@ -2,9 +2,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::runtime::{Context, Entity, EventEmitter, Task};
 use anyhow::Error;
-use gpui::{Context, Entity, EventEmitter, Task};
-use i18n::t;
 use music::link::Linked;
 use music::{
     Capabilities, Catalog, MusicApi, MusicProvider, PlaybackFactory, PromptSink, ProviderSession,
@@ -128,7 +127,7 @@ pub struct Session {
     prompt_task: Option<Task<()>>,
     input: Option<UnboundedSender<String>>,
     /// The browser window a `SignInPrompt::Secret` opened, while it is up.
-    window: Option<webview::Page>,
+    window: Option<crate::browser::Page>,
     window_task: Option<Task<()>>,
     local_provider: Arc<dyn MusicProvider>,
     local_folders: Vec<PathBuf>,
@@ -159,9 +158,12 @@ struct RemoteSession {
 }
 
 impl crate::client::Model for Session {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "session";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
+    #[cfg(sonora_gui)]
     fn apply_signal(
         &mut self,
         data: &serde_json::Value,
@@ -171,10 +173,12 @@ impl crate::client::Model for Session {
         Ok(())
     }
 
-    fn remote_snapshot(&self, _: &gpui::App) -> serde_json::Value {
+    #[cfg(not(sonora_gui))]
+    fn remote_snapshot(&self, _: &crate::runtime::App) -> serde_json::Value {
         self.snapshot()
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -224,6 +228,7 @@ impl EventEmitter<SessionEvent> for Session {}
 
 impl Session {
     /// Cancels jobs that can replace provider sessions while the server is shutting down.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn shutdown(&mut self) {
         self.task = None;
         self.prompt_task = None;
@@ -236,6 +241,7 @@ impl Session {
     }
 
     /// Publishes account and provider capabilities without exposing credentials or live handles.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn snapshot(&self) -> serde_json::Value {
         serde_json::json!({
             "state": self.state,
@@ -268,6 +274,7 @@ impl Session {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 state: SessionState::SignedOut,
@@ -423,7 +430,7 @@ impl Session {
                 listening_to: provider.listening_to(),
                 // Asked in this order because answering `supported` starts a child process once
                 // on Linux, and only a provider that signs in with cookies is worth it.
-                web_sign_in: provider.web_sign_in().is_some() && webview::supported(),
+                web_sign_in: provider.web_sign_in().is_some() && crate::browser::supported(),
                 protected: provider.protected(),
                 stored: provider.stored(),
                 guest: provider.stored_guest(),
@@ -469,6 +476,7 @@ impl Session {
     }
 
     pub fn forget(&mut self, slug: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("forget", vec![serde_json::json!(slug)], cx) {
             return;
         }
@@ -488,6 +496,7 @@ impl Session {
     }
 
     pub fn switch(&mut self, slug: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("switch", vec![serde_json::json!(slug)], cx) {
             return;
         }
@@ -617,6 +626,7 @@ impl Session {
     /// next provider with an account stored and then to a guest session, so the sign-in page
     /// comes up only when there is nothing at all to carry on with.
     pub fn restore(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("restore", vec![], cx) {
             return;
         }
@@ -744,6 +754,7 @@ impl Session {
     }
 
     pub fn sign_in(&mut self, slug: &str, method: SignIn, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "sign_in",
             vec![serde_json::json!(slug), serde_json::json!(method)],
@@ -756,6 +767,7 @@ impl Session {
     }
 
     pub fn sign_in_with_cookies(&mut self, slug: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("sign_in_with_cookies", vec![serde_json::json!(slug)], cx) {
             return;
         }
@@ -765,6 +777,7 @@ impl Session {
 
     /// Starts authorization with manual secret input; cookie prompts stay on IPC.
     pub fn sign_in_manually(&mut self, slug: &str, method: SignIn, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "sign_in_manually",
             vec![serde_json::json!(slug), serde_json::json!(method)],
@@ -844,6 +857,7 @@ impl Session {
     }
 
     pub fn cancel_sign_in(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("cancel_sign_in", vec![], cx) {
             return;
         }
@@ -883,6 +897,9 @@ impl Session {
         {
             return;
         }
+        if !crate::browser::supported() {
+            return;
+        }
         let Some(index) = self.awaiting else {
             return;
         };
@@ -890,16 +907,16 @@ impl Session {
         let Some(sign_in) = provider.web_sign_in() else {
             return;
         };
-        let target = webview::Target {
+        let target = crate::browser::Target {
             url: sign_in.url.to_string(),
             landing: sign_in.landing.to_string(),
             domain: sign_in.domain.to_string(),
             proof: sign_in.proof.iter().map(ToString::to_string).collect(),
-            title: t!("login-window-title", provider = provider.name()).to_string(),
+            title: provider.name().to_owned(),
             agent: sign_in.agent.map(str::to_owned),
             script: None,
         };
-        match webview::Page::open(target) {
+        match crate::browser::Page::open(target) {
             Ok(login) => self.window = Some(login),
             Err(error) => {
                 log::warn!("session: cannot open the sign-in window: {error:#}");
@@ -918,13 +935,13 @@ impl Session {
                         return false;
                     };
                     match login.poll() {
-                        webview::Poll::Pending => true,
-                        webview::Poll::Closed => {
+                        crate::browser::Poll::Pending => true,
+                        crate::browser::Poll::Closed => {
                             this.window = None;
                             this.cancel_sign_in(cx);
                             false
                         }
-                        webview::Poll::Cookies(header) => {
+                        crate::browser::Poll::Cookies(header) => {
                             this.window = None;
                             this.submit_input(header, cx);
                             false
@@ -939,6 +956,7 @@ impl Session {
     }
 
     pub fn submit_input(&mut self, text: String, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("submit_input", vec![serde_json::json!(text)], cx) {
             return;
         }
@@ -957,6 +975,7 @@ impl Session {
     }
 
     pub fn sign_out(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("sign_out", vec![], cx) {
             return;
         }
@@ -982,6 +1001,7 @@ impl Session {
     /// in offline mode would put it. A sign-in in progress and an account with nothing stored
     /// are left alone.
     pub fn go_offline(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("go_offline", vec![], cx) {
             return;
         }
@@ -1011,6 +1031,7 @@ impl Session {
     /// Tries the stored account again once the network is back, for a run that started without
     /// one. Anything but a run held up by the network is left alone.
     pub fn restore_if_offline(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("restore_if_offline", vec![], cx) {
             return;
         }
@@ -1108,6 +1129,7 @@ impl Session {
     }
 
     pub fn reconnect_if_stale(&mut self, cx: &mut Context<Self>) -> bool {
+        #[cfg(sonora_gui)]
         if crate::client::command("reconnect_if_stale", vec![], cx) {
             return false;
         }
@@ -1218,6 +1240,7 @@ impl Session {
     /// Adds a folder to the local library, then rescans every configured folder together so
     /// artists and albums that span more than one root merge into one, seamlessly.
     pub fn add_local_folder(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("add_local_folder", vec![serde_json::json!(path)], cx) {
             return;
         }
@@ -1227,6 +1250,7 @@ impl Session {
 
     /// Same as [`Session::add_local_folder`], for a batch picked in one native dialog.
     pub fn add_local_folders(&mut self, paths: Vec<PathBuf>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("add_local_folders", vec![serde_json::json!(paths)], cx) {
             return;
         }
@@ -1250,6 +1274,7 @@ impl Session {
 
     /// Drops a folder from the local library and offers to put it back.
     pub fn remove_local_folder(&mut self, path: &Path, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove_local_folder", vec![serde_json::json!(path)], cx) {
             return;
         }
@@ -1308,6 +1333,7 @@ impl Session {
     /// it forgets what the last scan recorded, so every folder is listed and every file stat'd
     /// again, which is the only way an edit made behind Sonora's back is noticed.
     pub fn rescan_local(&mut self, thorough: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("rescan_local", vec![serde_json::json!(thorough)], cx) {
             return;
         }

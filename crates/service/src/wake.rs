@@ -1,4 +1,4 @@
-use gpui::{Context, Entity};
+use crate::runtime::{Context, Entity};
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use tokio::sync::watch;
 
@@ -46,6 +46,7 @@ impl Wake {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 settings,
@@ -62,7 +63,9 @@ impl Wake {
         cx.observe(&settings, |this, _, cx| this.apply(cx)).detach();
         cx.observe(&playback, |this, _, cx| this.apply(cx)).detach();
 
+        #[cfg(sonora_gui)]
         let this = cx.weak_entity();
+        #[cfg(sonora_gui)]
         cx.on_window_closed(move |cx, _| {
             if !cx.windows().is_empty() {
                 return;
@@ -100,6 +103,7 @@ impl Wake {
 
     /// Records whether the window shows the fullscreen view, which the display lock needs.
     pub fn set_fullscreen(&mut self, on: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_fullscreen", vec![serde_json::json!(on)], cx) {
             return;
         }
@@ -110,6 +114,7 @@ impl Wake {
 
     /// Records whether the window has focus, which the display lock needs.
     pub fn set_focused(&mut self, on: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_focused", vec![serde_json::json!(on)], cx) {
             return;
         }
@@ -208,7 +213,7 @@ fn hold_one(held: &mut Option<objc2_io_kit::IOPMAssertionID>, on: bool, kind: &s
     }
     if on {
         let kind = CFString::from_str(kind);
-        let name = CFString::from_str(&i18n::t!("wake-reason"));
+        let name = CFString::from_str(&crate::localization::t!("wake-reason"));
         let mut id = 0;
         // SAFETY: both strings outlive the call and `id` is a valid out pointer.
         let result = unsafe {
@@ -285,7 +290,7 @@ async fn acquire(
     if want.display {
         flags.insert(InhibitFlags::Idle);
     }
-    let reason = i18n::t!("wake-reason");
+    let reason = crate::localization::t!("wake-reason");
     let options = InhibitOptions::default().set_reason(reason.as_ref());
     let request = match reached.inhibit(None, flags, options).await {
         Ok(request) => request,

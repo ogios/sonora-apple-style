@@ -5,8 +5,9 @@
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use gpui::prelude::*;
-use gpui::{Context, Entity, Subscription, Task};
+#[cfg(sonora_gui)]
+use crate::runtime::prelude::*;
+use crate::runtime::{Context, Entity, Subscription, Task};
 use music::output::{DeviceInfo, Sample};
 use music::{Level, Normalisation, TrackSignal};
 
@@ -34,7 +35,9 @@ pub struct Signal {
     /// holder shares the one `Arc`, so the path stops being read only once the last lets go.
     watched: Weak<()>,
     _subscriptions: Vec<Subscription>,
+    #[cfg(sonora_gui)]
     spectrum: music::Spectrum,
+    #[cfg(sonora_gui)]
     spectrum_ready: bool,
 }
 
@@ -164,10 +167,13 @@ impl SignalPath {
 }
 
 impl crate::client::Model for Signal {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "signal";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
-    fn remote_snapshot(&self, cx: &gpui::App) -> serde_json::Value {
+    #[cfg(not(sonora_gui))]
+    fn remote_snapshot(&self, cx: &crate::runtime::App) -> serde_json::Value {
         let spectrum = self
             .playback
             .read(cx)
@@ -176,6 +182,7 @@ impl crate::client::Model for Signal {
         serde_json::json!({"levels": self.levels, "path": self.path, "spectrum": spectrum})
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -205,6 +212,7 @@ impl Signal {
         equalizer: Entity<Equalizer>,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 playback,
@@ -214,7 +222,9 @@ impl Signal {
                 path: None,
                 watched: Weak::new(),
                 _subscriptions: Vec::new(),
+                #[cfg(sonora_gui)]
                 spectrum: music::Spectrum::new(),
+                #[cfg(sonora_gui)]
                 spectrum_ready: false,
             };
         }
@@ -231,7 +241,9 @@ impl Signal {
             path: None,
             watched: Weak::new(),
             _subscriptions: subscriptions.into(),
+            #[cfg(sonora_gui)]
             spectrum: music::Spectrum::new(),
+            #[cfg(sonora_gui)]
             spectrum_ready: false,
         }
     }
@@ -314,6 +326,7 @@ impl Signal {
     }
 
     /// The latest output spectrum mirrored from the server.
+    #[cfg(sonora_gui)]
     pub(crate) fn spectrum(&self) -> Option<music::Spectrum> {
         self.spectrum_ready.then(|| self.spectrum.clone())
     }

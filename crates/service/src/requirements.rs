@@ -2,7 +2,7 @@
 //! server, an output device that opens, the browser engine for cookie sign-ins. Each is found
 //! here and drawn as a card by `views`, which can put it away for the run or for good.
 
-use gpui::{App, Context, Entity, Task};
+use crate::runtime::{App, Context, Entity, Task};
 use music::SoundServer;
 
 use crate::{AppSettings, Io, Outputs, Session};
@@ -53,6 +53,7 @@ impl Requirements {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 bridge: None,
@@ -71,10 +72,8 @@ impl Requirements {
         cx.observe(&session, |_, _, cx| cx.notify()).detach();
 
         let task = cx.spawn(async move |this, cx| {
-            let looked = io
-                .spawn_blocking(|| (music::missing_bridge(), !webview::supported()))
-                .await;
-            let Ok((bridge, web_engine)) = looked else {
+            let looked = io.spawn_blocking(music::missing_bridge).await;
+            let Ok(bridge) = looked else {
                 return;
             };
             if let Some(server) = bridge {
@@ -83,7 +82,7 @@ impl Requirements {
             this.update(cx, |this, cx| {
                 this.task = None;
                 this.bridge = bridge;
-                this.web_engine = web_engine && cfg!(target_os = "linux");
+                this.web_engine = false;
                 cx.notify();
             })
             .ok();
@@ -104,11 +103,14 @@ impl Requirements {
     /// known to be the missing ALSA plugin is left to that card.
     pub fn shown(&self, cx: &App) -> Vec<Requirement> {
         let settings = self.settings.read(cx);
+        #[cfg(sonora_gui)]
+        let web_engine = !crate::browser::supported();
+        #[cfg(not(sonora_gui))]
+        let web_engine = self.web_engine;
         let found = [
             self.bridge.map(Requirement::AudioBridge),
             (self.output && self.bridge.is_none()).then_some(Requirement::AudioOutput),
-            (self.web_engine && self.session.read(cx).wants_browser())
-                .then_some(Requirement::WebEngine),
+            (web_engine && self.session.read(cx).wants_browser()).then_some(Requirement::WebEngine),
         ];
         found
             .into_iter()

@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::runtime::{Context, Entity, Task};
 use anyhow::{Context as _, Result};
-use gpui::{Context, Entity, Task};
 use serde::Deserialize;
 use sha2::{Digest as _, Sha256};
 

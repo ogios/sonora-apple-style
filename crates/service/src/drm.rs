@@ -10,7 +10,7 @@
 //! module accepted that way is preferred over any browser's and kept current without asking
 //! again. With nothing accepted, protected providers keep their metadata and refuse to play.
 
-use gpui::{App, Context, Entity, Task};
+use crate::runtime::{App, Context, Entity, Task};
 use music::drm::{self, Offer, Origin};
 
 use crate::{Io, Outcome, Session, SessionEvent, Toasts};
@@ -64,6 +64,7 @@ remote_model!(Drm, "drm", false, { state, looked, standing });
 
 impl Drm {
     pub fn new(session: Entity<Session>, io: Io, cx: &mut Context<Self>) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 state: CdmState::Missing,
@@ -138,6 +139,7 @@ impl Drm {
     /// account present, the user is asked; with a module Sonora fetched before, a newer one is
     /// fetched quietly.
     pub fn look(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("look", vec![], cx) {
             return;
         }
@@ -182,6 +184,7 @@ impl Drm {
     /// The user's no, to either question. A download under way is dropped, and a module that
     /// was already here stays in use.
     pub fn dismiss(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("dismiss", vec![], cx) {
             return;
         }
@@ -195,6 +198,7 @@ impl Drm {
     /// The user's yes to downloading: fetches the archive and puts the terms up. Asked while
     /// a browser's copy is in use, that copy stays in use unless Google's is installed.
     pub fn download(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("download", vec![], cx) {
             return;
         }
@@ -237,6 +241,7 @@ impl Drm {
 
     /// The user's yes to the terms: installs what was downloaded.
     pub fn accept(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("accept", vec![], cx) {
             return;
         }
@@ -276,6 +281,7 @@ impl Drm {
     /// Removes the module Sonora fetched from Google and settles on whatever else is here, a
     /// browser's copy or nothing. Nothing is asked again this run.
     pub fn uninstall(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("uninstall", vec![], cx) {
             return;
         }

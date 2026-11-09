@@ -1,5 +1,6 @@
 //! Versioned commands and subscriptions between Sonora's local server and its clients.
 
+pub mod browser;
 mod client;
 mod endpoint;
 mod framing;
@@ -14,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// The wire contract required by both ends of a connection.
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 
 /// An operation on a named service object. Arguments retain their declared positional order.
 #[derive(Clone, Debug, Serialize, Deserialize)]

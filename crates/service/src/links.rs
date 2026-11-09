@@ -1,7 +1,7 @@
 //! Links handed to the app from outside, by the system or on the command line, opened on the
 //! provider they belong to.
 
-use gpui::{Context, Entity, EventEmitter, Task};
+use crate::runtime::{Context, Entity, EventEmitter, Task};
 use music::link::{self, Linked};
 
 use crate::{Devices, Io, Outcome, Session, SessionState, Toasts};
@@ -32,17 +32,22 @@ pub struct Links {
 impl EventEmitter<Opened> for Links {}
 
 impl crate::client::Model for Links {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "links";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
-    fn remote_snapshot(&self, _: &gpui::App) -> serde_json::Value {
+    #[cfg(not(sonora_gui))]
+    fn remote_snapshot(&self, _: &crate::runtime::App) -> serde_json::Value {
         serde_json::json!({})
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(&mut self, _: &serde_json::Value, _: &mut Context<Self>) -> anyhow::Result<()> {
         Ok(())
     }
 
+    #[cfg(sonora_gui)]
     fn apply_signal(
         &mut self,
         data: &serde_json::Value,
@@ -55,6 +60,7 @@ impl crate::client::Model for Links {
 
 impl Links {
     pub fn new(session: Entity<Session>, devices: Entity<Devices>, cx: &mut Context<Self>) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 session,
@@ -76,6 +82,7 @@ impl Links {
     /// Opens `text` when it is a provider's link and says whether it was one. A short link is
     /// followed first, so what it points at opens a moment later.
     pub fn open(&mut self, text: &str, cx: &mut Context<Self>) -> bool {
+        #[cfg(sonora_gui)]
         if crate::client::is_remote(cx) {
             let Some(address) = music::link::address(text) else {
                 return false;

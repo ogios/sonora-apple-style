@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use gpui::{App, Context, Entity, SharedString, Task};
+use crate::runtime::{App, Context, Entity, SharedString, Task};
 use music::{
     Album, Catalog, MediaKind, MusicApi, Page, Pages, Playlist, SavedArtist, Shape, Track,
 };
@@ -1084,7 +1084,7 @@ impl LibraryState {
     }
 }
 
-impl gpui::EventEmitter<LibraryEvent> for Library {}
+impl crate::runtime::EventEmitter<LibraryEvent> for Library {}
 
 pub struct Library {
     shelves: [Held; 2],
@@ -1122,9 +1122,12 @@ pub struct Library {
 }
 
 impl crate::client::Model for Library {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "library";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
+    #[cfg(sonora_gui)]
     fn apply_signal(
         &mut self,
         data: &serde_json::Value,
@@ -1134,7 +1137,8 @@ impl crate::client::Model for Library {
         Ok(())
     }
 
-    fn remote_snapshot(&self, _: &gpui::App) -> serde_json::Value {
+    #[cfg(not(sonora_gui))]
+    fn remote_snapshot(&self, _: &crate::runtime::App) -> serde_json::Value {
         serde_json::json!({
             "shelves": self.shelves, "pin_targets": self.pin_targets,
             "contents": self.contents, "hidden_local_tracks": self.hidden_local_tracks,
@@ -1147,6 +1151,7 @@ impl crate::client::Model for Library {
         })
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -1180,6 +1185,7 @@ impl crate::client::Model for Library {
 }
 
 /// Pending markers mirror server jobs without creating work in the GUI process.
+#[cfg(sonora_gui)]
 fn remote_pending(data: &serde_json::Value) -> anyhow::Result<HashMap<String, Task<()>>> {
     let ids: Vec<String> = serde_json::from_value(data.clone())?;
     Ok(ids.into_iter().map(|id| (id, Task::ready(()))).collect())
@@ -1192,6 +1198,7 @@ impl Library {
         cache: storage::Cache,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 shelves: [Held::empty(), Held::empty()],
@@ -1628,6 +1635,7 @@ impl Library {
     }
 
     pub fn add_local_folder(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("add_local_folder", vec![serde_json::json!(path)], cx) {
             return;
         }
@@ -1637,6 +1645,7 @@ impl Library {
     }
 
     pub fn add_local_folders(&mut self, paths: Vec<PathBuf>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("add_local_folders", vec![serde_json::json!(paths)], cx) {
             return;
         }
@@ -1646,6 +1655,7 @@ impl Library {
     }
 
     pub fn remove_local_folder(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove_local_folder", vec![serde_json::json!(path)], cx) {
             return;
         }
@@ -1657,6 +1667,7 @@ impl Library {
     /// Reads the local folders again. `thorough` is the Rescan button: it distrusts the scan
     /// index, so nothing is taken on the word of a folder's modification time.
     pub fn rescan_local(&mut self, thorough: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("rescan_local", vec![serde_json::json!(thorough)], cx) {
             return;
         }
@@ -1667,6 +1678,7 @@ impl Library {
 
     /// Deletes confirmed local files on the service, retaining accepted work until it finishes.
     pub fn delete_track_files(&mut self, ids: Vec<String>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("delete_track_files", vec![serde_json::json!(ids)], cx) {
             return;
         }
@@ -1720,6 +1732,7 @@ impl Library {
     }
 
     pub fn hide_local_tracks(&mut self, ids: &[String], cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("hide_local_tracks", vec![serde_json::json!(ids)], cx) {
             return;
         }
@@ -1787,6 +1800,7 @@ impl Library {
 
     /// Flips the heart on a track. Nothing is announced, since the heart is the way back.
     pub fn toggle(&mut self, track: Track, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle", vec![serde_json::json!(track)], cx) {
             return;
         }
@@ -1797,6 +1811,7 @@ impl Library {
     /// Favorites every track not yet a favorite, or takes every favorite out. Taking them out
     /// is reported in one toast with an Undo.
     pub fn save_tracks(&mut self, tracks: Vec<Track>, saved: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "save_tracks",
             vec![serde_json::json!(tracks), serde_json::json!(saved)],
@@ -1838,6 +1853,7 @@ impl Library {
         present: bool,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_track_in_library",
             vec![serde_json::json!(track), serde_json::json!(present)],
@@ -1862,6 +1878,7 @@ impl Library {
         present: bool,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_album_in_library",
             vec![serde_json::json!(album), serde_json::json!(present)],
@@ -1954,6 +1971,7 @@ impl Library {
     /// Favorites an album or takes it out of the favorites. A removal is reported with an Undo,
     /// and removals in the same turn share one toast.
     pub fn toggle_album(&mut self, album: Album, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle_album", vec![serde_json::json!(album)], cx) {
             return;
         }
@@ -1963,6 +1981,7 @@ impl Library {
 
     /// Flips the heart on an album. Nothing is announced, since the heart is the way back.
     pub fn heart_album(&mut self, album: Album, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("heart_album", vec![serde_json::json!(album)], cx) {
             return;
         }
@@ -2008,6 +2027,7 @@ impl Library {
     /// Follows an artist or unfollows them. An unfollow is reported with an Undo, and
     /// unfollows in the same turn share one toast.
     pub fn toggle_artist(&mut self, artist: SavedArtist, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle_artist", vec![serde_json::json!(artist)], cx) {
             return;
         }
@@ -2017,6 +2037,7 @@ impl Library {
 
     /// Flips the heart on an artist. Nothing is announced, since the heart is the way back.
     pub fn heart_artist(&mut self, artist: SavedArtist, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("heart_artist", vec![serde_json::json!(artist)], cx) {
             return;
         }
@@ -2044,6 +2065,7 @@ impl Library {
         shelf: Shelf,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "create_playlist",
             vec![
@@ -2093,6 +2115,7 @@ impl Library {
     }
 
     pub fn rename_playlist(&mut self, id: String, name: String, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "rename_playlist",
             vec![serde_json::json!(id), serde_json::json!(name)],
@@ -2121,6 +2144,7 @@ impl Library {
     }
 
     pub fn set_playlist_public(&mut self, id: String, public: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_playlist_public",
             vec![serde_json::json!(id), serde_json::json!(public)],
@@ -2153,6 +2177,7 @@ impl Library {
         track_id: String,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "add_to_playlist",
             vec![serde_json::json!(playlist_id), serde_json::json!(track_id)],
@@ -2173,6 +2198,7 @@ impl Library {
         addition: Addition,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "add_tracks_to_playlist",
             vec![serde_json::json!(playlist_id), serde_json::json!(addition)],
@@ -2228,6 +2254,7 @@ impl Library {
         track_id: String,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "remove_from_playlist",
             vec![serde_json::json!(playlist_id), serde_json::json!(track_id)],
@@ -2249,6 +2276,7 @@ impl Library {
         rows: Vec<String>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "remove_tracks_from_playlist",
             vec![serde_json::json!(playlist_id), serde_json::json!(rows)],
@@ -2316,6 +2344,7 @@ impl Library {
     }
 
     pub fn delete_playlist(&mut self, id: String, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("delete_playlist", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -2337,6 +2366,7 @@ impl Library {
     }
 
     pub fn add_playlist_to_library(&mut self, playlist: Playlist, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "add_playlist_to_library",
             vec![serde_json::json!(playlist)],
@@ -2362,6 +2392,7 @@ impl Library {
     }
 
     pub fn remove_playlist_from_library(&mut self, id: String, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "remove_playlist_from_library",
             vec![serde_json::json!(id)],
@@ -2377,6 +2408,7 @@ impl Library {
     /// them back. They all have to sit on the shelf of the first. A failure after some went
     /// through stops the rest, and only the ones that went are reported.
     pub fn remove_playlists_from_library(&mut self, ids: Vec<String>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "remove_playlists_from_library",
             vec![serde_json::json!(ids)],
@@ -2654,7 +2686,7 @@ impl Library {
         }
 
         let io = self.io.clone();
-        let http = cx.http_client();
+        let http = reqwest::Client::new();
         let built_for = id.clone();
         let key = id.clone();
         let task = cx.spawn(async move |this, cx| {
@@ -2684,6 +2716,7 @@ impl Library {
     /// Reads the contents of every editable playlist on a shelf that is not known yet. A local
     /// playlist is always re-read, since its contents change without a mutation here.
     pub fn read_playlists(&mut self, shelf: Shelf, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("read_playlists", vec![serde_json::json!(shelf)], cx) {
             return;
         }
@@ -2884,6 +2917,7 @@ impl Library {
     /// asking the provider again. `track` comes with a like; an unlike needs only `id`. A change
     /// still on its way from this app wins.
     pub fn liked_elsewhere(&mut self, id: &str, track: Option<Track>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "liked_elsewhere",
             vec![serde_json::json!(id), serde_json::json!(track)],
@@ -2931,6 +2965,7 @@ impl Library {
     /// until all of its new rows have arrived, and its old problems are dropped so the fresh rows
     /// can be snapshotted.
     pub fn refresh(&mut self, shelf: Shelf, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("refresh", vec![serde_json::json!(shelf)], cx) {
             return;
         }
@@ -2950,6 +2985,7 @@ impl Library {
     /// its loading state until the new rows land. This is the Refresh a user asks for, while
     /// `refresh` is the quiet one that keeps rows on screen.
     pub fn reload(&mut self, shelf: Shelf, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("reload", vec![serde_json::json!(shelf)], cx) {
             return;
         }

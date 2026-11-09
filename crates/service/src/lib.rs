@@ -1,10 +1,27 @@
 //! Authoritative music orchestration for the standalone server and IPC read models for its GUI.
 //! Provider sessions, playback, queues, lyrics and persistence are owned by the server process.
 
+#[cfg(sonora_gui)]
+pub(crate) mod runtime;
+#[cfg(sonora_gui)]
+pub(crate) use i18n as localization;
+#[cfg(not(sonora_gui))]
+pub(crate) use locale as localization;
+#[cfg(not(sonora_gui))]
+pub(crate) use service_runtime as runtime;
+#[cfg(sonora_gui)]
+pub(crate) use ui as preferences;
+#[cfg(not(sonora_gui))]
+mod preferences;
+
 #[macro_use]
+#[cfg_attr(not(sonora_gui), path = "backend_client.rs")]
 pub mod client;
 mod artist;
+#[cfg(not(sonora_gui))]
 mod bootstrap;
+#[cfg_attr(sonora_gui, path = "browser_gui.rs")]
+mod browser;
 mod catalog;
 mod cover;
 mod detail;
@@ -29,11 +46,13 @@ mod playback;
 mod potoken;
 mod profile;
 mod queue;
+#[cfg(any(sonora_gui, target_os = "linux", target_os = "freebsd"))]
 mod remote;
 mod requirements;
 mod scan;
 mod scrobble;
 mod search;
+#[cfg(not(sonora_gui))]
 pub mod server;
 mod session;
 mod settings;
@@ -48,9 +67,11 @@ mod updates;
 mod usage;
 mod vault;
 mod wake;
+#[cfg(sonora_gui)]
 mod window_shape;
 
 pub use artist::{ArtistDetail, ArtistDetailEvent};
+#[cfg(not(sonora_gui))]
 pub use bootstrap::start;
 pub use cover::Cover;
 pub use detail::{Collection, Detail, Header};
@@ -74,6 +95,7 @@ pub use pins::{PinSort, Pins};
 pub use playback::{Origin, Playback, PlaybackState, Repeat, Sleep, Unreachable, Whence};
 pub use profile::Profile;
 pub use queue::{Named, Queue, Resume, Stub};
+#[cfg(any(sonora_gui, target_os = "linux", target_os = "freebsd"))]
 pub use remote::{Remote, attach as attach_remote};
 pub use requirements::{Requirement, Requirements};
 pub use scan::Scan;
@@ -82,9 +104,10 @@ pub use search::{AlbumHit, ArtistHit, Hit, Kind, PlaylistHit, Search};
 pub use session::{Failure, ProviderInfo, Session, SessionEvent, SessionState};
 pub use settings::{
     AppSettings, ConnectName, DiscordName, FilterValue, FullscreenControlsAutohide, LYRICS_SOURCES,
-    PlayerBarLayout, Reloaded, RomanizationScripts, SYSTEM_FONT, SideTab, ThemeFamily,
-    ThemeVariant, equalizer_profile_label, remember_window, window_placement,
+    PlayerBarLayout, Reloaded, RomanizationScripts, SYSTEM_FONT, SideTab, equalizer_profile_label,
 };
+#[cfg(sonora_gui)]
+pub use settings::{ThemeFamily, ThemeVariant, remember_window, window_placement};
 pub use signal::{Change, Equalizing, FLOAT_BITS, Following, Signal, SignalPath};
 pub use song::SongDetail;
 pub use tags::{TagState, Tags};
@@ -94,14 +117,17 @@ pub use updates::{Release, UpdateState, Updates};
 pub use usage::Usage;
 pub use vault::CACHE_GB_RANGE;
 pub use wake::Wake;
+#[cfg(sonora_gui)]
 pub use window_shape::{apply_window_rounding, install_rounded_window_hook};
 
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(sonora_gui)]
+use crate::runtime::StateContext as _;
+use crate::runtime::{App, Entity, Global};
 use anyhow::Result;
-use gpui::{App, AppContext as _, Entity, Global};
 use music::{LyricsProvider, MusicProvider};
 use tokio::runtime::Runtime;
 use tokio::task::{JoinError, JoinHandle};
@@ -186,7 +212,7 @@ pub(crate) async fn join<T>(
 
 /// Flattens a failed call's reason and tells `Network` about it, so one screen's failure puts
 /// the whole app offline rather than only its own page.
-pub(crate) fn blamed(error: &anyhow::Error, cx: &mut gpui::App) -> String {
+pub(crate) fn blamed(error: &anyhow::Error, cx: &mut crate::runtime::App) -> String {
     let reason = format!("{error:#}");
     Network::failed(&reason, cx);
     reason
@@ -194,13 +220,16 @@ pub(crate) fn blamed(error: &anyhow::Error, cx: &mut gpui::App) -> String {
 
 /// Tells `Network` about a failure a caller only logs. An outage is then noticed at the first
 /// call that runs into it, rather than the first one that happens to put its reason on a page.
-pub(crate) fn noted(error: &anyhow::Error, cx: &mut gpui::App) {
+pub(crate) fn noted(error: &anyhow::Error, cx: &mut crate::runtime::App) {
     Network::failed(&format!("{error:#}"), cx);
 }
 
 /// Reports a network call's outcome to `Network` and turns its failure into the reason a screen
 /// stores. A success is what puts the app back online the moment one load gets through.
-pub(crate) fn settled<T>(result: Result<T>, cx: &mut gpui::App) -> std::result::Result<T, String> {
+pub(crate) fn settled<T>(
+    result: Result<T>,
+    cx: &mut crate::runtime::App,
+) -> std::result::Result<T, String> {
     match result {
         Ok(value) => {
             Network::reached(cx);
@@ -225,8 +254,7 @@ pub struct Sonora {
     pub outputs: Entity<Outputs>,
     pub pins: Entity<Pins>,
     pub playback: Entity<Playback>,
-    /// The window that mints YouTube's proof-of-origin token. Nothing reads it; it is held so
-    /// that it keeps ticking.
+    /// Retains proof-of-origin request coordination for the process lifetime.
     pub potoken: Entity<potoken::PoToken>,
     pub queue: Entity<Queue>,
     pub requirements: Entity<Requirements>,
@@ -259,14 +287,13 @@ pub fn init(
 ) {
     cx.set_global(io.clone());
     let remote_settings = client::take_settings(cx);
-    let settings = cx.new(|cx| {
+    let settings = cx.create(|cx| {
         let mut settings = remote_settings.unwrap_or_else(|| AppSettings::load(database.clone()));
-        match client::register::<AppSettings>(cx) {
-            true => {}
-            false => {
-                settings.watch_files(cx);
-                settings.report_broken(cx);
-            }
+        #[cfg(sonora_gui)]
+        client::register::<AppSettings>(cx);
+        if !client::is_remote(cx) {
+            settings.watch_files(cx);
+            settings.report_broken(cx);
         }
         settings
     });
@@ -277,8 +304,8 @@ pub fn init(
         vault::bytes(settings.read(cx).cache_gb()),
     );
     let session =
-        cx.new(|cx| Session::new(providers, local_provider, settings.clone(), io.clone(), cx));
-    let network = cx.new(|cx| Network::new(session.clone(), settings.clone(), io.clone(), cx));
+        cx.create(|cx| Session::new(providers, local_provider, settings.clone(), io.clone(), cx));
+    let network = cx.create(|cx| Network::new(session.clone(), settings.clone(), io.clone(), cx));
     // A run that started without a network never signed out, so the account it kept is tried
     // again the moment there is one.
     if !client::is_remote(cx) {
@@ -298,12 +325,12 @@ pub fn init(
     })
     .detach();
     let cache = storage::Cache::standard();
-    let library = cx.new(|cx| Library::new(session.clone(), io.clone(), cache, cx));
-    let queue = cx.new(|cx| Queue::new(session.clone(), settings.clone(), cx));
+    let library = cx.create(|cx| Library::new(session.clone(), io.clone(), cache, cx));
+    let queue = cx.create(|cx| Queue::new(session.clone(), settings.clone(), cx));
     // Playback starts no engine until a provider is up, so the saved device is handed over
     // before any stream opens.
-    let equalizer = cx.new(|cx| Equalizer::new(settings.clone(), cx));
-    let playback = cx.new(|cx| {
+    let equalizer = cx.create(|cx| Equalizer::new(settings.clone(), cx));
+    let playback = cx.create(|cx| {
         Playback::new(
             session.clone(),
             queue.clone(),
@@ -312,8 +339,8 @@ pub fn init(
             cx,
         )
     });
-    let outputs = cx.new(|cx| Outputs::new(settings.clone(), playback.clone(), cx));
-    let downloads = cx.new(|cx| {
+    let outputs = cx.create(|cx| Outputs::new(settings.clone(), playback.clone(), cx));
+    let downloads = cx.create(|cx| {
         Downloads::new(
             session.clone(),
             playback.clone(),
@@ -328,7 +355,7 @@ pub fn init(
             equalizer.follow(&playback, &outputs, cx)
         });
     }
-    let history = cx.new(|cx| {
+    let history = cx.create(|cx| {
         History::new(
             session.clone(),
             playback.clone(),
@@ -337,8 +364,8 @@ pub fn init(
             cx,
         )
     });
-    let scan = cx.new(|cx| Scan::new(session.clone(), cx));
-    let scrobbling = cx.new(|cx| {
+    let scan = cx.create(|cx| Scan::new(session.clone(), cx));
+    let scrobbling = cx.create(|cx| {
         Scrobbling::new(
             playback.clone(),
             session.clone(),
@@ -347,7 +374,7 @@ pub fn init(
             cx,
         )
     });
-    let lyrics = cx.new(|cx| {
+    let lyrics = cx.create(|cx| {
         Lyrics::new(
             playback.clone(),
             queue.clone(),
@@ -358,10 +385,10 @@ pub fn init(
             cx,
         )
     });
-    let cover = cx.new(|cx| Cover::new(session.clone(), playback.clone(), io.clone(), cx));
-    let drm = cx.new(|cx| Drm::new(session.clone(), io.clone(), cx));
-    let updates = cx.new(|cx| Updates::new(settings.clone(), io.clone(), cx));
-    let requirements = cx.new(|cx| {
+    let cover = cx.create(|cx| Cover::new(session.clone(), playback.clone(), io.clone(), cx));
+    let drm = cx.create(|cx| Drm::new(session.clone(), io.clone(), cx));
+    let updates = cx.create(|cx| Updates::new(settings.clone(), io.clone(), cx));
+    let requirements = cx.create(|cx| {
         Requirements::new(
             settings.clone(),
             session.clone(),
@@ -370,12 +397,13 @@ pub fn init(
             cx,
         )
     });
-    let usage = cx.new(|cx| Usage::new(session.clone(), database, io.clone(), cx));
-    let pins = cx.new(|cx| Pins::new(settings.clone(), library.clone(), session.clone(), cx));
+    let usage = cx.create(|cx| Usage::new(session.clone(), database, io.clone(), cx));
+    let pins = cx.create(|cx| Pins::new(settings.clone(), library.clone(), session.clone(), cx));
     let potoken = potoken::attach(cx);
-    let signal = cx.new(|cx| Signal::new(playback.clone(), outputs.clone(), equalizer.clone(), cx));
-    let wake = cx.new(|cx| Wake::new(settings.clone(), playback.clone(), io.clone(), cx));
-    let devices = cx.new(|cx| {
+    let signal =
+        cx.create(|cx| Signal::new(playback.clone(), outputs.clone(), equalizer.clone(), cx));
+    let wake = cx.create(|cx| Wake::new(settings.clone(), playback.clone(), io.clone(), cx));
+    let devices = cx.create(|cx| {
         Devices::new(
             playback.clone(),
             queue.clone(),
@@ -386,7 +414,7 @@ pub fn init(
             cx,
         )
     });
-    let links = cx.new(|cx| Links::new(session.clone(), devices.clone(), cx));
+    let links = cx.create(|cx| Links::new(session.clone(), devices.clone(), cx));
     if !client::is_remote(cx) {
         discord::attach(
             playback.clone(),

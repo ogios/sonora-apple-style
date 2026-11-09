@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::runtime::{App, Context, Entity, Task};
 use anyhow::Result;
 use futures::future::join_all;
-use gpui::{App, Context, Entity, Task};
 use music::connect::{
     Collection, Command, Connect, Device, Elsewhere, Event, Invite, Jam, Naming, NowPlaying,
     RepeatMode, Roster, Start,
@@ -117,6 +117,7 @@ pub struct Devices {
 }
 
 /// Device and Jam metadata copied to a GUI without a live Connect session.
+#[cfg(sonora_gui)]
 #[derive(serde::Deserialize)]
 struct DeviceView {
     supported: bool,
@@ -137,10 +138,13 @@ struct DeviceView {
 }
 
 impl crate::client::Model for Devices {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "devices";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
-    fn remote_snapshot(&self, _: &gpui::App) -> serde_json::Value {
+    #[cfg(not(sonora_gui))]
+    fn remote_snapshot(&self, _: &crate::runtime::App) -> serde_json::Value {
         serde_json::json!({
             "supported": self.supported(), "publishing": self.publishing(),
             "shown": self.shown, "roster": self.roster, "jam": self.jam, "invite": self.invite,
@@ -150,6 +154,7 @@ impl crate::client::Model for Devices {
         })
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -177,6 +182,7 @@ impl crate::client::Model for Devices {
 
 impl Devices {
     /// Stops network commands and transfers before the local player is shut down.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn shutdown(&mut self) {
         self.events = None;
         self.starting = None;
@@ -197,6 +203,7 @@ impl Devices {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 playback,
@@ -333,6 +340,7 @@ impl Devices {
     /// or dismissed. A link asked about before the device network is up waits for it, and one
     /// asked about while the listener keeps the app off the device list only gets a toast.
     pub fn peek(&mut self, link: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("peek", vec![serde_json::json!(link)], cx) {
             return;
         }
@@ -349,6 +357,7 @@ impl Devices {
 
     /// Joins the group session the invite names.
     pub fn accept(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("accept", vec![], cx) {
             return;
         }
@@ -362,6 +371,7 @@ impl Devices {
 
     /// Drops the invite without joining.
     pub fn dismiss(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("dismiss", vec![], cx) {
             return;
         }
@@ -371,8 +381,9 @@ impl Devices {
     }
 
     /// Removes a member, by `JamMember::id`, from the group session the listener owns.
-    pub fn kick(&mut self, member: &str, cx: &mut Context<Self>) {
-        if crate::client::command("kick", vec![serde_json::json!(member)], cx) {
+    pub fn kick(&mut self, member: &str, _cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
+        if crate::client::command("kick", vec![serde_json::json!(member)], _cx) {
             return;
         }
         if let Some(link) = &self.link {
@@ -382,8 +393,9 @@ impl Devices {
 
     /// Starts a group session on this app. Its link to share is on `jam()` once it is up, and its
     /// code is shown then.
-    pub fn start_jam(&mut self, cx: &mut Context<Self>) {
-        if crate::client::command("start_jam", Vec::new(), cx) {
+    pub fn start_jam(&mut self, _cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
+        if crate::client::command("start_jam", Vec::new(), _cx) {
             return;
         }
         if let Some(link) = &self.link {
@@ -400,6 +412,7 @@ impl Devices {
 
     /// Shows or hides the code of the Jam's link.
     pub fn show_code(&mut self, shown: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("show_code", vec![serde_json::json!(shown)], cx) {
             return;
         }
@@ -415,6 +428,7 @@ impl Devices {
 
     /// Opens or closes the dialog that takes a Jam link to join.
     pub fn show_join(&mut self, shown: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("show_join", vec![serde_json::json!(shown)], cx) {
             return;
         }
@@ -427,6 +441,7 @@ impl Devices {
     /// Takes the Jam off screen at once, says it is over, and asks the provider to follow. A
     /// refusal brings it back with a toast.
     pub fn leave(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("leave", vec![], cx) {
             return;
         }
@@ -521,8 +536,9 @@ impl Devices {
     }
 
     /// Moves playback onto this app from whichever device has it.
-    pub fn transfer_here(&mut self, cx: &mut Context<Self>) {
-        if crate::client::command("transfer_here", Vec::new(), cx) {
+    pub fn transfer_here(&mut self, _cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
+        if crate::client::command("transfer_here", Vec::new(), _cx) {
             return;
         }
         if let Some(link) = &self.link {
@@ -531,8 +547,9 @@ impl Devices {
     }
 
     /// Moves playback onto another device.
-    pub fn transfer(&mut self, device: &str, cx: &mut Context<Self>) {
-        if crate::client::command("transfer", vec![serde_json::json!(device)], cx) {
+    pub fn transfer(&mut self, device: &str, _cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
+        if crate::client::command("transfer", vec![serde_json::json!(device)], _cx) {
             return;
         }
         if let Some(link) = &self.link {
@@ -548,11 +565,12 @@ impl Devices {
     }
 
     /// Sends a GUI device action to the service that owns the Connect session.
-    pub fn request_control(&mut self, device: &str, command: Command, cx: &mut Context<Self>) {
+    pub fn request_control(&mut self, device: &str, command: Command, _cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "request_control",
             vec![serde_json::json!(device), serde_json::json!(command)],
-            cx,
+            _cx,
         ) {
             return;
         }

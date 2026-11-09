@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
 
-use gpui::{Context, Entity, Task};
+use crate::runtime::{Context, Entity, Task};
 use music::lyrics::LOCAL;
 use music::{Lyrics as Sheet, LyricsHit, LyricsProvider, LyricsQuery, Track, TrackKey};
 use tokio::task::JoinSet;
@@ -58,13 +58,17 @@ pub struct Lyrics {
 }
 
 impl crate::client::Model for Lyrics {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "lyrics";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
-    fn remote_snapshot(&self, _cx: &gpui::App) -> serde_json::Value {
+    #[cfg(not(sonora_gui))]
+    fn remote_snapshot(&self, _cx: &crate::runtime::App) -> serde_json::Value {
         self.snapshot()
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -98,6 +102,7 @@ impl crate::client::Model for Lyrics {
 
 impl Lyrics {
     /// Captures the selected sheet and all alternatives with their track and selection revision.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn snapshot(&self) -> serde_json::Value {
         let hits = self
             .hits
@@ -134,6 +139,7 @@ impl Lyrics {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 state: LyricsState::Idle,
@@ -236,6 +242,7 @@ impl Lyrics {
     }
 
     pub fn choose(&mut self, index: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("choose", vec![serde_json::json!(index)], cx) {
             return;
         }

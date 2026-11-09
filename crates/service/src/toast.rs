@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use gpui::{App, AppContext as _, Context, Entity, Global, SharedString, Task};
+#[cfg(sonora_gui)]
+use crate::runtime::StateContext as _;
+use crate::runtime::{App, Context, Entity, Global, SharedString, Task};
 
 /// GUI-only notices use a disjoint id range from authoritative server notices.
 const LOCAL_ID: usize = 1usize << (usize::BITS - 1);
@@ -248,13 +250,17 @@ struct Installed(Entity<Toasts>);
 impl Global for Installed {}
 
 impl crate::client::Model for Toasts {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "toasts";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
+    #[cfg(not(sonora_gui))]
     fn remote_snapshot(&self, _: &App) -> serde_json::Value {
         serde_json::to_value(&self.shown).expect("toast presentation serializes")
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -287,14 +293,18 @@ impl crate::client::Model for Toasts {
 
 impl Toasts {
     /// Returns the toast entity installed during application initialization.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn installed(cx: &App) -> Entity<Self> {
         cx.global::<Installed>().0.clone()
     }
 
     pub fn entity(cx: &mut App) -> Entity<Self> {
         if cx.try_global::<Installed>().is_none() {
-            let toasts = cx.new(|cx| {
-                let remote = crate::client::register::<Self>(cx);
+            let toasts = cx.create(|_cx| {
+                #[cfg(sonora_gui)]
+                let remote = crate::client::register::<Self>(_cx);
+                #[cfg(not(sonora_gui))]
+                let remote = false;
                 Self {
                     shown: Vec::new(),
                     next: match remote {
@@ -392,6 +402,7 @@ impl Toasts {
     /// Dismisses toast `id` for the listener, by its cross or a swipe, then runs what the toast
     /// set with [`Toast::on_dismiss`]. It runs outside the stack's update, so it may post toasts.
     pub fn discard(id: usize, cx: &mut App) {
+        #[cfg(sonora_gui)]
         if id < LOCAL_ID
             && crate::client::send("toasts", "discard", vec![serde_json::json!(id)], cx)
         {
@@ -411,6 +422,7 @@ impl Toasts {
     }
 
     /// Runs an existing server-owned action at most once, then dismisses its notice.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn activate(id: usize, cancel: bool, cx: &mut App) {
         let toasts = Self::entity(cx);
         let run = toasts.update(cx, |this, _| {
@@ -464,6 +476,7 @@ impl Toasts {
     }
 
     pub fn dismiss(&mut self, id: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if id < LOCAL_ID && crate::client::command("dismiss", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -474,6 +487,7 @@ impl Toasts {
 
     /// Stops or restarts every toast's clock. A restarted clock runs only the time it had left.
     pub fn pause(&mut self, paused: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         crate::client::command("pause", vec![serde_json::json!(paused)], cx);
         if self.paused == paused {
             return;

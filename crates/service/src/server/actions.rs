@@ -1,7 +1,8 @@
 use super::Arguments;
+use crate::preferences::Pin;
+use crate::runtime::App;
 use crate::{Addition, Collection, DeviceRule, PinSort, RuleDevice, Shelf, Sonora, Sound};
 use anyhow::{Context as _, Result, bail};
-use gpui::App;
 use music::connect::Command;
 use music::equalizer::{Curve, Preset, Tone};
 use music::scrobble::Secret;
@@ -9,7 +10,6 @@ use music::{Album, AlbumDetail, Playlist, PlaylistDetail, SavedArtist, Track};
 use protocol::Call;
 use serde_json::Value;
 use std::path::PathBuf;
-use ui::Pin;
 
 /// Routes typed commands to the authoritative singleton entities.
 pub(super) fn dispatch(call: &Call, cx: &mut App) -> Result<Value> {

@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::rc::Rc;
 
-use gpui::{App, Context, Entity};
+use crate::preferences::{Pin, PinKind};
+use crate::runtime::{App, Context, Entity};
 use music::{PinTarget, PinTargetKind};
-use ui::{Pin, PinKind};
 
 use crate::library::{Library, LibraryEvent, Shelf};
 use crate::session::Session;
@@ -79,13 +79,17 @@ struct Parted {
 }
 
 impl crate::client::Model for Pins {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "pins";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
+    #[cfg(not(sonora_gui))]
     fn remote_snapshot(&self, cx: &App) -> serde_json::Value {
         serde_json::json!({ "entries": self.entries(cx), "library": self.library(cx) })
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -107,6 +111,7 @@ impl Pins {
         session: Entity<Session>,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 settings,
@@ -289,6 +294,7 @@ impl Pins {
     /// Steps one order along: off, then down, then off again. Picking another order starts it
     /// from the top.
     pub fn choose(&mut self, sort: PinSort, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("choose", vec![serde_json::json!(sort)], cx) {
             return;
         }
@@ -313,6 +319,7 @@ impl Pins {
     }
 
     pub fn toggle(&mut self, pin: Pin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("toggle", vec![serde_json::json!(pin)], cx) {
             return;
         }
@@ -326,6 +333,7 @@ impl Pins {
     /// Pins at `gap`, a slot counted among the pins already shown, or moves an existing pin there.
     /// `None` appends, and never moves a pin that is already in the list.
     pub fn place(&mut self, pin: Pin, gap: Option<usize>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "place",
             vec![serde_json::json!(pin), serde_json::json!(gap)],
@@ -355,6 +363,7 @@ impl Pins {
 
     /// Unpins and reports it in a toast whose Undo pins it back into the same slot.
     pub fn unpin(&mut self, pin: Pin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("unpin", vec![serde_json::json!(pin)], cx) {
             return;
         }
@@ -594,8 +603,8 @@ fn target_kind(kind: PinKind) -> Option<PinTargetKind> {
 #[cfg(test)]
 mod tests {
     use super::pin_of;
+    use crate::preferences::PinKind;
     use music::{PinTarget, PinTargetKind};
-    use ui::PinKind;
 
     fn item(uri: &str, kind: PinTargetKind) -> PinTarget {
         PinTarget {

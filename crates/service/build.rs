@@ -5,6 +5,10 @@ use std::path::PathBuf;
 const KIND: &str = "json";
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(sonora_gui)");
+    if env::var("CARGO_PKG_NAME").as_deref() == Ok("service-client") {
+        println!("cargo:rustc-cfg=sonora_gui");
+    }
     let root = workspace();
 
     let themes = root.join("assets/themes");

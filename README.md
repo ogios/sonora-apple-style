@@ -141,6 +141,9 @@ Build the standalone server and CLI with `cargo build --locked -p service --bin 
 -p cli --bin sonora-cli`. In a TTY or SSH session, start `./target/debug/sonora-server` in one
 terminal, then use `./target/debug/sonora-cli` in another. Neither process requires the GUI.
 Use the same build profile and `SONORA_SOCKET` value for both processes.
+The server has no GPUI, font, windowing, or GPU dependencies. Browser sign-in and YouTube token
+pages run in a connected GUI; manual cookie or credential authorization remains available in
+the CLI. Rebuild and restart both processes together when updating the local protocol.
 
 ```sh
 sonora-cli status

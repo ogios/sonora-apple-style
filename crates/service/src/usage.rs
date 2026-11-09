@@ -1,7 +1,7 @@
 use std::time::Duration;
 
+use crate::runtime::{Context, Entity, Task};
 use anyhow::{Context as _, Result};
-use gpui::{Context, Entity, Task};
 use rusqlite::params;
 use storage::Database;
 
@@ -90,6 +90,7 @@ impl Usage {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 loaded: false,
@@ -139,6 +140,7 @@ impl Usage {
     }
 
     pub fn consent(&mut self, consented: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("consent", vec![serde_json::json!(consented)], cx) {
             return;
         }
@@ -148,6 +150,7 @@ impl Usage {
     }
 
     pub fn report(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("report", vec![], cx) {
             return;
         }

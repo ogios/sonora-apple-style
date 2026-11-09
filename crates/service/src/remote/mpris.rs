@@ -2,9 +2,9 @@ use std::ffi::c_void;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::time::Duration;
 
+use crate::runtime::{App, Task};
 use anyhow::Result;
 use futures::future;
-use gpui::{App, Task};
 use mpris_server::{LoopStatus, Metadata, PlaybackStatus, Player, Time, TrackId};
 use music::Track;
 use tokio::sync::mpsc;

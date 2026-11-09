@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
+#[cfg(sonora_gui)]
+use crate::runtime::AppContext as _;
+use crate::runtime::{Context, Entity, Task};
 use anyhow::Result;
-use gpui::{AppContext as _, Context, Entity, Task};
 use music::{Album, ArtistRef, Playlist, Track};
 
 use crate::{Io, Library, Network, Session, SessionEvent, Shelf, join};
@@ -136,10 +138,13 @@ pub struct Search {
 }
 
 impl crate::client::Model for Search {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "search";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = true;
 
-    fn remote_snapshot(&self, _cx: &gpui::App) -> serde_json::Value {
+    #[cfg(not(sonora_gui))]
+    fn remote_snapshot(&self, _cx: &crate::runtime::App) -> serde_json::Value {
         serde_json::json!({
             "query": self.query,
             "served": self.served,
@@ -151,6 +156,7 @@ impl crate::client::Model for Search {
         })
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(&mut self, data: &serde_json::Value, cx: &mut Context<Self>) -> Result<()> {
         self.query = serde_json::from_value(data["query"].clone())?;
         self.served = serde_json::from_value(data["served"].clone())?;
@@ -170,6 +176,7 @@ impl Search {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 query: String::new(),
@@ -259,6 +266,7 @@ impl Search {
     }
 
     pub fn ask(&mut self, query: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("ask", vec![serde_json::json!(query)], cx) {
             return;
         }

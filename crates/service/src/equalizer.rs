@@ -4,8 +4,9 @@
 
 use std::time::{Duration, Instant};
 
-use gpui::prelude::*;
-use gpui::{App, Context, Entity, Subscription, Task};
+#[cfg(sonora_gui)]
+use crate::runtime::StateContext as _;
+use crate::runtime::{App, Context, Entity, Subscription, Task};
 use music::Meter;
 use music::equalizer::{Curve, Edit, EqualizerWriter, PREAMP_RANGE, Preamp, Preset, Tone, apo};
 use music::output::OutputId;
@@ -78,9 +79,12 @@ struct History {
 }
 
 impl crate::client::Model for Equalizer {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "equalizer";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
+    #[cfg(not(sonora_gui))]
     fn remote_snapshot(&self, cx: &App) -> serde_json::Value {
         let level = self.output_level.read(cx);
         serde_json::json!({"enabled": self.enabled(), "curve": self.curve(), "tone": self.tone(),
@@ -88,6 +92,7 @@ impl crate::client::Model for Equalizer {
             "level": level.level_db(), "peak": level.peak_db()})
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(
         &mut self,
         data: &serde_json::Value,
@@ -156,7 +161,10 @@ impl Equalizer {
     /// Plays what the settings hold. It follows no output until `follow` is called, since
     /// `Outputs` is built after the playback that reads this equalizer.
     pub fn new(settings: Entity<AppSettings>, cx: &mut Context<Self>) -> Self {
+        #[cfg(sonora_gui)]
         let remote = crate::client::register::<Self>(cx);
+        #[cfg(not(sonora_gui))]
+        let remote = false;
         let reloaded = match remote {
             true => None,
             false => Some(cx.subscribe(&settings, |this, _, _: &Reloaded, cx| {
@@ -176,7 +184,7 @@ impl Equalizer {
             writer,
             meter: Meter::default(),
             overload: Overload::default(),
-            output_level: cx.new(|_| OutputLevel::default()),
+            output_level: cx.create(|_| OutputLevel::default()),
             glide_store: None,
             tone_store: None,
             history: History::default(),
@@ -247,6 +255,7 @@ impl Equalizer {
     /// Puts `tone` in place and stores it, the engines cross-fading to it. It turns the equalizer
     /// on like picking a sound does, since a tone is only heard through it.
     pub fn set_tone(&mut self, tone: Tone, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_tone", vec![serde_json::json!(tone)], cx) {
             return;
         }
@@ -260,6 +269,7 @@ impl Equalizer {
     /// Puts `tone` in place the way a slider drag does: the engines glide to it, and the settings
     /// store it once the edits pause.
     pub fn glide_tone(&mut self, tone: Tone, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("glide_tone", vec![serde_json::json!(tone)], cx) {
             return;
         }
@@ -282,6 +292,7 @@ impl Equalizer {
     /// Turns the equalizer on or off. The engines pick the change up on their next frame and
     /// fade to it, so no restart and no click.
     pub fn set_enabled(&mut self, on: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_enabled", vec![serde_json::json!(on)], cx) {
             return;
         }
@@ -296,6 +307,7 @@ impl Equalizer {
     /// Puts a whole curve in place of the playing profile's, the way a preset pick or a typed
     /// value does: the engines cross-fade to it.
     pub fn set_curve(&mut self, curve: Curve, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_curve", vec![serde_json::json!(curve)], cx) {
             return;
         }
@@ -314,6 +326,7 @@ impl Equalizer {
 
     /// Plays the curve from before the last edit, cross-fading to it.
     pub fn undo(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("undo", vec![], cx) {
             return;
         }
@@ -325,6 +338,7 @@ impl Equalizer {
 
     /// Plays the curve the last undo took away again.
     pub fn redo(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("redo", vec![], cx) {
             return;
         }
@@ -337,6 +351,7 @@ impl Equalizer {
     /// Puts a curve in place that moves one filter a little from the playing one, the way a
     /// drag does: the engines glide it there. The settings store it once the edits pause.
     pub fn glide_curve(&mut self, curve: Curve, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("glide_curve", vec![serde_json::json!(curve)], cx) {
             return;
         }
@@ -408,6 +423,7 @@ impl Equalizer {
     /// sound stores its own preamp, which the tone lowers further, so the stored one keeps the
     /// difference between the two.
     pub fn lower_preamp(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("lower_preamp", vec![], cx) {
             return;
         }
@@ -426,6 +442,7 @@ impl Equalizer {
     /// Adds `rule` in place of the one its device had. When it is the rule the output played on
     /// now goes by, its sound plays at once.
     pub fn set_rule(&mut self, rule: DeviceRule, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_rule", vec![serde_json::json!(rule)], cx) {
             return;
         }
@@ -446,6 +463,7 @@ impl Equalizer {
 
     /// Removes the rule for `device`. What plays stays.
     pub fn remove_rule(&mut self, device: &RuleDevice, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove_rule", vec![serde_json::json!(device)], cx) {
             return;
         }
@@ -458,6 +476,7 @@ impl Equalizer {
     /// Plays `sound` and turns the equalizer on, the way picking it does. A profile that is no
     /// longer stored plays nothing.
     pub fn play_sound(&mut self, sound: &Sound, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_sound", vec![serde_json::json!(sound)], cx) {
             return;
         }
@@ -469,6 +488,7 @@ impl Equalizer {
 
     /// Plays profile `index`, cross-fading to its curve.
     pub fn select_profile(&mut self, index: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("select_profile", vec![serde_json::json!(index)], cx) {
             return;
         }
@@ -482,6 +502,7 @@ impl Equalizer {
 
     /// Plays profile `index` and turns the equalizer on, the way picking a sound does.
     pub fn play_profile(&mut self, index: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_profile", vec![serde_json::json!(index)], cx) {
             return;
         }
@@ -495,6 +516,7 @@ impl Equalizer {
     /// Plays `preset` in the profile with no name, switching to it first when another plays, and
     /// turns the equalizer on. A named profile is never overwritten.
     pub fn play_preset(&mut self, preset: Preset, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("play_preset", vec![serde_json::json!(preset)], cx) {
             return;
         }
@@ -541,6 +563,7 @@ impl Equalizer {
     /// Adds a profile named after `name` holding `curve` and plays it. `AppSettings` makes the
     /// name unique.
     pub fn add_profile(&mut self, name: &str, curve: Curve, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "add_profile",
             vec![serde_json::json!(name), serde_json::json!(curve)],
@@ -560,6 +583,7 @@ impl Equalizer {
     /// was in the profile with no name, that profile goes back to flat. `AppSettings` makes the
     /// name unique.
     pub fn save_as(&mut self, name: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("save_as", vec![serde_json::json!(name)], cx) {
             return;
         }
@@ -579,6 +603,7 @@ impl Equalizer {
     /// one, and the rules that play it. When it was playing, the sound the output's rule names
     /// plays, else the profile `AppSettings` picks.
     pub fn remove_profile(&mut self, index: usize, name: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "remove_profile",
             vec![serde_json::json!(index), serde_json::json!(name)],

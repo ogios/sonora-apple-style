@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::{Context, Entity, EventEmitter, Task};
+use crate::runtime::{Context, Entity, EventEmitter, Task};
 use music::{Album, Artist, ArtistCatalogue, Track};
 use tokio::task::AbortHandle;
 
@@ -38,6 +38,7 @@ impl ArtistDetail {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 id: None,
@@ -153,6 +154,7 @@ impl ArtistDetail {
     }
 
     pub fn open(&mut self, id: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("open", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -181,6 +183,7 @@ impl ArtistDetail {
     /// Drops the page and fetches it again from the provider, past the catalog cache, so it
     /// shows its loading state until the new overview lands.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("refresh", vec![], cx) {
             return;
         }

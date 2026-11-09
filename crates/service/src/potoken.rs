@@ -1,25 +1,15 @@
-//! Minting YouTube's proof-of-origin token in a hidden browser window.
+//! Coordinates YouTube proof-of-origin token requests through a connected GUI browser.
 //!
-//! YouTube stops serving some streams unless the request carries a token that proves it came from
-//! a browser. Google's BotGuard virtual machine produces one only after attesting the engine it is
-//! running in, and no hand-written javascript environment passes that, so the app opens the one
-//! real engine it ships: a `webview` page on youtube.com running `potoken.js`, off the screen,
-//! which leaves each token in a cookie.
-//!
-//! Nothing here drives it on a schedule. `music::potoken` records the identifier the YouTube
-//! client is waiting on, this entity notices, mints, and files the answer. The client uses a cold
-//! start token until then, which covers the start of a track and no more. A host where webkit2gtk
-//! does not load never opens a window and never mints.
-//!
-//! The YouTube client only asks for a track that neither tokenless client serves, and playback
-//! preloads the next track, so the ask usually comes in while the previous one is still playing.
-//! The page is the embed player, the lightest YouTube page that carries the minting client, at
-//! about 270 MiB. A token outlives the page that minted it, so the page closes [`LINGER`] after
-//! its last answer and only a burst of asks shares one.
+//! The service watches `music::potoken`, requests a throwaway embed-player page over IPC, and
+//! stores tokens returned in its cookies. The GUI owns the browser engine and native window.
+//! A warm page serves successive bindings until `LINGER` expires; deadlines close stalled pages
+//! and leave the music client on its cold-start token until another attempt can succeed.
 
 use std::time::{Duration, Instant};
 
-use gpui::{App, AppContext as _, Context, Task};
+#[cfg(sonora_gui)]
+use crate::runtime::StateContext as _;
+use crate::runtime::{App, Context, Task};
 
 /// Where the minting page is loaded from: the embed player of the first video on YouTube, which
 /// is never taken down. The first binding rides in the query string because the page has nothing
@@ -45,7 +35,7 @@ const ANSWER: Duration = Duration::from_secs(10);
 /// How long a page stays open after its last answer, for a skip or two that ask again at once.
 const LINGER: Duration = Duration::from_secs(20);
 
-/// The browser window that mints proof-of-origin tokens, and the ask it is serving.
+/// The service lifecycle of a GUI-owned token page and the request it is serving.
 pub struct PoToken {
     open: Option<Open>,
     task: Option<Task<()>>,
@@ -53,7 +43,7 @@ pub struct PoToken {
 
 /// A minting page that is open, and where it is with its asks.
 struct Open {
-    page: webview::Page,
+    page: crate::browser::Page,
     /// Whether the page has minted once, which means its minter is attested.
     warm: bool,
     /// The binding the page is minting for, and when it was asked.
@@ -117,14 +107,14 @@ impl PoToken {
         let Some(binding) = music::potoken::wanted() else {
             return;
         };
-        if !webview::supported() {
+        if !crate::browser::supported() {
             log::debug!(
                 "potoken: no browser engine here, the stream goes out on a cold start token"
             );
             music::potoken::failed();
             return;
         }
-        let target = webview::Target {
+        let target = crate::browser::Target {
             url: format!("{PAGE}?binding={}", music::escape::component(&binding)),
             landing: LANDING.to_string(),
             domain: DOMAIN.to_string(),
@@ -133,7 +123,7 @@ impl PoToken {
             agent: None,
             script: Some(include_str!("potoken.js").to_string()),
         };
-        match webview::Page::open(target) {
+        match crate::browser::Page::open(target) {
             Ok(page) => {
                 log::debug!("potoken: minting for {binding}");
                 let now = Instant::now();
@@ -186,12 +176,12 @@ impl PoToken {
             false => PATIENCE,
         };
         let outcome = match open.page.peek() {
-            webview::Poll::Pending => Outcome::Waiting,
-            webview::Poll::Closed => {
+            crate::browser::Poll::Pending => Outcome::Waiting,
+            crate::browser::Poll::Closed => {
                 log::warn!("potoken: the minting page closed before it answered");
                 Outcome::Failed
             }
-            webview::Poll::Cookies(header) => match reply(&header, &binding) {
+            crate::browser::Poll::Cookies(header) => match reply(&header, &binding) {
                 None => Outcome::Waiting,
                 Some(answer) => match answer.strip_prefix(FAILED) {
                     Some(why) => {
@@ -247,8 +237,7 @@ fn reply<'a>(header: &'a str, binding: &str) -> Option<&'a str> {
         .and_then(|(_, value)| value.strip_prefix(prefix.as_str()))
 }
 
-/// Starts the minting window. Nothing holds it but the global, and nothing reads it: the client
-/// and the window meet in `music::potoken`.
-pub fn attach(cx: &mut App) -> gpui::Entity<PoToken> {
-    cx.new(PoToken::new)
+/// Retains token request coordination for the lifetime of the service.
+pub fn attach(cx: &mut App) -> crate::runtime::Entity<PoToken> {
+    cx.create(PoToken::new)
 }

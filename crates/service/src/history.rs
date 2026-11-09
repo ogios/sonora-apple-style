@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::runtime::{App, Context, Entity, Task};
 use anyhow::{Context as _, Result};
-use gpui::{App, Context, Entity, Task};
 use music::{ArtistRef, Track};
 use rusqlite::types::Value;
 use rusqlite::{Connection, params, params_from_iter};
@@ -278,6 +278,7 @@ impl History {
         io: Io,
         cx: &mut Context<Self>,
     ) -> Self {
+        #[cfg(sonora_gui)]
         if crate::client::register::<Self>(cx) {
             return Self {
                 session,
@@ -341,6 +342,7 @@ impl History {
     /// Removes one play and offers to put it back. A play no longer in the list, such as one
     /// removed a moment ago, is left alone.
     pub fn remove(&mut self, track: &Track, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remove", vec![serde_json::json!(track)], cx) {
             return;
         }
@@ -368,6 +370,7 @@ impl History {
     }
 
     pub fn clear(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("clear", vec![], cx) {
             return;
         }
@@ -530,6 +533,7 @@ impl History {
     /// Drops the list and loads it again, so the page shows its skeleton until the plays land.
     /// A load already under way is left to finish and fills the list in its place.
     pub fn reload(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("reload", vec![], cx) {
             return;
         }
@@ -543,6 +547,7 @@ impl History {
     /// Loads the plays again and keeps the list on screen until they land, which is how the
     /// history picks up plays from other devices in the background.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("refresh", vec![], cx) {
             return;
         }

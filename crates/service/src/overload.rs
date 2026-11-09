@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
-use gpui::Context;
+use crate::runtime::Context;
 use music::equalizer::PREAMP_RANGE;
 
 /// How long the clip warning stays up after the last read that went over.
@@ -117,6 +117,7 @@ impl Default for OutputLevel {
 
 impl OutputLevel {
     /// Applies server meter readings without sampling any local audio output.
+    #[cfg(sonora_gui)]
     pub(crate) fn mirror(&mut self, level: f32, peak: f32, cx: &mut Context<Self>) {
         self.level = level;
         self.peak = peak;

@@ -6,9 +6,11 @@
 //! debounce, so a sidebar drag never rewrites the preferences file.
 
 mod equalizer;
+#[cfg(sonora_gui)]
 mod themes;
 
 pub use self::equalizer::equalizer_profile_label;
+#[cfg(sonora_gui)]
 pub use self::themes::{ThemeFamily, ThemeVariant};
 
 use std::cell::RefCell;
@@ -19,13 +21,17 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anyhow::{Context as _, Result};
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
-use gpui::WindowDecorations;
-use gpui::{
-    App, AppContext as _, Bounds, Context, DisplayId, EventEmitter, Pixels, Size, Subscription,
-    Task, Window, WindowBounds, point, px, size,
+use crate::preferences::{
+    Layout, Mode, Pace, Pin, Rounding, Saver, Sorting, Stillness, ThemeKind, ThemeOverrides,
 };
+#[cfg(all(sonora_gui, any(target_os = "linux", target_os = "freebsd")))]
+use crate::runtime::WindowDecorations;
+use crate::runtime::{App, Context, EventEmitter, Task};
+#[cfg(sonora_gui)]
+use crate::runtime::{AppContext as _, Subscription};
+#[cfg(sonora_gui)]
+use crate::runtime::{Bounds, DisplayId, Pixels, Size, Window, WindowBounds, point, px, size};
+use anyhow::{Context as _, Result};
 use music::lyrics::LOCAL;
 use music::scrobble::Account;
 use music::{Codec, Quality, Transcode, WritingSystem};
@@ -33,15 +39,17 @@ use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watche
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use storage::Database;
-use ui::{
-    Layout, Look, Mode, Pace, Pin, Rounding, Saver, Sorting, Stillness, ThemeKind, ThemeOverrides,
-};
+
+#[cfg(sonora_gui)]
+use crate::preferences::Look;
 
 use self::equalizer::Profile;
+#[cfg(sonora_gui)]
+use crate::Sonora;
 use crate::equalizer::DeviceRule;
 use crate::pins::PinSort;
 use crate::queue::{Resume, gap_target};
-use crate::{Outcome, Repeat, Sonora, Toasts};
+use crate::{Outcome, Repeat, Toasts};
 
 /// How Sonora is named on the device list of the provider's apps. `Both` is the app's name with
 /// the computer's in brackets, so two machines on one account tell apart.
@@ -242,6 +250,7 @@ pub(crate) struct Frame {
 }
 
 impl Frame {
+    #[cfg(sonora_gui)]
     fn of(window: &Window) -> Self {
         let placement = window.window_bounds();
         let bounds = placement.get_bounds();
@@ -264,6 +273,7 @@ impl Frame {
     }
 
     /// Turns the frame back into a gpui placement, never smaller than `least`.
+    #[cfg(sonora_gui)]
     fn placement(self, least: Size<Pixels>) -> WindowBounds {
         let bounds = Bounds {
             origin: point(px(self.x), px(self.y)),
@@ -291,6 +301,7 @@ const SAVE_RETRIES: usize = 3;
 const RELOAD_DELAY: Duration = Duration::from_millis(150);
 const RELOAD_RETRY_DELAY: Duration = Duration::from_secs(1);
 const RELOAD_RETRIES: usize = 3;
+#[cfg(sonora_gui)]
 const THEMES_DIRECTORY: &str = "themes";
 const DEFAULT_VOLUME: f32 = 0.7;
 const DEFAULT_SIDEBAR_WIDTH: f32 = 195.;
@@ -673,7 +684,7 @@ impl Default for Values {
             close_to_tray: true,
             tray_icon: true,
             stay_awake: true,
-            language: i18n::AUTO.to_owned(),
+            language: crate::localization::AUTO.to_owned(),
             font: system_font(),
             startup: DEFAULT_STARTUP.to_owned(),
             local_folders: Vec::new(),
@@ -846,18 +857,20 @@ impl Default for Appearance {
             ambient: true,
             ambient_motion: true,
             visualizer: true,
-            visualizer_style: ui::VisualizerStyle::default().id().to_owned(),
+            visualizer_style: crate::preferences::VisualizerStyle::default()
+                .id()
+                .to_owned(),
             visualizer_absolute: false,
             player_bar_layout: PlayerBarLayout::default().id().to_owned(),
             player_bar_transparent: true,
-            icons: icons::BASE.to_owned(),
+            icons: "lucide".to_owned(),
             rounding: Rounding::Rounded.id().to_owned(),
             blur: true,
             blur_window: true,
             liquid_glass: true,
             font_size: DEFAULT_FONT_SIZE,
             transparent: false,
-            transparency: ui::BACKDROP_TRANSPARENCY,
+            transparency: crate::preferences::BACKDROP_TRANSPARENCY,
             #[cfg(any(target_os = "linux", target_os = "freebsd"))]
             server_side_decorations: true,
             #[cfg(target_os = "windows")]
@@ -887,8 +900,10 @@ pub struct AppSettings {
     state: StateValues,
     path: PathBuf,
     /// The theme files in the user's themes folder.
+    #[cfg(sonora_gui)]
     themes: Vec<ThemeVariant>,
     /// The bundled themes and `themes`, grouped the way the Appearance page lists them.
+    #[cfg(sonora_gui)]
     families: Vec<ThemeFamily>,
     store: Arc<Mutex<StateStore>>,
     save: Option<Task<()>>,
@@ -898,6 +913,7 @@ pub struct AppSettings {
     save_pending: bool,
     saving_state: bool,
     state_pending: bool,
+    #[cfg(sonora_gui)]
     watch: Option<Subscription>,
     writable: bool,
     /// What `settings.json` held when it was last read or written, so the watcher can tell our
@@ -922,20 +938,32 @@ pub struct Reloaded;
 impl EventEmitter<Reloaded> for AppSettings {}
 
 impl crate::client::Model for AppSettings {
+    #[cfg(sonora_gui)]
     const KIND: &'static str = "settings";
+    #[cfg(sonora_gui)]
     const DYNAMIC: bool = false;
 
+    #[cfg(not(sonora_gui))]
     fn remote_snapshot(&self, _: &App) -> serde_json::Value {
         self.snapshot()
     }
 
+    #[cfg(sonora_gui)]
     fn apply_remote(&mut self, data: &serde_json::Value, cx: &mut Context<Self>) -> Result<()> {
         let reloaded = serde_json::to_value(&self.values)? != data["values"];
-        let values = serde_json::from_value(data["values"].clone())?;
+        let values: Values = serde_json::from_value(data["values"].clone())?;
         let state = serde_json::from_value(data["state"].clone())?;
+        let previous = self.values.clone();
+        if previous.appearance.theme != values.appearance.theme {
+            themes::adopt_legacy(&values.appearance.theme, &themes_path(&self.path));
+            let loaded = themes::load(&themes_path(&self.path), &self.themes);
+            self.families = themes::catalog(&loaded.themes);
+            self.themes = loaded.themes;
+        }
         self.values = values;
         self.state = state;
         if reloaded {
+            self.push_globals(&previous, cx);
             cx.emit(Reloaded);
         }
         cx.notify();
@@ -944,18 +972,24 @@ impl crate::client::Model for AppSettings {
 }
 
 impl AppSettings {
-    /// Creates a GUI preference cache without opening a database, migrating files or scheduling writes.
+    /// Creates a GUI preference cache from published values and locally owned theme files.
+    #[cfg(sonora_gui)]
     pub(crate) fn from_remote(data: &serde_json::Value) -> Result<Self> {
-        let values = serde_json::from_value(data["values"].clone())?;
+        let values: Values = serde_json::from_value(data["values"].clone())?;
         let state = serde_json::from_value(data["state"].clone())?;
         let path = settings_path();
+        themes::adopt_legacy(&values.appearance.theme, &themes_path(&path));
+        #[cfg(sonora_gui)]
         let themes = themes::load(&themes_path(&path), &[]).themes;
+        #[cfg(sonora_gui)]
         let families = themes::catalog(&themes);
         Ok(Self {
             values,
             state,
             path,
+            #[cfg(sonora_gui)]
             themes,
+            #[cfg(sonora_gui)]
             families,
             store: Arc::new(Mutex::new(StateStore {
                 database: None,
@@ -967,6 +1001,7 @@ impl AppSettings {
             save_pending: false,
             saving_state: false,
             state_pending: false,
+            #[cfg(sonora_gui)]
             watch: None,
             writable: false,
             disk: None,
@@ -979,6 +1014,7 @@ impl AppSettings {
     }
 
     /// Finishes queued writes, then persists the latest values before the server exits.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn flush(&mut self, cx: &mut Context<Self>) -> Task<Result<()>> {
         cx.spawn(async move |this, cx| {
             loop {
@@ -1019,6 +1055,7 @@ impl AppSettings {
     }
 
     /// Captures preferences and runtime values; only the server writes their persistent stores.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn snapshot(&self) -> serde_json::Value {
         let mut values = serde_json::to_value(&self.values).expect("settings serialize");
         if let Some(accounts) = values
@@ -1081,15 +1118,20 @@ impl AppSettings {
                 StateValues::default()
             }
         };
+        #[cfg(sonora_gui)]
         themes::adopt_legacy(&values.appearance.theme, &themes_path(&path));
+        #[cfg(sonora_gui)]
         let themes = themes::load(&themes_path(&path), &[]).themes;
+        #[cfg(sonora_gui)]
         let families = themes::catalog(&themes);
 
         Self {
             values,
             state,
             path,
+            #[cfg(sonora_gui)]
             themes,
+            #[cfg(sonora_gui)]
             families,
             store: Arc::new(Mutex::new(store)),
             save: None,
@@ -1098,6 +1140,7 @@ impl AppSettings {
             save_pending: false,
             saving_state: false,
             state_pending: false,
+            #[cfg(sonora_gui)]
             watch: None,
             writable,
             disk,
@@ -1266,6 +1309,7 @@ impl AppSettings {
     /// Moves an enabled source into `gap`, counted between the enabled sources from 0 before the
     /// first to their count after the last. Disabled sources keep their place.
     pub fn place_lyrics_provider(&mut self, provider: &str, gap: usize, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "place_lyrics_provider",
             vec![serde_json::json!(provider), serde_json::json!(gap)],
@@ -1302,15 +1346,17 @@ impl AppSettings {
     }
 
     pub fn panel_lyrics_scale(&self) -> f32 {
-        self.values
-            .panel_lyrics_scale
-            .clamp(ui::MIN_LYRICS_SCALE, ui::MAX_LYRICS_SCALE)
+        self.values.panel_lyrics_scale.clamp(
+            crate::preferences::MIN_LYRICS_SCALE,
+            crate::preferences::MAX_LYRICS_SCALE,
+        )
     }
 
     pub fn fullscreen_lyrics_scale(&self) -> f32 {
-        self.values
-            .fullscreen_lyrics_scale
-            .clamp(ui::MIN_LYRICS_SCALE, ui::MAX_LYRICS_SCALE)
+        self.values.fullscreen_lyrics_scale.clamp(
+            crate::preferences::MIN_LYRICS_SCALE,
+            crate::preferences::MAX_LYRICS_SCALE,
+        )
     }
 
     pub fn romanization_scripts(&self) -> RomanizationScripts {
@@ -1416,12 +1462,14 @@ impl AppSettings {
 
     /// Every theme file, bundled first and then the user's, grouped into families. The built-in
     /// System, Dark and Light themes are not in it and stay in `ThemeKind::ALL`.
+    #[cfg(sonora_gui)]
     pub fn theme_families(&self) -> &[ThemeFamily] {
         &self.families
     }
 
     /// The family and variant of the selected theme, or `None` while a built-in theme is
     /// selected or the selected file is gone.
+    #[cfg(sonora_gui)]
     pub fn theme_variant(&self) -> Option<(&ThemeFamily, &ThemeVariant)> {
         self.families.iter().find_map(|family| {
             family
@@ -1432,6 +1480,7 @@ impl AppSettings {
 
     /// The variant choosing `family` would select: the one last chosen in it, else the first
     /// whose lightness matches the system appearance, else the first.
+    #[cfg(sonora_gui)]
     pub fn family_variant(&self, family: &str, cx: &App) -> Option<&ThemeVariant> {
         let family = self.families.iter().find(|found| found.id == family)?;
         let light = ThemeKind::System.resolved(cx) == ThemeKind::Light;
@@ -1489,10 +1538,12 @@ impl AppSettings {
 
     /// The visualizer's style, `None` when it is off. The old `visualizer` switch is still the
     /// off state, so a settings file written before the two were one setting keeps its answer.
-    pub fn visualizer_style(&self) -> ui::VisualizerStyle {
+    pub fn visualizer_style(&self) -> crate::preferences::VisualizerStyle {
         match self.values.appearance.visualizer {
-            true => ui::VisualizerStyle::from_id(&self.values.appearance.visualizer_style),
-            false => ui::VisualizerStyle::None,
+            true => crate::preferences::VisualizerStyle::from_id(
+                &self.values.appearance.visualizer_style,
+            ),
+            false => crate::preferences::VisualizerStyle::None,
         }
     }
 
@@ -1513,7 +1564,7 @@ impl AppSettings {
         &self.values.appearance.rounding
     }
 
-    /// Whether the app paints its frosted treatments. See `ui::blurring`.
+    /// Whether the app paints its frosted treatments. See `crate::preferences::blurring`.
     pub fn blur(&self) -> bool {
         self.values.appearance.blur
     }
@@ -1522,7 +1573,7 @@ impl AppSettings {
         self.values.appearance.blur_window
     }
 
-    /// Whether the chrome floats as Liquid Glass panels. See `ui::liquid`.
+    /// Whether the chrome floats as Liquid Glass panels. See `crate::preferences::liquid`.
     pub fn liquid_glass(&self) -> bool {
         self.values.appearance.liquid_glass
     }
@@ -1548,6 +1599,7 @@ impl AppSettings {
         ThemeKind::from_id(&self.state.system_theme)
     }
 
+    #[cfg(sonora_gui)]
     pub fn look(&self) -> Look {
         Look {
             kind: ThemeKind::from_id(self.theme()),
@@ -1569,6 +1621,7 @@ impl AppSettings {
     }
 
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    #[cfg(sonora_gui)]
     pub fn window_decorations(&self) -> WindowDecorations {
         match self.server_side_decorations() {
             true => WindowDecorations::Server,
@@ -1603,7 +1656,7 @@ impl AppSettings {
         self.values
             .appearance
             .font_size
-            .clamp(ui::MIN_FONT, ui::MAX_FONT)
+            .clamp(crate::preferences::MIN_FONT, crate::preferences::MAX_FONT)
     }
 
     pub fn transparent(&self) -> bool {
@@ -1614,10 +1667,11 @@ impl AppSettings {
         self.values
             .appearance
             .transparency
-            .clamp(0., ui::MAX_TRANSPARENCY)
+            .clamp(0., crate::preferences::MAX_TRANSPARENCY)
     }
 
     /// Combines the selected theme file with legacy overrides from `settings.json`.
+    #[cfg(sonora_gui)]
     pub fn theme_overrides(&self) -> ThemeOverrides {
         let inline = &self.values.appearance.theme_overrides;
         self.theme_variant()
@@ -1626,6 +1680,7 @@ impl AppSettings {
     }
 
     /// Creates and returns the folder that holds custom themes.
+    #[cfg(sonora_gui)]
     pub fn ensure_themes_directory(&self) -> PathBuf {
         let path = themes_path(&self.path);
         if let Err(error) = fs::create_dir_all(&path) {
@@ -1635,6 +1690,7 @@ impl AppSettings {
     }
 
     pub fn set_local_folders(&mut self, folders: Vec<PathBuf>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_local_folders", vec![serde_json::json!(folders)], cx) {
             return;
         }
@@ -1647,6 +1703,7 @@ impl AppSettings {
     }
 
     pub fn set_volume(&mut self, volume: f32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_volume", vec![serde_json::json!(volume)], cx) {
             return;
         }
@@ -1656,6 +1713,7 @@ impl AppSettings {
     }
 
     pub fn set_normalisation(&mut self, normalisation: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_normalisation",
             vec![serde_json::json!(normalisation)],
@@ -1669,6 +1727,7 @@ impl AppSettings {
     }
 
     pub fn set_gapless(&mut self, gapless: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_gapless", vec![serde_json::json!(gapless)], cx) {
             return;
         }
@@ -1678,6 +1737,7 @@ impl AppSettings {
     }
 
     pub fn set_keep_tracks(&mut self, keep_tracks: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_keep_tracks", vec![serde_json::json!(keep_tracks)], cx) {
             return;
         }
@@ -1687,6 +1747,7 @@ impl AppSettings {
     }
 
     pub fn set_offline_mode(&mut self, offline_mode: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_offline_mode",
             vec![serde_json::json!(offline_mode)],
@@ -1700,6 +1761,7 @@ impl AppSettings {
     }
 
     pub fn set_cache_gb(&mut self, cache_gb: u32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_cache_gb", vec![serde_json::json!(cache_gb)], cx) {
             return;
         }
@@ -1709,6 +1771,7 @@ impl AppSettings {
     }
 
     pub fn set_spotify_connect(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_spotify_connect", vec![serde_json::json!(enabled)], cx) {
             return;
         }
@@ -1718,6 +1781,7 @@ impl AppSettings {
     }
 
     pub fn set_spotify_connect_name(&mut self, name: ConnectName, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_spotify_connect_name",
             vec![serde_json::json!(name)],
@@ -1731,6 +1795,7 @@ impl AppSettings {
     }
 
     pub fn set_spotify_connect_custom_name(&mut self, name: String, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_spotify_connect_custom_name",
             vec![serde_json::json!(name)],
@@ -1747,6 +1812,7 @@ impl AppSettings {
     }
 
     pub fn set_discord_presence(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_discord_presence", vec![serde_json::json!(enabled)], cx) {
             return;
         }
@@ -1756,6 +1822,7 @@ impl AppSettings {
     }
 
     pub fn set_discord_name(&mut self, name: DiscordName, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_discord_name", vec![serde_json::json!(name)], cx) {
             return;
         }
@@ -1769,6 +1836,7 @@ impl AppSettings {
         fca: FullscreenControlsAutohide,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_fullscreen_controls_autohide",
             vec![serde_json::json!(fca)],
@@ -1782,6 +1850,7 @@ impl AppSettings {
     }
 
     pub fn set_discord_show_paused(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_discord_show_paused",
             vec![serde_json::json!(enabled)],
@@ -1795,6 +1864,7 @@ impl AppSettings {
     }
 
     pub fn set_discord_badge(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_discord_badge", vec![serde_json::json!(enabled)], cx) {
             return;
         }
@@ -1804,6 +1874,7 @@ impl AppSettings {
     }
 
     pub fn set_discord_hide_on_connect(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_discord_hide_on_connect",
             vec![serde_json::json!(enabled)],
@@ -1817,6 +1888,7 @@ impl AppSettings {
     }
 
     pub fn set_discord_without_details(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_discord_without_details",
             vec![serde_json::json!(enabled)],
@@ -1830,6 +1902,7 @@ impl AppSettings {
     }
 
     pub fn set_discord_sonora_button(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_discord_sonora_button",
             vec![serde_json::json!(enabled)],
@@ -1843,6 +1916,7 @@ impl AppSettings {
     }
 
     pub fn set_discord_provider_button(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_discord_provider_button",
             vec![serde_json::json!(enabled)],
@@ -1856,6 +1930,7 @@ impl AppSettings {
     }
 
     pub fn set_artwork_for_local_files(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_artwork_for_local_files",
             vec![serde_json::json!(enabled)],
@@ -1869,6 +1944,7 @@ impl AppSettings {
     }
 
     pub fn set_lyrics_for_local_files(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_lyrics_for_local_files",
             vec![serde_json::json!(enabled)],
@@ -1882,6 +1958,7 @@ impl AppSettings {
     }
 
     pub fn set_output_device(&mut self, id: Option<String>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_output_device", vec![serde_json::json!(id)], cx) {
             return;
         }
@@ -1891,6 +1968,7 @@ impl AppSettings {
     }
 
     pub fn set_output_rate(&mut self, rate: Option<u32>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_output_rate", vec![serde_json::json!(rate)], cx) {
             return;
         }
@@ -1900,6 +1978,7 @@ impl AppSettings {
     }
 
     pub fn set_output_buffer(&mut self, frames: Option<u32>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_output_buffer", vec![serde_json::json!(frames)], cx) {
             return;
         }
@@ -1909,6 +1988,7 @@ impl AppSettings {
     }
 
     pub fn set_transcode(&mut self, transcode: Transcode, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_transcode", vec![serde_json::json!(transcode)], cx) {
             return;
         }
@@ -1919,6 +1999,7 @@ impl AppSettings {
     }
 
     pub fn set_quality(&mut self, quality: Quality, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_quality", vec![serde_json::json!(quality)], cx) {
             return;
         }
@@ -1928,6 +2009,7 @@ impl AppSettings {
     }
 
     pub fn set_lyrics_provider(&mut self, provider: &str, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_lyrics_provider",
             vec![serde_json::json!(provider), serde_json::json!(enabled)],
@@ -1945,6 +2027,7 @@ impl AppSettings {
     }
 
     pub fn set_karaoke_lyrics(&mut self, karaoke: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_karaoke_lyrics", vec![serde_json::json!(karaoke)], cx) {
             return;
         }
@@ -1954,6 +2037,7 @@ impl AppSettings {
     }
 
     pub fn set_blur_lyrics(&mut self, blur: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_blur_lyrics", vec![serde_json::json!(blur)], cx) {
             return;
         }
@@ -1963,6 +2047,7 @@ impl AppSettings {
     }
 
     pub fn set_romanized_lyrics(&mut self, romanized: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_romanized_lyrics",
             vec![serde_json::json!(romanized)],
@@ -1976,15 +2061,20 @@ impl AppSettings {
     }
 
     pub fn set_panel_lyrics_scale(&mut self, scale: f32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_panel_lyrics_scale", vec![serde_json::json!(scale)], cx) {
             return;
         }
 
-        self.values.panel_lyrics_scale = scale.clamp(ui::MIN_LYRICS_SCALE, ui::MAX_LYRICS_SCALE);
+        self.values.panel_lyrics_scale = scale.clamp(
+            crate::preferences::MIN_LYRICS_SCALE,
+            crate::preferences::MAX_LYRICS_SCALE,
+        );
         self.schedule_save(cx);
     }
 
     pub fn set_fullscreen_lyrics_scale(&mut self, scale: f32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_fullscreen_lyrics_scale",
             vec![serde_json::json!(scale)],
@@ -1993,8 +2083,10 @@ impl AppSettings {
             return;
         }
 
-        self.values.fullscreen_lyrics_scale =
-            scale.clamp(ui::MIN_LYRICS_SCALE, ui::MAX_LYRICS_SCALE);
+        self.values.fullscreen_lyrics_scale = scale.clamp(
+            crate::preferences::MIN_LYRICS_SCALE,
+            crate::preferences::MAX_LYRICS_SCALE,
+        );
         self.schedule_save(cx);
     }
 
@@ -2004,6 +2096,7 @@ impl AppSettings {
         enabled: bool,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_romanization_script",
             vec![
@@ -2022,6 +2115,7 @@ impl AppSettings {
     }
 
     pub fn set_adaptive_menu(&mut self, adaptive_menu: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_adaptive_menu",
             vec![serde_json::json!(adaptive_menu)],
@@ -2035,6 +2129,7 @@ impl AppSettings {
     }
 
     pub fn set_check_updates(&mut self, check_updates: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_check_updates",
             vec![serde_json::json!(check_updates)],
@@ -2048,6 +2143,7 @@ impl AppSettings {
     }
 
     pub fn set_close_to_tray(&mut self, close_to_tray: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_close_to_tray",
             vec![serde_json::json!(close_to_tray)],
@@ -2061,6 +2157,7 @@ impl AppSettings {
     }
 
     pub fn set_tray_icon(&mut self, tray_icon: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_tray_icon", vec![serde_json::json!(tray_icon)], cx) {
             return;
         }
@@ -2070,6 +2167,7 @@ impl AppSettings {
     }
 
     pub fn set_stay_awake(&mut self, stay_awake: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_stay_awake", vec![serde_json::json!(stay_awake)], cx) {
             return;
         }
@@ -2080,6 +2178,7 @@ impl AppSettings {
 
     /// Stores a linked account, or forgets the service when the account carries no session.
     pub fn set_account(&mut self, service: &str, account: Account, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_account",
             vec![serde_json::json!(service), serde_json::json!(account)],
@@ -2101,6 +2200,7 @@ impl AppSettings {
 
     /// Turns submissions to one linked service on or off, leaving the link itself alone.
     pub fn set_scrobbling(&mut self, service: &str, enabled: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_scrobbling",
             vec![serde_json::json!(service), serde_json::json!(enabled)],
@@ -2121,6 +2221,7 @@ impl AppSettings {
     }
 
     pub fn set_table(&mut self, table: &str, layout: Layout, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_table",
             vec![serde_json::json!(table), serde_json::json!(layout)],
@@ -2141,6 +2242,7 @@ impl AppSettings {
     }
 
     pub fn set_view(&mut self, table: &str, mode: Mode, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_view",
             vec![serde_json::json!(table), serde_json::json!(mode)],
@@ -2161,6 +2263,7 @@ impl AppSettings {
     }
 
     pub fn set_sorting(&mut self, table: &str, sorting: Option<Sorting>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_sorting",
             vec![serde_json::json!(table), serde_json::json!(sorting)],
@@ -2189,6 +2292,7 @@ impl AppSettings {
         filters: HashMap<String, FilterValue>,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_filters",
             vec![serde_json::json!(table), serde_json::json!(filters)],
@@ -2220,6 +2324,7 @@ impl AppSettings {
 
     /// Records where playback picks up on the next launch. See `carry` for what survives.
     pub fn set_resume(&mut self, resume: Option<Resume>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_resume", vec![serde_json::json!(resume)], cx) {
             return;
         }
@@ -2237,6 +2342,7 @@ impl AppSettings {
 
     /// Saves quietly, since playback calls this on every position tick.
     pub fn set_resume_position(&mut self, position: f32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_resume_position", vec![serde_json::json!(position)], cx) {
             return;
         }
@@ -2261,6 +2367,7 @@ impl AppSettings {
         slugs: &[&str],
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "pin",
             vec![
@@ -2281,6 +2388,7 @@ impl AppSettings {
     }
 
     pub fn unpin(&mut self, slug: &str, pin: &Pin, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "unpin",
             vec![serde_json::json!(slug), serde_json::json!(pin)],
@@ -2296,6 +2404,7 @@ impl AppSettings {
     }
 
     pub fn set_sidebar(&mut self, width: f32, open: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_sidebar",
             vec![serde_json::json!(width), serde_json::json!(open)],
@@ -2310,6 +2419,7 @@ impl AppSettings {
     }
 
     pub fn set_sidebar_right_width(&mut self, width: f32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_sidebar_right_width",
             vec![serde_json::json!(width)],
@@ -2323,6 +2433,7 @@ impl AppSettings {
     }
 
     pub fn set_sidebar_right_open(&mut self, open: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_sidebar_right_open", vec![serde_json::json!(open)], cx) {
             return;
         }
@@ -2332,6 +2443,7 @@ impl AppSettings {
     }
 
     pub fn set_sidebar_right_tab(&mut self, tab: SideTab, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_sidebar_right_tab", vec![serde_json::json!(tab)], cx) {
             return;
         }
@@ -2352,6 +2464,7 @@ impl AppSettings {
     /// further down, and lets the oldest go past `SEARCH_HISTORY`. Case and outer spaces do
     /// not make a query new.
     pub fn remember_search(&mut self, query: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("remember_search", vec![serde_json::json!(query)], cx) {
             return;
         }
@@ -2372,6 +2485,7 @@ impl AppSettings {
 
     /// Drops one query from the recent searches.
     pub fn forget_search(&mut self, query: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("forget_search", vec![serde_json::json!(query)], cx) {
             return;
         }
@@ -2385,6 +2499,7 @@ impl AppSettings {
 
     /// Empties the recent searches.
     pub fn clear_search_history(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("clear_search_history", vec![], cx) {
             return;
         }
@@ -2397,6 +2512,7 @@ impl AppSettings {
     }
 
     pub fn set_fullscreen_tab(&mut self, tab: Option<SideTab>, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_fullscreen_tab", vec![serde_json::json!(tab)], cx) {
             return;
         }
@@ -2409,6 +2525,7 @@ impl AppSettings {
     }
 
     pub fn set_shuffle(&mut self, shuffle: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_shuffle", vec![serde_json::json!(shuffle)], cx) {
             return;
         }
@@ -2418,6 +2535,7 @@ impl AppSettings {
     }
 
     pub fn set_repeat(&mut self, repeat: Repeat, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_repeat", vec![serde_json::json!(repeat)], cx) {
             return;
         }
@@ -2427,6 +2545,7 @@ impl AppSettings {
     }
 
     pub fn set_radio(&mut self, radio: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_radio", vec![serde_json::json!(radio)], cx) {
             return;
         }
@@ -2437,18 +2556,21 @@ impl AppSettings {
 
     pub fn set_language(&mut self, language: impl Into<String>, cx: &mut Context<Self>) {
         let language: String = language.into();
+        #[cfg(sonora_gui)]
         if crate::client::command("set_language", vec![serde_json::json!(language)], cx) {
             return;
         }
 
         self.values.language = language;
-        i18n::set(i18n::resolve(&self.values.language));
+        crate::localization::set(crate::localization::resolve(&self.values.language));
+        #[cfg(sonora_gui)]
         cx.refresh_windows();
         self.schedule_save(cx);
     }
 
     pub fn set_font(&mut self, font: impl Into<String>, cx: &mut Context<Self>) {
         let font: String = font.into();
+        #[cfg(sonora_gui)]
         if crate::client::command("set_font", vec![serde_json::json!(font)], cx) {
             return;
         }
@@ -2457,6 +2579,7 @@ impl AppSettings {
             return;
         }
         self.values.font = font;
+        #[cfg(sonora_gui)]
         cx.refresh_windows();
         self.schedule_save(cx);
     }
@@ -2467,6 +2590,7 @@ impl AppSettings {
     }
 
     pub fn set_sidebar_pinned_open(&mut self, open: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_sidebar_pinned_open", vec![serde_json::json!(open)], cx) {
             return;
         }
@@ -2481,6 +2605,7 @@ impl AppSettings {
     }
 
     pub fn set_sidebar_library_open(&mut self, open: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_sidebar_library_open",
             vec![serde_json::json!(open)],
@@ -2499,6 +2624,7 @@ impl AppSettings {
     }
 
     pub fn set_sidebar_full_library(&mut self, full: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_sidebar_full_library",
             vec![serde_json::json!(full)],
@@ -2525,6 +2651,7 @@ impl AppSettings {
         reversed: bool,
         cx: &mut Context<Self>,
     ) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_sidebar_pin_sort",
             vec![serde_json::json!(sort), serde_json::json!(reversed)],
@@ -2541,6 +2668,7 @@ impl AppSettings {
     /// Rewrites the pins of `slugs` into `order`, leaving another provider's pins in their slots.
     /// Nothing happens unless `order` holds exactly the pins already there.
     pub fn rearrange(&mut self, order: &[Pin], slugs: &[&str], cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "rearrange",
             vec![serde_json::json!(order), serde_json::json!(slugs)],
@@ -2576,6 +2704,7 @@ impl AppSettings {
     }
 
     pub fn set_nav_shown(&mut self, entry: &str, shown: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_nav_shown",
             vec![serde_json::json!(entry), serde_json::json!(shown)],
@@ -2602,6 +2731,7 @@ impl AppSettings {
     }
 
     pub fn silence_requirement(&mut self, slug: &str, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("silence_requirement", vec![serde_json::json!(slug)], cx) {
             return;
         }
@@ -2615,6 +2745,7 @@ impl AppSettings {
 
     pub fn set_startup(&mut self, screen: impl Into<String>, cx: &mut Context<Self>) {
         let screen: String = screen.into();
+        #[cfg(sonora_gui)]
         if crate::client::command("set_startup", vec![serde_json::json!(screen)], cx) {
             return;
         }
@@ -2628,6 +2759,7 @@ impl AppSettings {
 
     pub fn set_provider(&mut self, provider: impl Into<String>, cx: &mut Context<Self>) {
         let provider: String = provider.into();
+        #[cfg(sonora_gui)]
         if crate::client::command("set_provider", vec![serde_json::json!(provider)], cx) {
             return;
         }
@@ -2643,28 +2775,48 @@ impl AppSettings {
     /// remembers a variant as the one its family opens on next time.
     pub fn set_theme(&mut self, theme: impl Into<String>, cx: &mut Context<Self>) {
         let theme: String = theme.into();
+        #[cfg(sonora_gui)]
+        if crate::client::is_remote(cx) {
+            let family = self
+                .families
+                .iter()
+                .find(|family| family.variant(&theme).is_some())
+                .map(|family| family.id.clone());
+            crate::client::command(
+                "set_theme_choice",
+                vec![serde_json::json!(theme), serde_json::json!(family)],
+                cx,
+            );
+            return;
+        }
+        #[cfg(sonora_gui)]
         if crate::client::command("set_theme", vec![serde_json::json!(theme)], cx) {
             return;
         }
 
         self.values.appearance.theme = theme;
-        if let Some(family) = self.theme_variant().map(|(family, _)| family.id.clone())
-            && self.state.theme_variants.get(&family) != Some(&self.values.appearance.theme)
-        {
-            let variant = self.values.appearance.theme.clone();
-            self.state.theme_variants.insert(family, variant);
+
+        self.schedule_save(cx);
+    }
+
+    /// Persists a GUI-resolved theme id and its family preference without parsing a palette.
+    pub fn set_theme_choice(
+        &mut self,
+        theme: String,
+        family: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(family) = family {
+            self.state.theme_variants.insert(family, theme.clone());
             self.schedule_state_save(cx);
         }
-        self.schedule_save(cx);
+        self.set_theme(theme, cx);
     }
 
     /// Selects the variant `family_variant` picks for `family`. Returns false and changes
     /// nothing when there is no such family.
+    #[cfg(sonora_gui)]
     pub fn set_theme_family(&mut self, family: &str, cx: &mut Context<Self>) -> bool {
-        if crate::client::command("set_theme_family", vec![serde_json::json!(family)], cx) {
-            return false;
-        }
-
         let Some(variant) = self
             .family_variant(family, cx)
             .map(|variant| variant.id.clone())
@@ -2676,6 +2828,7 @@ impl AppSettings {
     }
 
     pub fn set_adaptive_theme(&mut self, adaptive: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_adaptive_theme", vec![serde_json::json!(adaptive)], cx) {
             return;
         }
@@ -2685,6 +2838,7 @@ impl AppSettings {
     }
 
     pub fn set_ambient(&mut self, ambient: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_ambient", vec![serde_json::json!(ambient)], cx) {
             return;
         }
@@ -2695,6 +2849,7 @@ impl AppSettings {
 
     /// Applies a player bar layout immediately and saves it in the appearance preferences.
     pub fn set_player_bar_layout(&mut self, layout: PlayerBarLayout, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_player_bar_layout", vec![serde_json::json!(layout)], cx) {
             return;
         }
@@ -2705,6 +2860,7 @@ impl AppSettings {
 
     /// Lets the page scroll under the player bar, or restores the solid bar below the page.
     pub fn set_player_bar_transparent(&mut self, transparent: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_player_bar_transparent",
             vec![serde_json::json!(transparent)],
@@ -2718,6 +2874,7 @@ impl AppSettings {
     }
 
     pub fn set_ambient_motion(&mut self, motion: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_ambient_motion", vec![serde_json::json!(motion)], cx) {
             return;
         }
@@ -2728,7 +2885,12 @@ impl AppSettings {
 
     /// Picking a style turns the visualizer on; picking `None` turns it off and leaves the style
     /// behind it alone, so the old choice comes back with it.
-    pub fn set_visualizer_style(&mut self, style: ui::VisualizerStyle, cx: &mut Context<Self>) {
+    pub fn set_visualizer_style(
+        &mut self,
+        style: crate::preferences::VisualizerStyle,
+        cx: &mut Context<Self>,
+    ) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_visualizer_style", vec![serde_json::json!(style)], cx) {
             return;
         }
@@ -2741,6 +2903,7 @@ impl AppSettings {
     }
 
     pub fn set_visualizer_absolute(&mut self, absolute: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_visualizer_absolute",
             vec![serde_json::json!(absolute)],
@@ -2755,6 +2918,7 @@ impl AppSettings {
 
     pub fn set_icons(&mut self, pack: impl Into<String>, cx: &mut Context<Self>) {
         let pack: String = pack.into();
+        #[cfg(sonora_gui)]
         if crate::client::command("set_icons", vec![serde_json::json!(pack)], cx) {
             return;
         }
@@ -2762,14 +2926,17 @@ impl AppSettings {
         if self.values.appearance.icons == pack {
             return;
         }
+        #[cfg(sonora_gui)]
         icons::set(&pack);
         self.values.appearance.icons = pack;
+        #[cfg(sonora_gui)]
         cx.refresh_windows();
         self.schedule_save(cx);
     }
 
     pub fn set_rounding(&mut self, rounding: impl Into<String>, cx: &mut Context<Self>) {
         let rounding: String = rounding.into();
+        #[cfg(sonora_gui)]
         if crate::client::command("set_rounding", vec![serde_json::json!(rounding)], cx) {
             return;
         }
@@ -2779,6 +2946,7 @@ impl AppSettings {
     }
 
     pub fn set_blur(&mut self, blur: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_blur", vec![serde_json::json!(blur)], cx) {
             return;
         }
@@ -2788,6 +2956,7 @@ impl AppSettings {
     }
 
     pub fn set_blur_window(&mut self, blur: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_blur_window", vec![serde_json::json!(blur)], cx) {
             return;
         }
@@ -2797,6 +2966,7 @@ impl AppSettings {
     }
 
     pub fn set_liquid_glass(&mut self, liquid: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_liquid_glass", vec![serde_json::json!(liquid)], cx) {
             return;
         }
@@ -2806,6 +2976,7 @@ impl AppSettings {
     }
 
     pub fn set_os_fullscreen(&mut self, value: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_os_fullscreen", vec![serde_json::json!(value)], cx) {
             return;
         }
@@ -2815,6 +2986,7 @@ impl AppSettings {
     }
 
     pub fn set_stillness(&mut self, stillness: Stillness, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_stillness", vec![serde_json::json!(stillness)], cx) {
             return;
         }
@@ -2823,11 +2995,13 @@ impl AppSettings {
             return;
         }
         self.values.appearance.reduce_motion = stillness.id().to_owned();
-        ui::motion::apply(stillness, self.pace(), cx);
+        #[cfg(sonora_gui)]
+        crate::preferences::motion::apply(stillness, self.pace(), cx);
         self.schedule_save(cx);
     }
 
     pub fn set_pace(&mut self, pace: Pace, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_pace", vec![serde_json::json!(pace)], cx) {
             return;
         }
@@ -2836,11 +3010,13 @@ impl AppSettings {
             return;
         }
         self.values.appearance.motion_pace = pace.id().to_owned();
-        ui::motion::apply(self.stillness(), pace, cx);
+        #[cfg(sonora_gui)]
+        crate::preferences::motion::apply(self.stillness(), pace, cx);
         self.schedule_save(cx);
     }
 
     pub fn set_system_theme(&mut self, kind: ThemeKind, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_system_theme", vec![serde_json::json!(kind)], cx) {
             return;
         }
@@ -2853,6 +3029,7 @@ impl AppSettings {
     }
 
     pub fn set_saver(&mut self, saver: Saver, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_saver", vec![serde_json::json!(saver)], cx) {
             return;
         }
@@ -2866,6 +3043,7 @@ impl AppSettings {
 
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     pub fn set_server_side_decorations(&mut self, shown: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_server_side_decorations",
             vec![serde_json::json!(shown)],
@@ -2885,6 +3063,7 @@ impl AppSettings {
         target_os = "macos"
     ))]
     pub fn set_window_rounding(&mut self, rounding: Rounding, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_window_rounding", vec![serde_json::json!(rounding)], cx) {
             return;
         }
@@ -2894,6 +3073,7 @@ impl AppSettings {
     }
 
     pub fn set_window_controls(&mut self, shown: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_window_controls", vec![serde_json::json!(shown)], cx) {
             return;
         }
@@ -2904,6 +3084,7 @@ impl AppSettings {
 
     #[cfg(not(target_os = "macos"))]
     pub fn set_traffic_light_controls(&mut self, traffic_light: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_traffic_light_controls",
             vec![serde_json::json!(traffic_light)],
@@ -2917,6 +3098,7 @@ impl AppSettings {
     }
 
     pub fn set_controls_on_left(&mut self, left: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_controls_on_left", vec![serde_json::json!(left)], cx) {
             return;
         }
@@ -2926,15 +3108,18 @@ impl AppSettings {
     }
 
     pub fn set_font_size(&mut self, size: f32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_font_size", vec![serde_json::json!(size)], cx) {
             return;
         }
 
-        self.values.appearance.font_size = size.clamp(ui::MIN_FONT, ui::MAX_FONT);
+        self.values.appearance.font_size =
+            size.clamp(crate::preferences::MIN_FONT, crate::preferences::MAX_FONT);
         self.schedule_save(cx);
     }
 
     pub fn reset_font_size(&mut self, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("reset_font_size", vec![], cx) {
             return;
         }
@@ -2943,6 +3128,7 @@ impl AppSettings {
     }
 
     pub fn set_transparent(&mut self, transparent: bool, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command("set_transparent", vec![serde_json::json!(transparent)], cx) {
             return;
         }
@@ -2952,6 +3138,7 @@ impl AppSettings {
     }
 
     pub fn set_transparency(&mut self, transparency: f32, cx: &mut Context<Self>) {
+        #[cfg(sonora_gui)]
         if crate::client::command(
             "set_transparency",
             vec![serde_json::json!(transparency)],
@@ -2960,11 +3147,13 @@ impl AppSettings {
             return;
         }
 
-        self.values.appearance.transparency = transparency.clamp(0., ui::MAX_TRANSPARENCY);
+        self.values.appearance.transparency =
+            transparency.clamp(0., crate::preferences::MAX_TRANSPARENCY);
         self.schedule_save(cx);
     }
 
     /// Saves the window frame now and on every move or resize.
+    #[cfg(sonora_gui)]
     pub fn watch_window(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.keep_frame(window, cx);
         self.watch = Some(cx.observe_window_bounds(window, |this, window, cx| {
@@ -2972,8 +3161,10 @@ impl AppSettings {
         }));
     }
 
+    #[cfg(sonora_gui)]
     fn keep_frame(&mut self, window: &Window, cx: &mut Context<Self>) {
         let frame = Frame::of(window);
+        #[cfg(sonora_gui)]
         if crate::client::command("set_frame", vec![serde_json::json!(frame)], cx) {
             return;
         }
@@ -2985,6 +3176,7 @@ impl AppSettings {
     }
 
     /// Persists native window geometry received from the GUI that owns that window.
+    #[cfg(not(sonora_gui))]
     pub(crate) fn set_frame(&mut self, frame: Frame, cx: &mut Context<Self>) {
         if !frame.sane() || self.state.window == Some(frame) {
             return;
@@ -3128,7 +3320,7 @@ impl AppSettings {
 
     /// Watches the config and themes folders for changes made by another program.
     pub fn watch_files(&mut self, cx: &mut Context<Self>) {
-        if crate::client::command("watch_files", vec![], cx) {
+        if self.watcher.is_some() {
             return;
         }
 
@@ -3140,11 +3332,13 @@ impl AppSettings {
             log::warn!("settings: cannot create {}: {error}", folder.display());
             return;
         }
+        #[cfg(sonora_gui)]
         let themes = themes_path(&self.path);
+        #[cfg(sonora_gui)]
         if let Err(error) = fs::create_dir_all(&themes) {
             log::warn!("settings: cannot create {}: {error}", themes.display());
         }
-        let case_insensitive = filesystem_ignores_case(&themes);
+        let case_insensitive = filesystem_ignores_case(folder);
 
         let folder = fs::canonicalize(folder).unwrap_or_else(|_| absolute_path(folder));
         let mut settings_paths = vec![folder.join(settings_name)];
@@ -3153,7 +3347,15 @@ impl AppSettings {
         {
             settings_paths.push(path);
         }
+        #[cfg(sonora_gui)]
         let mut theme_roots = vec![folder.join(THEMES_DIRECTORY)];
+        #[cfg(not(sonora_gui))]
+        let theme_roots = Vec::new();
+        #[cfg(sonora_gui)]
+        if crate::client::is_remote(cx) {
+            settings_paths.clear();
+        }
+        #[cfg(sonora_gui)]
         if fs::symlink_metadata(&themes).is_ok_and(|metadata| metadata.file_type().is_dir())
             && let Ok(path) = fs::canonicalize(&themes)
             && !theme_roots
@@ -3186,7 +3388,11 @@ impl AppSettings {
                 return;
             }
         };
-        if let Err(error) = watcher.watch(&folder, RecursiveMode::Recursive) {
+        let recursive = match cfg!(sonora_gui) {
+            true => RecursiveMode::Recursive,
+            false => RecursiveMode::NonRecursive,
+        };
+        if let Err(error) = watcher.watch(&folder, recursive) {
             log::warn!("settings: cannot watch {}: {error}", folder.display());
             return;
         }
@@ -3258,7 +3464,27 @@ impl AppSettings {
     }
 
     /// Reloads changed sources together so a theme and its selection appear at once.
+    #[cfg(not(sonora_gui))]
     fn reload_files(&mut self, changed: FileChanges, cx: &mut Context<Self>) -> FileChanges {
+        let settings = match changed.settings {
+            true => self.reload_settings(cx),
+            false => SettingsReload::Unchanged,
+        };
+        if matches!(settings, SettingsReload::Changed) {
+            cx.emit(Reloaded);
+            cx.notify();
+        }
+        FileChanges {
+            settings: matches!(settings, SettingsReload::Retry),
+            themes: false,
+        }
+    }
+
+    #[cfg(sonora_gui)]
+    fn reload_files(&mut self, mut changed: FileChanges, cx: &mut Context<Self>) -> FileChanges {
+        if crate::client::is_remote(cx) {
+            changed.settings = false;
+        }
         let previous_theme = self.theme_overrides();
         let (themes_changed, themes_retry) = if changed.themes {
             let loaded = themes::load(&themes_path(&self.path), &self.themes);
@@ -3338,33 +3564,40 @@ impl AppSettings {
         };
 
         log::info!("settings: reloaded {}", self.path.display());
+        #[cfg(sonora_gui)]
         themes::adopt_legacy(&values.appearance.theme, &themes_path(&self.path));
         let previous = std::mem::replace(&mut self.values, values);
         self.disk = Some(bytes);
         self.writable = true;
         self.broken = None;
         self.save = None;
+        #[cfg(sonora_gui)]
         self.push_globals(&previous, cx);
+        #[cfg(not(sonora_gui))]
+        let _ = previous;
         SettingsReload::Changed
     }
 
     /// Pushes the globals that the setters push themselves, for whatever a reload changed.
+    #[cfg(sonora_gui)]
     fn push_globals(&self, previous: &Values, cx: &mut App) {
         let (before, now) = (&previous.appearance, &self.values.appearance);
         if previous.language != self.values.language {
-            i18n::set(i18n::resolve(&self.values.language));
+            crate::localization::set(crate::localization::resolve(&self.values.language));
         }
         if before.icons != now.icons {
             icons::set(&now.icons);
         }
         if before.reduce_motion != now.reduce_motion || before.motion_pace != now.motion_pace {
-            ui::motion::apply(self.stillness(), self.pace(), cx);
+            crate::preferences::motion::apply(self.stillness(), self.pace(), cx);
         }
+        #[cfg(sonora_gui)]
         cx.refresh_windows();
     }
 }
 
 /// The saved window frame and its display, if its centre still lands on a connected display.
+#[cfg(sonora_gui)]
 pub fn window_placement(least: Size<Pixels>, cx: &App) -> Option<(WindowBounds, DisplayId)> {
     let frame = Sonora::global(cx).settings.read(cx).state.window?;
     if !frame.sane() {
@@ -3380,6 +3613,7 @@ pub fn window_placement(least: Size<Pixels>, cx: &App) -> Option<(WindowBounds, 
 }
 
 /// Starts saving the window frame for the next launch.
+#[cfg(sonora_gui)]
 pub fn remember_window(window: &mut Window, cx: &mut App) {
     let settings = Sonora::global(cx).settings.clone();
     settings.update(cx, |settings, cx| settings.watch_window(window, cx));
@@ -3420,6 +3654,7 @@ fn offer_subsonic_lyrics(mut values: Values) -> Values {
     values
 }
 
+#[cfg(sonora_gui)]
 fn themes_path(settings: &Path) -> PathBuf {
     settings
         .parent()
@@ -3727,8 +3962,8 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     use super::*;
+    use crate::preferences::PinKind;
     use crate::queue::Stub;
-    use ui::PinKind;
 
     #[test]
     fn lyrics_priority_defaults_and_round_trips_independently_of_enablement() {
