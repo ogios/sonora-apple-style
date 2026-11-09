@@ -2211,7 +2211,7 @@ impl Aside {
         let place = match origin.whence {
             Whence::Album => Destination::Album(id),
             Whence::Playlist => Destination::Playlist(id),
-            Whence::Artist => Destination::Artist(id),
+            Whence::Artist | Whence::ArtistPopular => Destination::Artist(id),
             Whence::Radio => Destination::Song(id),
             Whence::Saved => Destination::Library(LibraryTab::Songs),
             Whence::Local => Destination::Local(LibraryTab::Songs),
@@ -2223,6 +2223,9 @@ impl Aside {
             },
             Whence::Local => t!("nav-local"),
             Whence::Radio => t!("queue-from-radio", name = origin.name.as_deref()?),
+            Whence::ArtistPopular => {
+                t!("queue-from-artist-popular", name = origin.name.as_deref()?)
+            }
             Whence::Album | Whence::Playlist | Whence::Artist => origin.name.clone()?,
         };
 

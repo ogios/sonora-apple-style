@@ -242,6 +242,7 @@ queue-history = History
 queue-now-playing = Now playing
 queue-from = From
 queue-from-radio = { $name } radio
+queue-from-artist-popular = { $name } · Top songs
 queue-next-in-queue = Next in queue
 queue-up-next = Up next
 queue-reset = Reset

@@ -328,6 +328,7 @@ pub enum Whence {
     Album,
     Playlist,
     Artist,
+    ArtistPopular,
     Radio,
     Saved,
     Local,
@@ -363,6 +364,11 @@ impl Origin {
 
     pub fn artist(id: impl Into<String>) -> Self {
         Self::of(Whence::Artist, id)
+    }
+
+    /// The popular tracks listed on an artist page, independently of their full catalogue.
+    pub fn artist_popular(id: impl Into<String>) -> Self {
+        Self::of(Whence::ArtistPopular, id)
     }
 
     pub fn radio(id: impl Into<String>) -> Self {
@@ -1851,9 +1857,7 @@ impl Playback {
             PinKind::Artist => {
                 let artist = id.clone();
                 self.enqueue_from("artist", &id, origin, placement, cx, move |client| {
-                    Box::pin(
-                        async move { client.artist(&artist).await.map(|found| found.top_tracks) },
-                    )
+                    Box::pin(async move { client.artist_tracks(&artist).await })
                 });
             }
         }
@@ -1916,9 +1920,9 @@ impl Playback {
         self.gather(origin, cx, move |client| {
             Box::pin(async move {
                 client
-                    .artist(&artist)
+                    .artist_tracks(&artist)
                     .await
-                    .map(|found| (found.top_tracks, None))
+                    .map(|tracks| (tracks, None))
             })
         });
     }
@@ -1959,7 +1963,7 @@ impl Playback {
         let id = origin.id.clone();
         let artist = origin.id.clone();
         self.enqueue_from("artist", &id, Some(origin), placement, cx, move |client| {
-            Box::pin(async move { client.artist(&artist).await.map(|found| found.top_tracks) })
+            Box::pin(async move { client.artist_tracks(&artist).await })
         });
     }
 
@@ -3021,6 +3025,17 @@ impl Playback {
             Whence::Album => self.play_album_of(origin, cx),
             Whence::Playlist => self.play_playlist_of(origin, cx),
             Whence::Artist => self.play_artist_of(origin, cx),
+            Whence::ArtistPopular => {
+                let artist = origin.id.clone();
+                self.gather(origin, cx, move |client| {
+                    Box::pin(async move {
+                        client
+                            .artist(&artist)
+                            .await
+                            .map(|found| (found.top_tracks, None))
+                    })
+                });
+            }
             Whence::Radio => self.play_radio_of(origin, cx),
             // the table plays these
             Whence::Saved | Whence::Local => {}

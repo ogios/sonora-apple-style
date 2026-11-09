@@ -5,7 +5,7 @@
 //! similar-song and desktop search endpoints are the ones the NeteaseCloudMusicApi project
 //! documents.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io::Read as _;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -54,6 +54,8 @@ const LIBRARY_PAGE: usize = 100;
 const LIBRARY_PAGES: usize = 100;
 /// How many releases an artist page asks for.
 const DISCOGRAPHY: usize = 500;
+/// How many songs one page of an artist's complete song listing asks for.
+const ARTIST_SONGS_PAGE: usize = 100;
 /// How many results a search asks for.
 const SEARCH_LIMIT: usize = 50;
 /// How many similar songs a station asks for.
@@ -563,6 +565,48 @@ impl MusicApi for NetEaseClient {
         Ok(detail.artist(albums))
     }
 
+    async fn artist_tracks(&self, artist_id: &str) -> Result<Vec<Track>> {
+        let artist_id = digits(artist_id)?;
+        let mut tracks = Vec::new();
+        let mut seen = HashSet::new();
+        let mut offset = 0;
+        loop {
+            let mut answer: ArtistSongsAnswer = self
+                .call(
+                    "/api/v1/artist/songs",
+                    params([
+                        ("id", json!(artist_id)),
+                        ("private_cloud", json!("true")),
+                        ("work_type", json!(1)),
+                        ("order", json!("hot")),
+                        ("limit", json!(ARTIST_SONGS_PAGE)),
+                        ("offset", json!(offset)),
+                    ]),
+                    Scheme::Weapi,
+                )
+                .await
+                .context("cannot load the netease artist's songs")?;
+            let count = answer.songs.len();
+            wire::merge(&mut answer.songs, answer.privileges);
+            let before = tracks.len();
+            tracks.extend(
+                answer
+                    .songs
+                    .into_iter()
+                    .filter(|song| seen.insert(song.id))
+                    .map(|song| song.track(None)),
+            );
+            offset += count;
+            if !answer.more {
+                break;
+            }
+            if tracks.len() == before {
+                bail!("netease artist song listing did not advance");
+            }
+        }
+        Ok(tracks)
+    }
+
     async fn artist_profile(&self, artist_id: &str) -> Result<ArtistProfile> {
         let detail = self.artist_detail(artist_id).await?;
         let artist = detail.artist(Vec::new());
@@ -1050,6 +1094,15 @@ struct AlbumAnswer {
     album: wire::AlbumInfo,
     #[serde(default)]
     songs: Vec<wire::Song>,
+    #[serde(default)]
+    privileges: Vec<wire::Privilege>,
+}
+
+/// One page of the artist's songs, with the provider's continuation flag.
+#[derive(serde::Deserialize)]
+struct ArtistSongsAnswer {
+    songs: Vec<wire::Song>,
+    more: bool,
     #[serde(default)]
     privileges: Vec<wire::Privilege>,
 }

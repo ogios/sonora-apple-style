@@ -182,6 +182,10 @@ impl MusicApi for LocalClient {
         })
     }
 
+    async fn artist_tracks(&self, artist_id: &str) -> Result<Vec<Track>> {
+        Ok(self.artist(artist_id).await?.top_tracks)
+    }
+
     async fn artist_profile(&self, artist_id: &str) -> Result<ArtistProfile> {
         let scanned = self.scanned.read().unwrap();
         let artist = scanned

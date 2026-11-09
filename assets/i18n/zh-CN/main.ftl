@@ -237,6 +237,7 @@ queue-history = 历史记录
 queue-now-playing = 正在播放
 queue-from = 来自
 queue-from-radio = { $name } 电台
+queue-from-artist-popular = { $name } · 热门歌曲
 queue-next-in-queue = 播放队列中的下一首
 queue-up-next = 接下来播放
 queue-reset = 重置

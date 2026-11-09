@@ -137,6 +137,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Play an artist's full catalogue from their page's play or shuffle button. NetEase loads all
+  pages of their songs; choosing a top song queues the popular list separately.
+
 - Keep the progress bar and lyric focus aligned when seeking through the standalone service.
   Playback updates no longer copy the full library cache or restart theme effects.
 

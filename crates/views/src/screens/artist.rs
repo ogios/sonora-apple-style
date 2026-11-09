@@ -72,7 +72,7 @@ impl Tracks for ArtistTracks {
 pub(crate) struct ArtistView {
     detail: Entity<ArtistDetail>,
     playback: Entity<Playback>,
-    playback_status: PlaybackStatus,
+    playback_status: (PlaybackStatus, Option<Origin>),
     artist_id: Option<String>,
     release_filter: ReleaseFilter,
     releases_expanded: bool,
@@ -147,7 +147,7 @@ impl ArtistView {
                 move |cx: &App| {
                     let detail = detail.read(cx);
                     let name = detail.artist()?.name.clone();
-                    Some(Origin::artist(detail.id()?).named(name))
+                    Some(Origin::artist_popular(detail.id()?).named(name))
                 }
             })
             .with_liked(Sonora::global(cx).library.clone());
@@ -201,10 +201,16 @@ impl ArtistView {
             cx.notify();
         })
         .detach();
-        let current_playback = playback_status(&playback, cx);
+        let current_playback = (
+            playback_status(&playback, cx),
+            playback.read(cx).origin(cx).cloned(),
+        );
         let artist_id = detail.read(cx).id().map(str::to_owned);
         cx.observe(&playback, |this, playback, cx| {
-            let current = playback_status(&playback, cx);
+            let current = (
+                playback_status(&playback, cx),
+                playback.read(cx).origin(cx).cloned(),
+            );
             if this.playback_status == current {
                 return;
             }
@@ -318,18 +324,16 @@ impl ArtistView {
                 HeroPlayButton::new(
                     "play-artist",
                     t!("artist-play"),
-                    self.popular.as_ref().clone(),
+                    Vec::new(),
                     self.playback.clone(),
                 )
-                .from(self.playing_from(cx)),
+                .from(self.playing_from(cx))
+                .collection(),
             )
             .child(
-                HeroPlayButton::shuffle(
-                    "shuffle-artist",
-                    self.popular.as_ref().clone(),
-                    self.playback.clone(),
-                )
-                .from(self.playing_from(cx)),
+                HeroPlayButton::shuffle("shuffle-artist", Vec::new(), self.playback.clone())
+                    .from(self.playing_from(cx))
+                    .collection(),
             )
             .children(self.favorite_button(cx))
             .children(overflow);
@@ -382,11 +386,12 @@ impl ArtistView {
                 HeroPlayButton::new(
                     "play-artist",
                     t!("artist-play"),
-                    self.popular.as_ref().clone(),
+                    Vec::new(),
                     self.playback.clone(),
                 )
                 .round(large)
-                .from(self.playing_from(cx)),
+                .from(self.playing_from(cx))
+                .collection(),
             )
             .children(
                 self.favorite_button(cx)
@@ -938,7 +943,9 @@ impl ArtistView {
 
     fn popular(&self, width: Pixels, cx: &mut Context<Self>) -> AnyElement {
         let tracks = self.popular.clone();
-        let from = self.playing_from(cx);
+        let from = self
+            .playing_from(cx)
+            .map(|origin| Origin::artist_popular(origin.id).named(origin.name.unwrap_or_default()));
         let pages = Shape::new(width, tracks.len()).pages;
         let queued = tracks.clone();
         let playback = self.playback.clone();

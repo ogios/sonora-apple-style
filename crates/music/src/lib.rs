@@ -36,7 +36,7 @@ pub mod trouble;
 pub mod vault;
 pub mod youtube;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::num::NonZero;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -44,6 +44,7 @@ use std::time::{Duration, SystemTime};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use futures::{StreamExt as _, TryStreamExt as _};
 use time::format_description::well_known::Iso8601;
 use time::parsing::Parsed;
 use time::{Month, OffsetDateTime};
@@ -68,6 +69,9 @@ pub const LOCAL_PLAYLIST_PREFIX: &str = "local-playlist:";
 /// The most recommendations a provider hands one list of an album or artist page, so a
 /// rail never asks for or draws more than this many releases or artists.
 pub const SUGGESTIONS: usize = 10;
+
+/// Bounds album reads while collecting an artist's tracks.
+const ARTIST_ALBUM_CONCURRENCY: usize = 4;
 
 pub fn is_local_id(id: &str) -> bool {
     id.starts_with(LOCAL_TRACK_PREFIX)
@@ -126,6 +130,39 @@ pub trait MusicApi: Send + Sync {
     }
 
     async fn artist(&self, artist_id: &str) -> Result<Artist>;
+
+    /// All tracks credited to this artist, deduplicated by track id. Providers with a complete
+    /// song listing can override the discography traversal.
+    async fn artist_tracks(&self, artist_id: &str) -> Result<Vec<Track>> {
+        let artist = self.artist(artist_id).await?;
+        let catalogue = self.artist_catalogue(artist_id, &artist.top_tracks).await?;
+        let mut albums = match catalogue.albums.is_empty() {
+            true => artist.albums,
+            false => catalogue.albums,
+        };
+        albums.extend(catalogue.appears_on);
+        let mut tracks = artist.top_tracks;
+        tracks.extend(catalogue.top_tracks);
+        let mut seen = HashSet::new();
+        tracks.retain(|track| track.id.as_ref().is_none_or(|id| seen.insert(id.clone())));
+        let mut seen_albums = HashSet::new();
+        let mut pages = futures::stream::iter(
+            albums
+                .into_iter()
+                .filter(|album| seen_albums.insert(album.id.clone())),
+        )
+        .map(|album| async move { self.album_tracks(&album.id).await })
+        .buffered(ARTIST_ALBUM_CONCURRENCY);
+        while let Some(page) = pages.try_next().await? {
+            tracks.extend(page.into_iter().filter(|track| {
+                track.artist_refs.iter().any(|credit| {
+                    credit.id.as_deref() == Some(artist_id)
+                        || (credit.id.is_none() && credit.name == artist.name)
+                }) && track.id.as_ref().is_none_or(|id| seen.insert(id.clone()))
+            }));
+        }
+        Ok(tracks)
+    }
 
     /// The rest of an artist page, fetched once `artist` has put the overview up: the whole
     /// discography and the popular tracks that only the discography can rank. `known` is the

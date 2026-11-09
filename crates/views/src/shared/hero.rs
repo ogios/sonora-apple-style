@@ -229,6 +229,7 @@ pub(crate) struct HeroPlayButton {
     listing: Listing,
     from: Option<Origin>,
     shuffled: bool,
+    collection: bool,
     /// The side of a round, icon-only button, as the play button over an artist's picture is.
     round: Option<Pixels>,
     playback: Entity<Playback>,
@@ -247,6 +248,7 @@ impl HeroPlayButton {
             listing: Listing::Owned(tracks),
             from: None,
             shuffled: false,
+            collection: false,
             round: None,
             playback,
         }
@@ -260,6 +262,13 @@ impl HeroPlayButton {
 
     pub(crate) fn from(mut self, origin: Option<Origin>) -> Self {
         self.from = origin;
+        self
+    }
+
+    /// Fetches the collection named by `from` on the server when pressed, and follows that
+    /// collection's transport state rather than checking membership in the displayed rows.
+    pub(crate) fn collection(mut self) -> Self {
+        self.collection = true;
         self
     }
 
@@ -300,13 +309,18 @@ impl HeroPlayButton {
             listing: Listing::Listed(table.clone()),
             from: None,
             shuffled: false,
+            collection: false,
             round: None,
             playback,
         }
     }
 
     fn shuffle_button(self, cx: &App) -> Button {
-        let disabled = self.listing.first(cx).is_none();
+        let disabled = match self.collection {
+            true => self.from.is_none(),
+            false => self.listing.first(cx).is_none(),
+        };
+        let collection = self.collection;
         let listing = self.listing;
         let from = self.from;
         let playback = self.playback;
@@ -319,8 +333,14 @@ impl HeroPlayButton {
             .on_click(move |_, _, cx| {
                 let queued = listing.queue(cx);
                 let from = from.clone().or_else(|| listing.whence(cx));
-                playback.update(cx, |playback, cx| {
-                    playback.shuffle_any_shared(queued, from, cx)
+                playback.update(cx, |playback, cx| match collection {
+                    true => {
+                        if let Some(from) = from {
+                            playback.set_shuffle(true, cx);
+                            playback.play_origin(from, cx);
+                        }
+                    }
+                    false => playback.shuffle_any_shared(queued, from, cx),
                 });
             })
     }
@@ -333,17 +353,29 @@ impl RenderOnce for HeroPlayButton {
         }
         let playing = {
             let playback = self.playback.read(cx);
-            let current = playback.track().and_then(|track| track.id.as_deref());
-            current
-                .filter(|current| self.listing.holds(current, cx))
-                .and_then(|_| playback.control())
+            match self.collection {
+                true => self
+                    .from
+                    .as_ref()
+                    .and_then(|from| playback.playing_from(from, cx)),
+                false => {
+                    let current = playback.track().and_then(|track| track.id.as_deref());
+                    current
+                        .filter(|current| self.listing.holds(current, cx))
+                        .and_then(|_| playback.control())
+                }
+            }
         };
         let (label, icon) = match playing {
             Some(true) => (t!("play-pause"), "icons/pause.svg"),
             Some(false) => (t!("play-resume"), "icons/play.svg"),
             None => (self.label, "icons/play.svg"),
         };
-        let disabled = self.listing.first(cx).is_none();
+        let disabled = match self.collection {
+            true => self.from.is_none(),
+            false => self.listing.first(cx).is_none(),
+        };
+        let collection = self.collection;
         let listing = self.listing;
         let from = self.from;
         let playback = self.playback;
@@ -373,7 +405,14 @@ impl RenderOnce for HeroPlayButton {
                         None => {
                             let queued = listing.queue(cx);
                             let from = from.clone().or_else(|| listing.whence(cx));
-                            playback.start_any_shared(queued, from, cx)
+                            match collection {
+                                true => {
+                                    if let Some(from) = from {
+                                        playback.play_origin(from, cx);
+                                    }
+                                }
+                                false => playback.start_any_shared(queued, from, cx),
+                            }
                         }
                     });
                 }),
