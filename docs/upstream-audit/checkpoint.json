@@ -1,0 +1,4899 @@
+{
+  "schema_version": 1,
+  "scan_date": "2026-11-01",
+  "scan_timezone": "Asia/Singapore",
+  "upstream_url": "https://github.com/sonorahq/sonora",
+  "upstream_remote": "origin",
+  "upstream_branch": "main",
+  "last_scanned_upstream": "a8e63790b96fbcd5a3e8fb23b59cb98df1b7df63",
+  "fork_head": "e48063366f2ad87ba84cd90b088a1ae49a4137c3",
+  "merge_base": "e2d099c3c714f8f011ea3ac98e260c91932bbb83",
+  "scope": "all upstream-main commits unreachable from fork_head; static applicability triage, focused code review of fixes",
+  "runtime_validation": false,
+  "scanned_commits": [
+    {
+      "commit": "2dc80937b721785d00b383762c022299ed058d13",
+      "parents": [
+        "e2d099c3c714f8f011ea3ac98e260c91932bbb83"
+      ],
+      "title": "fix(music): keep automated youtube searches out of search history",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/music/src/youtube/lyrics.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "a1b6e632be7b04564f628394c2c05f8be7be9736"
+    },
+    {
+      "commit": "0633694a78f56b76e9e2c1b8c73efea4408e57f7",
+      "parents": [
+        "e2d099c3c714f8f011ea3ac98e260c91932bbb83",
+        "2dc80937b721785d00b383762c022299ed058d13"
+      ],
+      "title": "Merge pull request #1057 from sonorahq/fix/search-history",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "c1c70ce2729bda964d0fbd58113f32c4c93f3216",
+      "parents": [
+        "e2d099c3c714f8f011ea3ac98e260c91932bbb83"
+      ],
+      "title": "fix(views): follow the rebuilt engine's spectrum",
+      "decision": "covered",
+      "topic": "equivalent-behavior",
+      "note": "当前实现已有等效行为，非 patch-id 相同；见 report.md",
+      "paths": [
+        "crates/views/src/shared/visualizer.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "db3d234fa940c6df4702a26539b88a1db314351c"
+    },
+    {
+      "commit": "79b143ce0fdb07668b6199215071cb949013a6ad",
+      "parents": [
+        "c1c70ce2729bda964d0fbd58113f32c4c93f3216"
+      ],
+      "title": "fix(views): note the visualizer fix in the changelog",
+      "decision": "maintenance",
+      "topic": "documentation",
+      "note": "仅记录 visualizer 修复的 changelog",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/shared/visualizer.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "251af69e1f2a240eb6b1a768ca210423e6178147"
+    },
+    {
+      "commit": "fb3fb10d7ce09a02059ce7ac577dc4efdb835c3e",
+      "parents": [
+        "0633694a78f56b76e9e2c1b8c73efea4408e57f7",
+        "79b143ce0fdb07668b6199215071cb949013a6ad"
+      ],
+      "title": "Merge pull request #1056 from Brezinben/fix/visualizer-follows-engine",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "7a20c7f78eb1383cd726e944df057bedc5a67a53",
+      "parents": [
+        "e2d099c3c714f8f011ea3ac98e260c91932bbb83"
+      ],
+      "title": "fix(views): show pause only for the active collection",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/shared/hero.rs",
+        "crates/views/src/shared/tracks/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "774694da7e1f936fe44aaeb906311d82f29ad821"
+    },
+    {
+      "commit": "b37304fa723cbe078ce6452811086db4302b7777",
+      "parents": [
+        "fb3fb10d7ce09a02059ce7ac577dc4efdb835c3e",
+        "7a20c7f78eb1383cd726e944df057bedc5a67a53"
+      ],
+      "title": "Merge pull request #1049 from CodedNil/fix/1046-collection-playback-origin",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "cd85735098ab106bf2fe6e9a3b78ca0a358e7185",
+      "parents": [
+        "b37304fa723cbe078ce6452811086db4302b7777"
+      ],
+      "title": "fix(music): read youtube track lengths only from clock text",
+      "decision": "conditional",
+      "topic": "dependency-fix",
+      "note": "已核对 Sonora 依赖 pin；未审计 ytmusic 依赖仓库实现，移植前核验",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "891b3d83830b47f4ccad3155db69486a28536494"
+    },
+    {
+      "commit": "c67752f0300027b84bbdfd3d9f526dfdc3bb2b40",
+      "parents": [
+        "b37304fa723cbe078ce6452811086db4302b7777",
+        "cd85735098ab106bf2fe6e9a3b78ca0a358e7185"
+      ],
+      "title": "Merge pull request #1066 from sonorahq/fix/numeric-title-durations",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "ad89370cb8e5fcdd9b7948f6b9e986b2a02d04df",
+      "parents": [
+        "c67752f0300027b84bbdfd3d9f526dfdc3bb2b40"
+      ],
+      "title": "fix(playback): open every output in stereo",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/output/output_rate.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "7091cc885e5b8a43722101692089fcf5531b35d1"
+    },
+    {
+      "commit": "176fb43f499bf925b02ea0ebc710b679dc3ef8d9",
+      "parents": [
+        "c67752f0300027b84bbdfd3d9f526dfdc3bb2b40",
+        "ad89370cb8e5fcdd9b7948f6b9e986b2a02d04df"
+      ],
+      "title": "Merge pull request #1067 from sonorahq/fix/stereo-output",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f098ef527c3e54e2157c04f7b08a10fd9a677d6c",
+      "parents": [
+        "176fb43f499bf925b02ea0ebc710b679dc3ef8d9"
+      ],
+      "title": "fix(music): keep sign-ins in the data folder instead of the cache",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/credentials.rs",
+        "crates/music/src/youtube/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "30003a917ac6ce5bec14a253444e19f37ead82c1"
+    },
+    {
+      "commit": "e7600f6f6ff8e1260003d41f921517d268184566",
+      "parents": [
+        "176fb43f499bf925b02ea0ebc710b679dc3ef8d9",
+        "f098ef527c3e54e2157c04f7b08a10fd9a677d6c"
+      ],
+      "title": "Merge pull request #1077 from sonorahq/fix/credentials-data-dir",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "7349d44fe92f95834ea57bf0a661dc62124295b4",
+      "parents": [
+        "e7600f6f6ff8e1260003d41f921517d268184566"
+      ],
+      "title": "fix(playback): keep playing when the default output device switches",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "crates/music/Cargo.toml",
+        "crates/music/src/engine.rs",
+        "crates/music/src/output/mod.rs",
+        "crates/music/src/sink.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "21f176cbcbec309a6d628a74cce003a24b386e5f"
+    },
+    {
+      "commit": "926604596c448392d2dba3509948c1516ca59594",
+      "parents": [
+        "e7600f6f6ff8e1260003d41f921517d268184566",
+        "7349d44fe92f95834ea57bf0a661dc62124295b4"
+      ],
+      "title": "Merge pull request #1080 from sonorahq/fix/output-recovery",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "c2ba465f19be082f2133e8758e3ddc52d904c536",
+      "parents": [
+        "926604596c448392d2dba3509948c1516ca59594"
+      ],
+      "title": "chore: release 0.44.2",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "10d94989e3f7c63c5af1388ca1d0239b00427a04"
+    },
+    {
+      "commit": "8bac90bbd41de8dc9c7f93c9ff3c99818932f09b",
+      "parents": [
+        "e2d099c3c714f8f011ea3ac98e260c91932bbb83",
+        "c2ba465f19be082f2133e8758e3ddc52d904c536"
+      ],
+      "title": "Merge pull request #1081 from sonorahq/dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "e0abfa7939ae43fc66678db20aa79cb35a52bc13",
+      "parents": [
+        "c2ba465f19be082f2133e8758e3ddc52d904c536"
+      ],
+      "title": "docs: keep changelog entries to one line",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CLAUDE.md",
+        "CONTRIBUTING.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "61ca10a98a8a56bc701a1fdcb9ec85bde751009d"
+    },
+    {
+      "commit": "0344b1ded3b55aa7aa7e0701416a43dadd879830",
+      "parents": [
+        "e0abfa7939ae43fc66678db20aa79cb35a52bc13"
+      ],
+      "title": "fix(music): list every playlist and album in a youtube music library",
+      "decision": "conditional",
+      "topic": "dependency-fix",
+      "note": "已核对 Sonora 依赖 pin；未审计 ytmusic 依赖仓库实现，移植前核验",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f5ad576ecc9ba0739274cb7a08658361d8cb2b5b"
+    },
+    {
+      "commit": "ff9d4e85113d4d38bcba4c54a1d53b5e9f0b613f",
+      "parents": [
+        "b3b919f9014a50510d9d6fef80cd5717885ef222"
+      ],
+      "title": "fix(sonora): render right-to-left text in reading order",
+      "decision": "conditional",
+      "topic": "rtl",
+      "note": "应用层缺少 RTL 支持；vendored GPUI 必须对照源码移植，改 git rev 不会替换本地 patch",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "29b89759dfdff34571d2ad6c041061ba2d922443"
+    },
+    {
+      "commit": "26389caf4ca58344f012c0f2eaf8866188734eb6",
+      "parents": [
+        "ff9d4e85113d4d38bcba4c54a1d53b5e9f0b613f"
+      ],
+      "title": "fix(ui): leave room below clipped text for the tails of letters",
+      "decision": "conditional",
+      "topic": "text-clipping",
+      "note": "文字尾部裁切；需保留定制 FadeLine/字号/行高并确认触发位置",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/ui/src/card.rs",
+        "crates/ui/src/label.rs",
+        "crates/ui/src/lib.rs",
+        "crates/ui/src/menu.rs",
+        "crates/views/src/chrome/aside.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/screens/song.rs",
+        "crates/views/src/shared/hero.rs",
+        "crates/views/src/shells/fullscreen.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "933bf570ca3e3ecd87d8516c762c3bb27f3a182f"
+    },
+    {
+      "commit": "8894b8ab92572898f056f33607e3263cb70bb016",
+      "parents": [
+        "26389caf4ca58344f012c0f2eaf8866188734eb6"
+      ],
+      "title": "fix(views): wrap, align and fill right-to-left lyrics",
+      "decision": "conditional",
+      "topic": "rtl",
+      "note": "应用层缺少 RTL 支持；vendored GPUI 必须对照源码移植，改 git rev 不会替换本地 patch",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/views/Cargo.toml",
+        "crates/views/src/chrome/aside.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "424b356376cba128491bbef2d99d7581e882cb93"
+    },
+    {
+      "commit": "b73f2123ba3816b149aaebd07a625d95bdc9ae2a",
+      "parents": [
+        "8894b8ab92572898f056f33607e3263cb70bb016"
+      ],
+      "title": "fix(ui): select and move through right-to-left text in inputs",
+      "decision": "conditional",
+      "topic": "rtl",
+      "note": "应用层缺少 RTL 支持；vendored GPUI 必须对照源码移植，改 git rev 不会替换本地 patch",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "crates/ui/Cargo.toml",
+        "crates/ui/src/input/element.rs",
+        "crates/ui/src/input/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "140791370ce382b85f773b7d47a301f5058bdbf0"
+    },
+    {
+      "commit": "ce0ac7794c2a1c99f3d11fdc87ce230503b744db",
+      "parents": [
+        "b73f2123ba3816b149aaebd07a625d95bdc9ae2a"
+      ],
+      "title": "fix(sonora): wrap right-to-left text and place its caret where it is read",
+      "decision": "conditional",
+      "topic": "rtl",
+      "note": "应用层缺少 RTL 支持；vendored GPUI 必须对照源码移植，改 git rev 不会替换本地 patch",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "757455bf9c814323fa9d165fb391b108a6225380"
+    },
+    {
+      "commit": "d389842be64b01b060cc9ad24efbca36638497cd",
+      "parents": [
+        "ce0ac7794c2a1c99f3d11fdc87ce230503b744db",
+        "dcc2edf14c46e4f5037aa99a3635591face1b8ca"
+      ],
+      "title": "Merge branch 'dev' into fix/rtl-text",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "09c3c5b2e0f12422f87ec521bc0361b98bacacfb",
+      "parents": [
+        "d389842be64b01b060cc9ad24efbca36638497cd",
+        "248b0a1f66aee4f7555f0c2f68b91d3af7fa34f5"
+      ],
+      "title": "Merge remote-tracking branch 'origin/dev' into fix/rtl-text",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "crates/views/src/chrome/aside.rs",
+        "crates/views/src/chrome/player_bar.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "108d2352e237f26fdcac1a052449d35ae4683264",
+      "parents": [
+        "09c3c5b2e0f12422f87ec521bc0361b98bacacfb",
+        "d02bbc96e5de1a39b8ef706d72d78864586968b2"
+      ],
+      "title": "merge: dev into fix/rtl-text",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "9723ddd98561b77aaa141126571f8ba6f871cb51",
+      "parents": [
+        "108d2352e237f26fdcac1a052449d35ae4683264",
+        "e00dbc97a7504d9693174ca9d4c010692e0cb208"
+      ],
+      "title": "Merge branch 'dev' into fix/rtl-text",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "crates/views/Cargo.toml"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f774ba844404fc6acd5fb73a5e60ca275e35b77d",
+      "parents": [
+        "9723ddd98561b77aaa141126571f8ba6f871cb51",
+        "e0abfa7939ae43fc66678db20aa79cb35a52bc13"
+      ],
+      "title": "Merge remote-tracking branch 'origin/dev' into review/rtl-880",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/ui/src/input/element.rs",
+        "crates/ui/src/input/mod.rs",
+        "crates/ui/src/lib.rs",
+        "crates/views/Cargo.toml",
+        "crates/views/src/chrome/aside.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/shared/hero.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "90377a272d13c200e17eb890e6c86f547803f7e7",
+      "parents": [
+        "f774ba844404fc6acd5fb73a5e60ca275e35b77d"
+      ],
+      "title": "docs: list the right-to-left fixes under unreleased",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "1654c5a8dfc6a398ed7337e31a07f6e207493354"
+    },
+    {
+      "commit": "b429d977fc9ae7bfcd3a48ce26e0ff1443cb4f91",
+      "parents": [
+        "90377a272d13c200e17eb890e6c86f547803f7e7"
+      ],
+      "title": "build(sonora): move gpui to the revision with right-to-left text fixes",
+      "decision": "conditional",
+      "topic": "rtl",
+      "note": "应用层缺少 RTL 支持；vendored GPUI 必须对照源码移植，改 git rev 不会替换本地 patch",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "344741be3bf0f3f7b2b893ac1ccd58a02062903c"
+    },
+    {
+      "commit": "2c919953c15dce88e6095650f465dd651bf8ab20",
+      "parents": [
+        "e0abfa7939ae43fc66678db20aa79cb35a52bc13"
+      ],
+      "title": "feat(playback): link the spotify key refusal toast to the faq",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "assets/icons/iconoir/square-arrow-out-up-right.svg",
+        "assets/icons/lucide/square-arrow-out-up-right.svg",
+        "assets/icons/remix/square-arrow-out-up-right.svg",
+        "assets/icons/solar/square-arrow-out-up-right.svg",
+        "crates/state/src/playback.rs",
+        "crates/state/src/toast.rs",
+        "crates/views/src/chrome/toasts.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "91a41f785e461d32ab027a7886bf7aec5e2f5e1e"
+    },
+    {
+      "commit": "c0ca028e41e6e3231098cfe02287b0f03a5b45c1",
+      "parents": [
+        "b429d977fc9ae7bfcd3a48ce26e0ff1443cb4f91",
+        "2c919953c15dce88e6095650f465dd651bf8ab20"
+      ],
+      "title": "Merge remote-tracking branch 'origin/dev' into review/rtl-880",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "a93a5dbc8a6ac4a9b113a30d1ffd1235114cf2fb",
+      "parents": [
+        "2c919953c15dce88e6095650f465dd651bf8ab20",
+        "c0ca028e41e6e3231098cfe02287b0f03a5b45c1"
+      ],
+      "title": "Merge pull request #1083 from sonorahq/fix/rtl-text",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "ab07fbf8ad59053f1bffc1975c3ac4b6972694f3",
+      "parents": [
+        "0344b1ded3b55aa7aa7e0701416a43dadd879830",
+        "a93a5dbc8a6ac4a9b113a30d1ffd1235114cf2fb"
+      ],
+      "title": "Merge remote-tracking branch 'origin/dev' into HEAD",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "af69b60465ba729879dae3db7051ca2b7ad8a7e0",
+      "parents": [
+        "a93a5dbc8a6ac4a9b113a30d1ffd1235114cf2fb",
+        "ab07fbf8ad59053f1bffc1975c3ac4b6972694f3"
+      ],
+      "title": "Merge pull request #1084 from sonorahq/fix/youtube-playlists",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "4379cf707d80a62079ea896e2d3c69c736bf3c05",
+      "parents": [
+        "af69b60465ba729879dae3db7051ca2b7ad8a7e0"
+      ],
+      "title": "fix(music): request larger album covers from youtube, subsonic, spotify and deezer",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/deezer/wire.rs",
+        "crates/music/src/spotify/albums.rs",
+        "crates/music/src/spotify/artists.rs",
+        "crates/music/src/spotify/wire.rs",
+        "crates/music/src/subsonic/client.rs",
+        "crates/music/src/youtube/wire.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "6232a42ab0e4e4a32ab1e181e59abe3cf36c1eab"
+    },
+    {
+      "commit": "492e4e49d2fb733c0d6f4cb6636fbdfcccca0a6d",
+      "parents": [
+        "af69b60465ba729879dae3db7051ca2b7ad8a7e0",
+        "4379cf707d80a62079ea896e2d3c69c736bf3c05"
+      ],
+      "title": "Merge pull request #1104 from sonorahq/fix/youtube-cover-size",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "82b60b3306bd82300ffbb76ee4052bd9345a391e",
+      "parents": [
+        "492e4e49d2fb733c0d6f4cb6636fbdfcccca0a6d"
+      ],
+      "title": "fix(views): align the player bar layout previews",
+      "decision": "deferred_appearance",
+      "topic": "appearance",
+      "note": "上游布局/视觉策略；当前 GUI 已定制，需在定制界面复现再决定，不直接覆盖",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/screens/settings/player_bar.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "99dbfa6e39d63f95dbe406a073473c52114a2663"
+    },
+    {
+      "commit": "35f140c03b5675f0c1c7a395e09cf994bc19ff5e",
+      "parents": [
+        "492e4e49d2fb733c0d6f4cb6636fbdfcccca0a6d",
+        "82b60b3306bd82300ffbb76ee4052bd9345a391e"
+      ],
+      "title": "Merge pull request #1106 from sonorahq/fix/player-bar-previews",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "7a96956af13afe6a04b25c53689e1f4eadbd92e5",
+      "parents": [
+        "35f140c03b5675f0c1c7a395e09cf994bc19ff5e"
+      ],
+      "title": "fix(local): rescan the folders when the local library is refreshed",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/state/src/library.rs",
+        "crates/views/src/root.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "e81c5b9ea1f589604373ae64b01c21b50b6c15a7"
+    },
+    {
+      "commit": "4431faa2a7cbb766200ed0e4c73b99490c4a34e4",
+      "parents": [
+        "35f140c03b5675f0c1c7a395e09cf994bc19ff5e",
+        "7a96956af13afe6a04b25c53689e1f4eadbd92e5"
+      ],
+      "title": "Merge pull request #1107 from sonorahq/fix/local-refresh-rescan",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "9b3a263e10e55f4e6d9aef6da1f94cf840d70383",
+      "parents": [
+        "e2d099c3c714f8f011ea3ac98e260c91932bbb83"
+      ],
+      "title": "fix(playback): avoid preference notifications on volume changes",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/state/src/settings.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "51159db74ee37e7232b92a4ba072c63bf990696f"
+    },
+    {
+      "commit": "f462272f11cbb2d8935b952f78474a02e8781e45",
+      "parents": [
+        "4431faa2a7cbb766200ed0e4c73b99490c4a34e4",
+        "9b3a263e10e55f4e6d9aef6da1f94cf840d70383"
+      ],
+      "title": "Merge pull request #1070 from Augustus-S/fix/volume-settings-notifications",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "762612ebad917e3cb7420e0c57a89e40a8eef5fe",
+      "parents": [
+        "f462272f11cbb2d8935b952f78474a02e8781e45"
+      ],
+      "title": "fix(views): show unsynced romanization under each lyric line",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/lyrics/romanize.rs",
+        "crates/music/src/models.rs",
+        "crates/state/src/sheets.rs",
+        "crates/views/src/chrome/aside.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "60aaf16468e55213a2da5381eeb3d838d2d0e6df"
+    },
+    {
+      "commit": "86d8ea288a028ceedf6cdd548a5c153c528aebee",
+      "parents": [
+        "f462272f11cbb2d8935b952f78474a02e8781e45",
+        "762612ebad917e3cb7420e0c57a89e40a8eef5fe"
+      ],
+      "title": "Merge pull request #1108 from sonorahq/fix/unsynced-romanization",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "69ccc0e844c0b61af4b6eb951384424ad41b21d1",
+      "parents": [
+        "f462272f11cbb2d8935b952f78474a02e8781e45"
+      ],
+      "title": "fix(state): re-ask lyrics sources left with nothing stored",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "crates/state/src/lyrics.rs",
+        "crates/state/src/sheets.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "8071a2c8c6a1eba63546c697bcd4e39cb903c02a"
+    },
+    {
+      "commit": "505f78ac4ab6344bfa02e5a258816e4bc92a6ce4",
+      "parents": [
+        "86d8ea288a028ceedf6cdd548a5c153c528aebee",
+        "69ccc0e844c0b61af4b6eb951384424ad41b21d1"
+      ],
+      "title": "Merge pull request #1110 from mrkvqv/feat/lyrics-reask-empty",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "c5924615679f0605b474e8f69b2671b02c86f70a",
+      "parents": [
+        "86d8ea288a028ceedf6cdd548a5c153c528aebee"
+      ],
+      "title": "fix(views): brighten and enlarge unsynced lyrics",
+      "decision": "deferred_appearance",
+      "topic": "appearance",
+      "note": "上游布局/视觉策略；当前 GUI 已定制，需在定制界面复现再决定，不直接覆盖",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/chrome/aside.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f4dbd965ff12aadd0818e07c0e5105483c30d0a9"
+    },
+    {
+      "commit": "7ad43783051e4b7cd4ba02cffcd43f9b6ee781f4",
+      "parents": [
+        "505f78ac4ab6344bfa02e5a258816e4bc92a6ce4",
+        "c5924615679f0605b474e8f69b2671b02c86f70a"
+      ],
+      "title": "Merge pull request #1109 from sonorahq/fix/unsynced-lyrics-contrast",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "1cf9923ad00d14e65ebfe11237260a44a7bd0b22",
+      "parents": [
+        "7ad43783051e4b7cd4ba02cffcd43f9b6ee781f4"
+      ],
+      "title": "feat(a11y): expose roles and names across the app for screen readers",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "Cargo.lock",
+        "crates/router/src/link.rs",
+        "crates/ui/Cargo.toml",
+        "crates/ui/src/button.rs",
+        "crates/ui/src/card.rs",
+        "crates/ui/src/checkbox.rs",
+        "crates/ui/src/controls.rs",
+        "crates/ui/src/input/element.rs",
+        "crates/ui/src/menu.rs",
+        "crates/ui/src/modal.rs",
+        "crates/ui/src/popover.rs",
+        "crates/ui/src/radio.rs",
+        "crates/ui/src/scrollbar.rs",
+        "crates/ui/src/scrubber.rs",
+        "crates/ui/src/switch.rs",
+        "crates/ui/src/table/mod.rs",
+        "crates/ui/src/tabs.rs",
+        "crates/ui/src/toast.rs",
+        "crates/ui/tests/a11y_tree.rs",
+        "crates/views/src/chrome/aside.rs",
+        "crates/views/src/chrome/mod.rs",
+        "crates/views/src/chrome/notice.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/chrome/sidebar_left.rs",
+        "crates/views/src/chrome/title_bar.rs",
+        "crates/views/src/chrome/toasts.rs",
+        "crates/views/src/chrome/toolbar.rs",
+        "crates/views/src/screens/artist.rs",
+        "crates/views/src/screens/detail.rs",
+        "crates/views/src/screens/equalizer/mod.rs",
+        "crates/views/src/screens/equalizer/rows.rs",
+        "crates/views/src/screens/genre.rs",
+        "crates/views/src/screens/history.rs",
+        "crates/views/src/screens/home/mod.rs",
+        "crates/views/src/screens/library/mod.rs",
+        "crates/views/src/screens/login.rs",
+        "crates/views/src/screens/search.rs",
+        "crates/views/src/screens/settings/appearance.rs",
+        "crates/views/src/screens/settings/mod.rs",
+        "crates/views/src/screens/settings/playback.rs",
+        "crates/views/src/screens/song.rs",
+        "crates/views/src/screens/user.rs",
+        "crates/views/src/shared/about.rs",
+        "crates/views/src/shared/cells.rs",
+        "crates/views/src/shared/device_code.rs",
+        "crates/views/src/shared/hero.rs",
+        "crates/views/src/shared/popups/accounts.rs",
+        "crates/views/src/shared/tracks/mod.rs",
+        "crates/views/src/shells/fullscreen.rs",
+        "crates/views/src/shells/workspace.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "213fa3cde65661ea20bea3d1a634651cad59a560"
+    },
+    {
+      "commit": "d342eac08d61dc98aecb25697e9ffa404e0076f6",
+      "parents": [
+        "1cf9923ad00d14e65ebfe11237260a44a7bd0b22"
+      ],
+      "title": "docs: require screen-reader roles and names for new ui",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CLAUDE.md",
+        "CONTRIBUTING.md",
+        "crates/ui/tests/a11y_tree.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "87c652afcc81de58a3abdce407d3560a5476e4d7"
+    },
+    {
+      "commit": "1ecf96781f7b8e0d657d01250f04bfa78354e231",
+      "parents": [
+        "d342eac08d61dc98aecb25697e9ffa404e0076f6"
+      ],
+      "title": "fix(a11y): guard against nameless buttons",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "crates/ui/src/button.rs",
+        "crates/views/src/shells/fullscreen.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "8782e4ef8777435999a414c7c3bf9d1c4a68d10c"
+    },
+    {
+      "commit": "4f4ad87695a412c7f50a88c2f3b7773f64ce1a63",
+      "parents": [
+        "1ecf96781f7b8e0d657d01250f04bfa78354e231"
+      ],
+      "title": "docs: note screen-reader support in the changelog",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "6fd28ce3335ffa5ac9c29b545ff9d654fda7bef3"
+    },
+    {
+      "commit": "423ec42b3e69a91ac4483afe32b3c38f4f30f0fc",
+      "parents": [
+        "e2d099c3c714f8f011ea3ac98e260c91932bbb83"
+      ],
+      "title": "feat(music): show recently added apple library items on home",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/apple/client.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "674835715a7e9d083b56ede0bd88fb9c3479f316"
+    },
+    {
+      "commit": "60937c366e38727c6091e1577d3c1b36c0c4d9ea",
+      "parents": [
+        "4f4ad87695a412c7f50a88c2f3b7773f64ce1a63",
+        "423ec42b3e69a91ac4483afe32b3c38f4f30f0fc"
+      ],
+      "title": "Merge pull request #1071 from Augustus-S/feat/apple-recent-library",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "66673b3bbfe2245ed083e7c00e449967d92450c9",
+      "parents": [
+        "8bac90bbd41de8dc9c7f93c9ff3c99818932f09b",
+        "60937c366e38727c6091e1577d3c1b36c0c4d9ea"
+      ],
+      "title": "Merge pull request #1115 from sonorahq/dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "d1ea107414473093acd353b5047b6c4b4b44a653",
+      "parents": [
+        "e2d099c3c714f8f011ea3ac98e260c91932bbb83"
+      ],
+      "title": "fix(playback): preserve spotify connect queues & mpris data",
+      "decision": "conditional",
+      "topic": "spotify-queue",
+      "note": "Connect/Jam 与队列模型演进成组评估，保留 Arc 曲目共享和网易云队列契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/connect.rs",
+        "crates/music/src/lib.rs",
+        "crates/music/src/models.rs",
+        "crates/music/src/spotify/client.rs",
+        "crates/music/src/spotify/connect.rs",
+        "crates/sonora/src/memory.rs",
+        "crates/state/src/devices.rs",
+        "crates/state/src/lib.rs",
+        "crates/state/src/library.rs",
+        "crates/state/src/lyrics.rs",
+        "crates/state/src/playback.rs",
+        "crates/state/src/queue.rs",
+        "crates/state/src/queue/view.rs",
+        "crates/state/src/remote/mod.rs",
+        "crates/state/src/remote/mpris.rs",
+        "crates/state/src/remote/souvlaki.rs",
+        "crates/views/src/chrome/aside.rs",
+        "crates/views/src/chrome/devices.rs",
+        "crates/views/src/chrome/jam.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/shared/adaptive.rs",
+        "crates/views/src/shared/menus/context.rs",
+        "crates/views/src/shared/transport.rs",
+        "crates/views/src/shells/fullscreen.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "063a4fff162d511b3d19caebfa3fa2f67583911d"
+    },
+    {
+      "commit": "264df4a8ac4f08b3b72b761ad777206c97198b05",
+      "parents": [
+        "d1ea107414473093acd353b5047b6c4b4b44a653",
+        "60937c366e38727c6091e1577d3c1b36c0c4d9ea"
+      ],
+      "title": "merge: dev into spotify-connect-fix",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/chrome/aside.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "6ed9047ee1e2243875c7e971bbd9f5eb79965a34",
+      "parents": [
+        "264df4a8ac4f08b3b72b761ad777206c97198b05"
+      ],
+      "title": "fix(state): poll pins where nothing reports changes and reread only changed playlists",
+      "decision": "partial",
+      "topic": "pin-refresh",
+      "note": "当前已轮询；changed-playlist 刷新优化仍可借鉴",
+      "paths": [
+        "crates/state/src/library.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "6f1c48991b92f268ba42abfc07adf76a45fa5fd4"
+    },
+    {
+      "commit": "1fbb4b7d8d195e898dcc3248db270a7b2ac2a7da",
+      "parents": [
+        "6ed9047ee1e2243875c7e971bbd9f5eb79965a34"
+      ],
+      "title": "fix(playback): continue a station while radio suggestions are queued",
+      "decision": "covered",
+      "topic": "equivalent-behavior",
+      "note": "当前实现已有等效行为，非 patch-id 相同；见 report.md",
+      "paths": [
+        "crates/state/src/playback.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "fc943c388b930799b03678c9f2a7d4aa215c31d1"
+    },
+    {
+      "commit": "000f84c607eb6694c3de61131d256789e7b75fc4",
+      "parents": [
+        "1fbb4b7d8d195e898dcc3248db270a7b2ac2a7da"
+      ],
+      "title": "fix(playback): keep the queue beyond remote edits and hand-queued songs in one run",
+      "decision": "conditional",
+      "topic": "spotify-queue",
+      "note": "Connect/Jam 与队列模型演进成组评估，保留 Arc 曲目共享和网易云队列契约",
+      "paths": [
+        "crates/music/src/spotify/connect.rs",
+        "crates/state/src/devices.rs",
+        "crates/state/src/queue.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "00c61839e79c4c7742bf3a94b847c3ebc013ddff"
+    },
+    {
+      "commit": "4e1dea93eff5b6774a1c327bc00d1707cd56f443",
+      "parents": [
+        "66673b3bbfe2245ed083e7c00e449967d92450c9",
+        "000f84c607eb6694c3de61131d256789e7b75fc4"
+      ],
+      "title": "Merge pull request #1047 from CodedNil/spotify-connect-fix",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "af271aef270cb6a3ccd69a35baf68d262f251fcd",
+      "parents": [
+        "66673b3bbfe2245ed083e7c00e449967d92450c9"
+      ],
+      "title": "ci: publish a nightly build of main",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/workflows/nightly.yml",
+        ".github/workflows/release.yml",
+        "CHANGELOG.md",
+        "README.md",
+        "aur/sonora-nightly-bin/PKGBUILD",
+        "flake.nix",
+        "scripts/licenses-tarball.sh"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "eea0dc9009ebb68a2411682c4f3e52823c0ec51f"
+    },
+    {
+      "commit": "62f8eb9623ca748a048d410b44df11f1386cb445",
+      "parents": [
+        "4e1dea93eff5b6774a1c327bc00d1707cd56f443",
+        "af271aef270cb6a3ccd69a35baf68d262f251fcd"
+      ],
+      "title": "Merge pull request #1116 from sonorahq/ci/nightly",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "34cf2c44a8c07d9ec5141ed611f81bab1ad7b561",
+      "parents": [
+        "62f8eb9623ca748a048d410b44df11f1386cb445"
+      ],
+      "title": "docs: shorten the nightly notice in the readme",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "README.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "70fa3a24e2080ab4183c236f91c70aee25d24ef7"
+    },
+    {
+      "commit": "b364416b4288e4acf5eec6ef5aaab582e7a416f8",
+      "parents": [
+        "62f8eb9623ca748a048d410b44df11f1386cb445",
+        "34cf2c44a8c07d9ec5141ed611f81bab1ad7b561"
+      ],
+      "title": "Merge pull request #1119 from sonorahq/docs/nightly-readme",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "c2c26b3d8c44eb3444cd0068845049f651ba2d1e",
+      "parents": [
+        "b364416b4288e4acf5eec6ef5aaab582e7a416f8"
+      ],
+      "title": "docs: drop the appimage notes from the readme",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "README.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b6ac8f71b1396d81263b42616a837cc481d6abcd"
+    },
+    {
+      "commit": "223cdb2e17a566df29dc3edd78bd019a7090749c",
+      "parents": [
+        "b364416b4288e4acf5eec6ef5aaab582e7a416f8",
+        "c2c26b3d8c44eb3444cd0068845049f651ba2d1e"
+      ],
+      "title": "Merge pull request #1122 from sonorahq/docs/readme-appimage-dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "3ddb4de5f482b594ff3df99b36efd60b08d19a23",
+      "parents": [
+        "223cdb2e17a566df29dc3edd78bd019a7090749c"
+      ],
+      "title": "ci: pin the aur host key for the nightly push",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/workflows/nightly.yml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "3e5c189fcf1cc75df016086b3f72793d354db417"
+    },
+    {
+      "commit": "2d12e9449baaa0bd6ff63e7ba734275bc7084ac0",
+      "parents": [
+        "223cdb2e17a566df29dc3edd78bd019a7090749c",
+        "3ddb4de5f482b594ff3df99b36efd60b08d19a23"
+      ],
+      "title": "Merge pull request #1124 from sonorahq/ci/nightly-aur-ssh-dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "0f0f0ec1cd1c9b01b270cee22723efc06d006dfc",
+      "parents": [
+        "2d12e9449baaa0bd6ff63e7ba734275bc7084ac0"
+      ],
+      "title": "feat(sonora): show the nightly version and skip stable updates on nightlies",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        ".github/workflows/release.yml",
+        "crates/sonora/src/logging.rs",
+        "crates/state/src/lib.rs",
+        "crates/state/src/updates.rs",
+        "crates/state/src/usage.rs",
+        "crates/views/src/chrome/notice.rs",
+        "crates/views/src/screens/settings/about.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "28cf650a1c582298eb896d8829a4a37e4313fabf"
+    },
+    {
+      "commit": "cdba12e568d7e292fc709ff0fa1f0816ea0dbf68",
+      "parents": [
+        "2d12e9449baaa0bd6ff63e7ba734275bc7084ac0",
+        "0f0f0ec1cd1c9b01b270cee22723efc06d006dfc"
+      ],
+      "title": "Merge pull request #1125 from sonorahq/feat/nightly-version",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "7379f0444c998593dc3f58eb4db02f1cf71d9042",
+      "parents": [
+        "cdba12e568d7e292fc709ff0fa1f0816ea0dbf68"
+      ],
+      "title": "ci: keep the sonora-nightly cask on the nightly",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/workflows/nightly.yml",
+        "README.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "458a019ca6e57ffeb8bbd9dbb7f57c6bc96e86f9"
+    },
+    {
+      "commit": "f7d41baf650d1cb59ee3b2313293a6b651e3e346",
+      "parents": [
+        "cdba12e568d7e292fc709ff0fa1f0816ea0dbf68",
+        "7379f0444c998593dc3f58eb4db02f1cf71d9042"
+      ],
+      "title": "Merge pull request #1131 from sonorahq/ci/nightly-cask-dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "9cd8fa0453154db90bfc92cade8fd281e04b2d90",
+      "parents": [
+        "f7d41baf650d1cb59ee3b2313293a6b651e3e346"
+      ],
+      "title": "docs: merge the duplicate fixed section in the changelog",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "5fbf57ddd0882338e219ecf45438993b329979fa"
+    },
+    {
+      "commit": "f8c7f399caf721af2218a6a20ae7dc7f28665819",
+      "parents": [
+        "9cd8fa0453154db90bfc92cade8fd281e04b2d90"
+      ],
+      "title": "feat(sonora): choose a release channel and update in place on macos",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "assets/i18n/en-US/main.ftl",
+        "crates/state/src/lib.rs",
+        "crates/state/src/settings.rs",
+        "crates/state/src/updates.rs",
+        "crates/state/src/updates/install.rs",
+        "crates/state/src/updates/mod.rs",
+        "crates/views/src/screens/settings/about.rs",
+        "crates/views/src/screens/settings/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b2bb86af46bc29c44d2dc18b02b56e5c9636adfd"
+    },
+    {
+      "commit": "deb1e4eddf82d28f3d7709ada4d4275c6162b6aa",
+      "parents": [
+        "f8c7f399caf721af2218a6a20ae7dc7f28665819"
+      ],
+      "title": "fix: only count the bundle homebrew installed as homebrew's",
+      "decision": "deferred_feature",
+      "topic": "updater",
+      "note": "上游新更新通道/自更新的配套修复；采用功能时成组审查，fork 需独立发布源",
+      "paths": [
+        "crates/state/src/updates/install.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "22d71c51750b21721ff5b0836e3542a80f469d16"
+    },
+    {
+      "commit": "9d8bcb896b48091f05e99c411db4fbeacaba02fe",
+      "parents": [
+        "deb1e4eddf82d28f3d7709ada4d4275c6162b6aa"
+      ],
+      "title": "feat(sonora): add a clap command line with -v and --version",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "THIRD-PARTY.md",
+        "crates/sonora/Cargo.toml",
+        "crates/sonora/src/cli.rs",
+        "crates/sonora/src/main.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "d2966591d5470d70e41a5d2d17dd23084104cbd4"
+    },
+    {
+      "commit": "3cc6b0bc36a8b442e7caf0e082050c19d26a48f6",
+      "parents": [
+        "9d8bcb896b48091f05e99c411db4fbeacaba02fe"
+      ],
+      "title": "fix: count the nightly cask as homebrew's too",
+      "decision": "deferred_feature",
+      "topic": "updater",
+      "note": "上游新更新通道/自更新的配套修复；采用功能时成组审查，fork 需独立发布源",
+      "paths": [
+        "crates/state/src/updates/install.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "25062cdc2dcfb865129d0667d1049194cabd3fec"
+    },
+    {
+      "commit": "875e9a615f77c14c1d94bba89e0841e5fab8782b",
+      "parents": [
+        "3cc6b0bc36a8b442e7caf0e082050c19d26a48f6"
+      ],
+      "title": "docs: note the release channel and macos self-updates",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "7e879e1b5a137e4e268249ebb4c82ce5d4b499a6"
+    },
+    {
+      "commit": "c7541f6d85435db32ed4ac68f7eda9b63b810a6b",
+      "parents": [
+        "875e9a615f77c14c1d94bba89e0841e5fab8782b"
+      ],
+      "title": "fix: delete the downloaded update once it is in place",
+      "decision": "deferred_feature",
+      "topic": "updater",
+      "note": "上游新更新通道/自更新的配套修复；采用功能时成组审查，fork 需独立发布源",
+      "paths": [
+        "crates/state/src/updates/install.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f27ef875f0e4e618823399a4fb48b28672966951"
+    },
+    {
+      "commit": "1b0032fb764cf1bdd6a0f8f7387290b6df04fec5",
+      "parents": [
+        "c7541f6d85435db32ed4ac68f7eda9b63b810a6b"
+      ],
+      "title": "feat(views): keep notice titles on one line and spread their buttons",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/views/src/chrome/notice.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "fc04a86b7337ffc5097a989b52c963ef3e51361f"
+    },
+    {
+      "commit": "c38060c1adf8f900f3218d8d12a4fd585845287e",
+      "parents": [
+        "1b0032fb764cf1bdd6a0f8f7387290b6df04fec5"
+      ],
+      "title": "feat(views): round notices like toasts with concentric buttons",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/ui/src/lib.rs",
+        "crates/ui/src/modal.rs",
+        "crates/views/src/chrome/notice.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f42b5122a3f89799364f947eb1388ae4be75f896"
+    },
+    {
+      "commit": "3b9bc83ff9e5a6a5bb765ba603f9a64009d41eab",
+      "parents": [
+        "9cd8fa0453154db90bfc92cade8fd281e04b2d90",
+        "c38060c1adf8f900f3218d8d12a4fd585845287e"
+      ],
+      "title": "Merge pull request #1132 from sonorahq/feat/update-channel",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "1287f5d111566d696df32d2d541eaa46ec24eb26",
+      "parents": [
+        "8c382f175308021d85e0c25ef74bb2c174ec396e"
+      ],
+      "title": "fix(local): show local tags in song details",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/local/scan.rs",
+        "crates/music/src/local/wire.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "91a83f540c1feee8bebe7736e5fe095a1ba66083"
+    },
+    {
+      "commit": "ce7546fd7cb0c0719ffed05da263de8c806bc49d",
+      "parents": [
+        "1287f5d111566d696df32d2d541eaa46ec24eb26",
+        "63fcb51e06d5ad6ac2e8ac4e4db53d07d3ded93b"
+      ],
+      "title": "Merge remote-tracking branch 'upstream/main' into feat/local-date-genre",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f8329b79efac3f7309384e323cdbf0dbc88975ad",
+      "parents": [
+        "ce7546fd7cb0c0719ffed05da263de8c806bc49d",
+        "716341a227e84ef1e99ea8d1cf387127b93353a8"
+      ],
+      "title": "Merge remote-tracking branch 'upstream/main' into feat/local-date-genre",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "8a234911c962828f3adee1a7a20bf077db5c0509",
+      "parents": [
+        "3b9bc83ff9e5a6a5bb765ba603f9a64009d41eab",
+        "f8329b79efac3f7309384e323cdbf0dbc88975ad"
+      ],
+      "title": "fix(local): show local tags in song details",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f2ead35dbc24f59959a893275eb97fd02b7a1547",
+      "parents": [
+        "3b9bc83ff9e5a6a5bb765ba603f9a64009d41eab",
+        "8a234911c962828f3adee1a7a20bf077db5c0509"
+      ],
+      "title": "Merge pull request #1136 from sonorahq/merge/local-tags-906",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "fe4952ecf510e3bb4fce4fc4df9df143adbe39e3",
+      "parents": [
+        "cdba12e568d7e292fc709ff0fa1f0816ea0dbf68"
+      ],
+      "title": "feat(views): pick columns from a right-click on the table header",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "crates/ui/src/popup.rs",
+        "crates/ui/src/table/mod.rs",
+        "crates/views/src/chrome/tools.rs",
+        "crates/views/src/screens/detail.rs",
+        "crates/views/src/screens/library/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "8e2a3a439236f4510e6aba15a7df3bc8cbbff981"
+    },
+    {
+      "commit": "d9dbea2ed6327edc14d23b68d92516d361494c89",
+      "parents": [
+        "f2ead35dbc24f59959a893275eb97fd02b7a1547",
+        "fe4952ecf510e3bb4fce4fc4df9df143adbe39e3"
+      ],
+      "title": "Merge pull request #1137 from sonorahq/feat/header-column-menu",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "9a7df49688fb5181e8a280c7697695d159a89a75",
+      "parents": [
+        "d9dbea2ed6327edc14d23b68d92516d361494c89"
+      ],
+      "title": "feat(settings): install themes from sonora theme links",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "assets/i18n/en-US/main.ftl",
+        "assets/linux/sonora.desktop",
+        "assets/macos/Info.plist",
+        "crates/state/Cargo.toml",
+        "crates/state/src/lib.rs",
+        "crates/state/src/links.rs",
+        "crates/state/src/settings.rs",
+        "crates/state/src/settings/themes.rs",
+        "crates/views/src/chrome/mod.rs",
+        "crates/views/src/chrome/theme_invite.rs",
+        "crates/views/src/root.rs",
+        "crates/views/src/screens/settings/appearance.rs",
+        "crates/views/src/screens/settings/mod.rs",
+        "crates/views/src/screens/settings/themes.rs",
+        "crates/views/src/shared/mod.rs",
+        "crates/views/src/shared/theme_miniature.rs",
+        "scripts/windows/sonora.iss"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "c8fc96b816b170fc8748a6213069ce17dd1d5068"
+    },
+    {
+      "commit": "e492a926cb167a113be8cb66e7be2f5823399427",
+      "parents": [
+        "9a7df49688fb5181e8a280c7697695d159a89a75"
+      ],
+      "title": "feat(settings): delete user themes and enlarge the theme link preview",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/en-US/main.ftl",
+        "crates/state/src/settings.rs",
+        "crates/state/src/settings/themes.rs",
+        "crates/ui/src/option_card.rs",
+        "crates/views/src/chrome/theme_invite.rs",
+        "crates/views/src/screens/settings/accounts.rs",
+        "crates/views/src/screens/settings/mod.rs",
+        "crates/views/src/screens/settings/themes.rs",
+        "crates/views/src/shared/theme_miniature.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "913e97384071f5e0df49453e8327279788e28201"
+    },
+    {
+      "commit": "509641426454c3aae8815ac2ec294bc5c4412ca6",
+      "parents": [
+        "d9dbea2ed6327edc14d23b68d92516d361494c89",
+        "e492a926cb167a113be8cb66e7be2f5823399427"
+      ],
+      "title": "Merge pull request #1141 from sonorahq/feat/theme-links",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "c36e2406334acb817b23964b51d883c5e1436232",
+      "parents": [
+        "509641426454c3aae8815ac2ec294bc5c4412ca6"
+      ],
+      "title": "chore: release 0.45.0",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "Cargo.toml",
+        "THIRD-PARTY.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "93d247cea98166a91aa2632175a75813b6fe2446"
+    },
+    {
+      "commit": "2c9307b978bc74fd44e65c7c81e9e4d7c2b368ed",
+      "parents": [
+        "66673b3bbfe2245ed083e7c00e449967d92450c9"
+      ],
+      "title": "ci: publish a nightly build of main",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/workflows/nightly.yml",
+        ".github/workflows/release.yml",
+        "README.md",
+        "aur/sonora-nightly-bin/PKGBUILD",
+        "flake.nix",
+        "scripts/licenses-tarball.sh"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "ebae0cede494edd8e72641b55ba03952af95097b"
+    },
+    {
+      "commit": "26152418a6bc5ba72f01ebfa8e33cd74b8c4027d",
+      "parents": [
+        "66673b3bbfe2245ed083e7c00e449967d92450c9",
+        "2c9307b978bc74fd44e65c7c81e9e4d7c2b368ed"
+      ],
+      "title": "Merge pull request #1118 from sonorahq/ci/nightly-main",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "e287076bb42212db9f0fbb81d438b653731a0898",
+      "parents": [
+        "26152418a6bc5ba72f01ebfa8e33cd74b8c4027d"
+      ],
+      "title": "docs: shorten the nightly notice in the readme",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "README.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "70fa3a24e2080ab4183c236f91c70aee25d24ef7",
+      "patch_equivalent_to": "34cf2c44a8c07d9ec5141ed611f81bab1ad7b561"
+    },
+    {
+      "commit": "0938db35632ed4b6de92202f3303deac0c580fbc",
+      "parents": [
+        "26152418a6bc5ba72f01ebfa8e33cd74b8c4027d",
+        "e287076bb42212db9f0fbb81d438b653731a0898"
+      ],
+      "title": "Merge pull request #1120 from sonorahq/docs/nightly-readme-main",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "59736225274453de08165099e30aec20d5394236",
+      "parents": [
+        "0938db35632ed4b6de92202f3303deac0c580fbc"
+      ],
+      "title": "docs: drop the appimage notes from the readme",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "README.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b6ac8f71b1396d81263b42616a837cc481d6abcd",
+      "patch_equivalent_to": "c2c26b3d8c44eb3444cd0068845049f651ba2d1e"
+    },
+    {
+      "commit": "d0f4662b5d1678e2152ecccf2904d0e307243a95",
+      "parents": [
+        "0938db35632ed4b6de92202f3303deac0c580fbc",
+        "59736225274453de08165099e30aec20d5394236"
+      ],
+      "title": "Merge pull request #1121 from sonorahq/docs/readme-appimage",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "5fd24f5cd86fe4db3bd3d981a238ec1e0b951a46",
+      "parents": [
+        "d0f4662b5d1678e2152ecccf2904d0e307243a95"
+      ],
+      "title": "docs: update README",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CONTRIBUTING.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "94a820d5d5bec930023929e685b5dfb6dbddcfe0"
+    },
+    {
+      "commit": "722743eff46f5b4b7f78d4bdeb210da2ccea23f5",
+      "parents": [
+        "5fd24f5cd86fe4db3bd3d981a238ec1e0b951a46"
+      ],
+      "title": "ci: pin the aur host key for the nightly push",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/workflows/nightly.yml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "3e5c189fcf1cc75df016086b3f72793d354db417",
+      "patch_equivalent_to": "3ddb4de5f482b594ff3df99b36efd60b08d19a23"
+    },
+    {
+      "commit": "92a998ac5c044c2a48a27ca4fdde42fe89f8bcb0",
+      "parents": [
+        "5fd24f5cd86fe4db3bd3d981a238ec1e0b951a46",
+        "722743eff46f5b4b7f78d4bdeb210da2ccea23f5"
+      ],
+      "title": "Merge pull request #1123 from sonorahq/ci/nightly-aur-ssh",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "05aadfc4d8dc1b3cb7baa843fd6140a2f04ede99",
+      "parents": [
+        "92a998ac5c044c2a48a27ca4fdde42fe89f8bcb0"
+      ],
+      "title": "feat(sonora): show the nightly version and skip stable updates on nightlies",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        ".github/workflows/release.yml",
+        "crates/sonora/src/logging.rs",
+        "crates/state/src/lib.rs",
+        "crates/state/src/updates.rs",
+        "crates/state/src/usage.rs",
+        "crates/views/src/chrome/notice.rs",
+        "crates/views/src/screens/settings/about.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "28cf650a1c582298eb896d8829a4a37e4313fabf",
+      "patch_equivalent_to": "0f0f0ec1cd1c9b01b270cee22723efc06d006dfc"
+    },
+    {
+      "commit": "95f0f9d037bed577aafc991b0d778ec1bf50281a",
+      "parents": [
+        "92a998ac5c044c2a48a27ca4fdde42fe89f8bcb0",
+        "05aadfc4d8dc1b3cb7baa843fd6140a2f04ede99"
+      ],
+      "title": "Merge pull request #1126 from sonorahq/feat/nightly-version-main",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "d1aca105918f0473ce580b08fd6ee35a32c8bb64",
+      "parents": [
+        "95f0f9d037bed577aafc991b0d778ec1bf50281a"
+      ],
+      "title": "ci: keep the sonora-nightly cask on the nightly",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/workflows/nightly.yml",
+        "README.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "458a019ca6e57ffeb8bbd9dbb7f57c6bc96e86f9",
+      "patch_equivalent_to": "7379f0444c998593dc3f58eb4db02f1cf71d9042"
+    },
+    {
+      "commit": "db02f3993641beaccce85e602410522a5afbbb73",
+      "parents": [
+        "95f0f9d037bed577aafc991b0d778ec1bf50281a",
+        "d1aca105918f0473ce580b08fd6ee35a32c8bb64"
+      ],
+      "title": "Merge pull request #1130 from sonorahq/ci/nightly-cask",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "aa89788d69a277e32fb11de58dcfa30f05268abc",
+      "parents": [
+        "db02f3993641beaccce85e602410522a5afbbb73"
+      ],
+      "title": "feat(sonora): choose a release channel and update in place on macos",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "assets/i18n/en-US/main.ftl",
+        "crates/state/src/lib.rs",
+        "crates/state/src/settings.rs",
+        "crates/state/src/updates.rs",
+        "crates/state/src/updates/install.rs",
+        "crates/state/src/updates/mod.rs",
+        "crates/views/src/screens/settings/about.rs",
+        "crates/views/src/screens/settings/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b2bb86af46bc29c44d2dc18b02b56e5c9636adfd",
+      "patch_equivalent_to": "f8c7f399caf721af2218a6a20ae7dc7f28665819"
+    },
+    {
+      "commit": "2e2d4aad56c28cca4429b5bdb9c93f0ca3388022",
+      "parents": [
+        "aa89788d69a277e32fb11de58dcfa30f05268abc"
+      ],
+      "title": "fix: only count the bundle homebrew installed as homebrew's",
+      "decision": "deferred_feature",
+      "topic": "updater",
+      "note": "上游新更新通道/自更新的配套修复；采用功能时成组审查，fork 需独立发布源",
+      "paths": [
+        "crates/state/src/updates/install.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "22d71c51750b21721ff5b0836e3542a80f469d16",
+      "patch_equivalent_to": "deb1e4eddf82d28f3d7709ada4d4275c6162b6aa"
+    },
+    {
+      "commit": "dd50039fd57a943c962d66d3ddc801542ae80495",
+      "parents": [
+        "2e2d4aad56c28cca4429b5bdb9c93f0ca3388022"
+      ],
+      "title": "feat(sonora): add a clap command line with -v and --version",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "THIRD-PARTY.md",
+        "crates/sonora/Cargo.toml",
+        "crates/sonora/src/cli.rs",
+        "crates/sonora/src/main.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "d2966591d5470d70e41a5d2d17dd23084104cbd4",
+      "patch_equivalent_to": "9d8bcb896b48091f05e99c411db4fbeacaba02fe"
+    },
+    {
+      "commit": "a18f3ef9db57af9c5bafbf9b3b5eb686d84c4186",
+      "parents": [
+        "dd50039fd57a943c962d66d3ddc801542ae80495"
+      ],
+      "title": "fix: count the nightly cask as homebrew's too",
+      "decision": "deferred_feature",
+      "topic": "updater",
+      "note": "上游新更新通道/自更新的配套修复；采用功能时成组审查，fork 需独立发布源",
+      "paths": [
+        "crates/state/src/updates/install.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "25062cdc2dcfb865129d0667d1049194cabd3fec",
+      "patch_equivalent_to": "3cc6b0bc36a8b442e7caf0e082050c19d26a48f6"
+    },
+    {
+      "commit": "d3ec9af355d96e1965a85e00258e703ada976bfa",
+      "parents": [
+        "a18f3ef9db57af9c5bafbf9b3b5eb686d84c4186"
+      ],
+      "title": "docs: note the release channel and macos self-updates",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "README.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "3378003c5d7f750f83043839d717d7b466585878"
+    },
+    {
+      "commit": "ca1fb1e9ba9b963c3a867d14581d3157181d9753",
+      "parents": [
+        "d3ec9af355d96e1965a85e00258e703ada976bfa"
+      ],
+      "title": "fix: delete the downloaded update once it is in place",
+      "decision": "deferred_feature",
+      "topic": "updater",
+      "note": "上游新更新通道/自更新的配套修复；采用功能时成组审查，fork 需独立发布源",
+      "paths": [
+        "crates/state/src/updates/install.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f27ef875f0e4e618823399a4fb48b28672966951",
+      "patch_equivalent_to": "c7541f6d85435db32ed4ac68f7eda9b63b810a6b"
+    },
+    {
+      "commit": "42bf3f26fcefdae33ed508f9c8471a9da819201f",
+      "parents": [
+        "ca1fb1e9ba9b963c3a867d14581d3157181d9753"
+      ],
+      "title": "feat(views): keep notice titles on one line and spread their buttons",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/views/src/chrome/notice.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "fc04a86b7337ffc5097a989b52c963ef3e51361f",
+      "patch_equivalent_to": "1b0032fb764cf1bdd6a0f8f7387290b6df04fec5"
+    },
+    {
+      "commit": "6fbe1282607bbaeab66a11fd7e7706d078068121",
+      "parents": [
+        "42bf3f26fcefdae33ed508f9c8471a9da819201f"
+      ],
+      "title": "feat(views): round notices like toasts with concentric buttons",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/ui/src/lib.rs",
+        "crates/ui/src/modal.rs",
+        "crates/views/src/chrome/notice.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f42b5122a3f89799364f947eb1388ae4be75f896",
+      "patch_equivalent_to": "c38060c1adf8f900f3218d8d12a4fd585845287e"
+    },
+    {
+      "commit": "0e9624ee48e274508c615d7f40a83a8afeac2566",
+      "parents": [
+        "db02f3993641beaccce85e602410522a5afbbb73",
+        "6fbe1282607bbaeab66a11fd7e7706d078068121"
+      ],
+      "title": "Merge pull request #1133 from sonorahq/feat/update-channel-main",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "eb8905ecf3bddcff1daf27b3ad743551e43a763b",
+      "parents": [
+        "c36e2406334acb817b23964b51d883c5e1436232",
+        "0e9624ee48e274508c615d7f40a83a8afeac2566"
+      ],
+      "title": "Merge remote-tracking branch 'origin/main' into dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "THIRD-PARTY.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "a67dc9397c140d40fa6f95fb17c8c44716afda90",
+      "parents": [
+        "0e9624ee48e274508c615d7f40a83a8afeac2566",
+        "eb8905ecf3bddcff1daf27b3ad743551e43a763b"
+      ],
+      "title": "Merge pull request #1142 from sonorahq/dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "0ad1bc41c7af8b27d20f420719d84b80ecfb799b",
+      "parents": [
+        "a67dc9397c140d40fa6f95fb17c8c44716afda90"
+      ],
+      "title": "chore(nix): point the flake at 0.45.0",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "flake.nix"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "5db33bb5a07106b1e48d93e9e64b19dad2b8314e"
+    },
+    {
+      "commit": "f9c9875bc16155923904be94c7dcdfe26a257966",
+      "parents": [
+        "0ad1bc41c7af8b27d20f420719d84b80ecfb799b"
+      ],
+      "title": "ci: refresh the nightly and sonora-bin on every release",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/workflows/nightly.yml",
+        ".github/workflows/release.yml",
+        "aur/sonora-bin/PKGBUILD"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "badacf1ae36c76a13254627a363e2a1a0176122e"
+    },
+    {
+      "commit": "ab983613effb6597781e5edf0192aacc82a04300",
+      "parents": [
+        "0ad1bc41c7af8b27d20f420719d84b80ecfb799b",
+        "f9c9875bc16155923904be94c7dcdfe26a257966"
+      ],
+      "title": "Merge pull request #1144 from sonorahq/ci/release-aur",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "82b7672e5cfb355123a9e1a749b25dcd6b2443e1",
+      "parents": [
+        "0ad1bc41c7af8b27d20f420719d84b80ecfb799b",
+        "ab983613effb6597781e5edf0192aacc82a04300"
+      ],
+      "title": "Merge pull request #1149 from sonorahq/dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "c7e006ebb5683f5741416b2e228c5ad6d9be31ac",
+      "parents": [
+        "82b7672e5cfb355123a9e1a749b25dcd6b2443e1"
+      ],
+      "title": "ci: grant the nightly build the permissions release.yml asks for",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/workflows/nightly.yml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "69ecd2c8441920376546e3a951202605ae8ba103"
+    },
+    {
+      "commit": "f1a68c4aca4e5d8766bd8f07fc5c9bb80be9bc6a",
+      "parents": [
+        "82b7672e5cfb355123a9e1a749b25dcd6b2443e1",
+        "c7e006ebb5683f5741416b2e228c5ad6d9be31ac"
+      ],
+      "title": "Merge pull request #1150 from sonorahq/ci/nightly-actions-permission",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "505124bcc27e3d16e817dd48f7205311056829f8",
+      "parents": [
+        "82b7672e5cfb355123a9e1a749b25dcd6b2443e1",
+        "f1a68c4aca4e5d8766bd8f07fc5c9bb80be9bc6a"
+      ],
+      "title": "Merge pull request #1151 from sonorahq/dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "a68d4baaabb5d2a940061cb06369933f8deb1dbe",
+      "parents": [
+        "d9dbea2ed6327edc14d23b68d92516d361494c89"
+      ],
+      "title": "fix(views): drop the macos toolbar while the window is fullscreen",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/root.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "30868c09dbd0124e14d59dc251818f04590ef7be"
+    },
+    {
+      "commit": "cf0827f202f8e51faaa853da3627f662ccb40256",
+      "parents": [
+        "505124bcc27e3d16e817dd48f7205311056829f8",
+        "a68d4baaabb5d2a940061cb06369933f8deb1dbe"
+      ],
+      "title": "Merge pull request #1140 from atleugim/fix/fullscreen-toolbar-macos",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "799916468f53c5130f3c29dbb231af8381aa116e",
+      "parents": [
+        "0ad1bc41c7af8b27d20f420719d84b80ecfb799b"
+      ],
+      "title": "feat(views): drop a song onto a sidebar playlist",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/ui/src/drag.rs",
+        "crates/ui/src/lib.rs",
+        "crates/views/src/chrome/sidebar_left.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "dcb98970f6962641d842748e9579080aef24f3e4"
+    },
+    {
+      "commit": "0cdd284e7c1d03d4760c39a83f8f1c796345e15f",
+      "parents": [
+        "799916468f53c5130f3c29dbb231af8381aa116e"
+      ],
+      "title": "fix(views): release a stale playlist aim on drag",
+      "decision": "deferred_feature",
+      "topic": "playlist-drag",
+      "note": "修复上游新增拖放歌单功能；未采用功能时不单独移植",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/state/src/library.rs",
+        "crates/views/src/chrome/sidebar_left.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "db3f5fa74401639c5d49c3373eca5709770b6cbc"
+    },
+    {
+      "commit": "6ebddaab4511c743b08aa44fca327fdc3860f45f",
+      "parents": [
+        "0cdd284e7c1d03d4760c39a83f8f1c796345e15f"
+      ],
+      "title": "fix(views): keep the aimed playlist readable",
+      "decision": "deferred_feature",
+      "topic": "playlist-drag",
+      "note": "修复上游新增拖放歌单功能；未采用功能时不单独移植",
+      "paths": [
+        "crates/views/src/chrome/sidebar_left.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "0ced4140796c7245c2edeed16644dffaf2918be8"
+    },
+    {
+      "commit": "cd849b0ff8cc49103b09ca84b14acc81978a0d55",
+      "parents": [
+        "6ebddaab4511c743b08aa44fca327fdc3860f45f"
+      ],
+      "title": "fix(views): mark the aimed playlist as chosen",
+      "decision": "deferred_feature",
+      "topic": "playlist-drag",
+      "note": "修复上游新增拖放歌单功能；未采用功能时不单独移植",
+      "paths": [
+        "crates/views/src/chrome/sidebar_left.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "09884e8b5770099122ea95750cf68531e3844e0b"
+    },
+    {
+      "commit": "b6edc5725fa051ff99a44a69d4410acad03a99e6",
+      "parents": [
+        "cf0827f202f8e51faaa853da3627f662ccb40256",
+        "cd849b0ff8cc49103b09ca84b14acc81978a0d55"
+      ],
+      "title": "Merge pull request #1145 from Brezinben/feat/drop-song-on-playlist",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "b4927f93b25a7272b4b80d63bd9f83237bb983ca",
+      "parents": [
+        "b6edc5725fa051ff99a44a69d4410acad03a99e6"
+      ],
+      "title": "fix(ui): keep the toast dismiss button named while inert",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "crates/ui/src/toast.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "ecc5425e5bead565a5862f13ff254c3db8f4d3b5"
+    },
+    {
+      "commit": "2de30bc15fd679b3cfbe4a0c009fa90c76ce5e50",
+      "parents": [
+        "b4927f93b25a7272b4b80d63bd9f83237bb983ca"
+      ],
+      "title": "fix(views): name settings controls and about text for screen readers",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/en-US/main.ftl",
+        "crates/ui/src/button.rs",
+        "crates/ui/src/picker.rs",
+        "crates/ui/src/switch.rs",
+        "crates/ui/src/tabs.rs",
+        "crates/ui/tests/a11y_tree.rs",
+        "crates/views/src/screens/equalizer/mod.rs",
+        "crates/views/src/screens/equalizer/rows.rs",
+        "crates/views/src/screens/settings/about.rs",
+        "crates/views/src/screens/settings/appearance.rs",
+        "crates/views/src/screens/settings/connect.rs",
+        "crates/views/src/screens/settings/discord.rs",
+        "crates/views/src/screens/settings/general.rs",
+        "crates/views/src/screens/settings/lyrics.rs",
+        "crates/views/src/screens/settings/now_playing.rs",
+        "crates/views/src/screens/settings/playback.rs",
+        "crates/views/src/screens/settings/player_bar.rs",
+        "crates/views/src/screens/settings/rows.rs",
+        "crates/views/src/screens/settings/scrobbling.rs",
+        "crates/views/src/screens/settings/sound.rs",
+        "crates/views/src/screens/settings/storage.rs",
+        "crates/views/src/shared/equalizer.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "7c83746a01cbd5c6ba65e2e9785c30d365357c46"
+    },
+    {
+      "commit": "2955eea660271b597620f8bbd3a88a3592e92153",
+      "parents": [
+        "b4927f93b25a7272b4b80d63bd9f83237bb983ca",
+        "2de30bc15fd679b3cfbe4a0c009fa90c76ce5e50"
+      ],
+      "title": "Merge pull request #1152 from sonorahq/fix/settings-a11y",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "6516d9886629eb24bee26ff7e7b0a1428621267f",
+      "parents": [
+        "0ad1bc41c7af8b27d20f420719d84b80ecfb799b"
+      ],
+      "title": "fix(views): drop the account name above quick picks",
+      "decision": "deferred_appearance",
+      "topic": "appearance",
+      "note": "上游布局/视觉策略；当前 GUI 已定制，需在定制界面复现再决定，不直接覆盖",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/screens/home/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f04fda1d23f12249c26684996fd4937469cef941"
+    },
+    {
+      "commit": "493936dc09f876642ac0a0286e62a445ac0e85a8",
+      "parents": [
+        "2955eea660271b597620f8bbd3a88a3592e92153",
+        "6516d9886629eb24bee26ff7e7b0a1428621267f"
+      ],
+      "title": "Merge pull request #1129 from suraniharsh/fix/quick-picks-account-name",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "af43c7fd054c8e5b9871b9edf19a419776275373",
+      "parents": [
+        "493936dc09f876642ac0a0286e62a445ac0e85a8"
+      ],
+      "title": "docs: resolve changelog conflict markers",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "02bdeb650c8f599ce2671fa2f4d1afeac8c53e20"
+    },
+    {
+      "commit": "bd5412d2aef4f92400d5aa9318f0a84885425ab5",
+      "parents": [
+        "af43c7fd054c8e5b9871b9edf19a419776275373"
+      ],
+      "title": "fix(ui): thin the player bar fill on a see-through window",
+      "decision": "deferred_appearance",
+      "topic": "appearance",
+      "note": "上游布局/视觉策略；当前 GUI 已定制，需在定制界面复现再决定，不直接覆盖",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/ui/src/glass.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "ef1378e6e9dccc03dd0aa129a2af5f99eb0e6ed7"
+    },
+    {
+      "commit": "bf343be66f84c0b960f361c32fd3d306dd917f96",
+      "parents": [
+        "af43c7fd054c8e5b9871b9edf19a419776275373",
+        "bd5412d2aef4f92400d5aa9318f0a84885425ab5"
+      ],
+      "title": "Merge pull request #1154 from sonorahq/fix/clear-player-bar",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f8180b26ee148033e004688db0089575f7336d63",
+      "parents": [
+        "bf343be66f84c0b960f361c32fd3d306dd917f96"
+      ],
+      "title": "fix(state): bound the media controls artwork cache",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/state/src/mosaic.rs",
+        "crates/state/src/remote/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "e5e006dfa7e35b078d8c02b951ee0d643bf01b74"
+    },
+    {
+      "commit": "882fbf3a4b7110480ba5fc5f4bba408ffec88dc7",
+      "parents": [
+        "bf343be66f84c0b960f361c32fd3d306dd917f96",
+        "f8180b26ee148033e004688db0089575f7336d63"
+      ],
+      "title": "Merge pull request #1157 from sonorahq/fix/artwork-cache-limit",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "44e99417eab4c434d2e263b0a8143d0c83e3aabf",
+      "parents": [
+        "882fbf3a4b7110480ba5fc5f4bba408ffec88dc7"
+      ],
+      "title": "fix(lyrics): let provider priority decide between synced lyrics",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "crates/music/src/lyrics/mod.rs",
+        "crates/state/src/lyrics.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "22b01e1a64ed34ac9160ae85a4d67f8637732cbb"
+    },
+    {
+      "commit": "d07482dd698f5439615aabfeb03ce2babf6ae71e",
+      "parents": [
+        "882fbf3a4b7110480ba5fc5f4bba408ffec88dc7",
+        "44e99417eab4c434d2e263b0a8143d0c83e3aabf"
+      ],
+      "title": "Merge pull request #1162 from sonorahq/fix/lyrics-source-priority",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "2b919997e584ceeb262f866a53cc13a8a206f40e",
+      "parents": [
+        "d07482dd698f5439615aabfeb03ce2babf6ae71e"
+      ],
+      "title": "fix(ui): name static labels by their value for screen readers",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "crates/ui/src/label.rs",
+        "crates/ui/src/lib.rs",
+        "crates/ui/tests/a11y_tree.rs",
+        "crates/views/src/screens/settings/about.rs",
+        "crates/views/src/screens/settings/rows.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "788bed820e8bb8f7cba07d7e89a54b93d385c842"
+    },
+    {
+      "commit": "46f8de765bddd20e38a99d934f439d7952fe8544",
+      "parents": [
+        "2b919997e584ceeb262f866a53cc13a8a206f40e"
+      ],
+      "title": "fix(ui): name, place and state every primitive for screen readers",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "crates/ui/src/button.rs",
+        "crates/ui/src/card.rs",
+        "crates/ui/src/checkbox.rs",
+        "crates/ui/src/controls.rs",
+        "crates/ui/src/filters.rs",
+        "crates/ui/src/info_card.rs",
+        "crates/ui/src/inline_links.rs",
+        "crates/ui/src/input/element.rs",
+        "crates/ui/src/input/mod.rs",
+        "crates/ui/src/kbd.rs",
+        "crates/ui/src/label.rs",
+        "crates/ui/src/lib.rs",
+        "crates/ui/src/menu.rs",
+        "crates/ui/src/notice.rs",
+        "crates/ui/src/option_card.rs",
+        "crates/ui/src/picker.rs",
+        "crates/ui/src/popover.rs",
+        "crates/ui/src/radio.rs",
+        "crates/ui/src/rail.rs",
+        "crates/ui/src/scrubber.rs",
+        "crates/ui/src/table/mod.rs",
+        "crates/ui/src/tabs.rs",
+        "crates/ui/src/toast.rs",
+        "crates/ui/src/traffic_light_controls.rs",
+        "crates/ui/src/vacancy.rs",
+        "crates/ui/tests/a11y_tree.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "a51744225fee4dde527eff99ec17ba079dcbcc94"
+    },
+    {
+      "commit": "75f3cc1eed1f8aa100410e921eeac3b8b4f5427d",
+      "parents": [
+        "46f8de765bddd20e38a99d934f439d7952fe8544"
+      ],
+      "title": "fix(views): expose text, names and state across the app to screen readers",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/en-US/main.ftl",
+        "crates/views/src/chrome/aside.rs",
+        "crates/views/src/chrome/devices.rs",
+        "crates/views/src/chrome/jam.rs",
+        "crates/views/src/chrome/notice.rs",
+        "crates/views/src/chrome/output_picker.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/chrome/sidebar_left.rs",
+        "crates/views/src/chrome/title_bar.rs",
+        "crates/views/src/chrome/toolbar.rs",
+        "crates/views/src/chrome/tools.rs",
+        "crates/views/src/screens/artist.rs",
+        "crates/views/src/screens/detail.rs",
+        "crates/views/src/screens/equalizer/graph.rs",
+        "crates/views/src/screens/equalizer/meter.rs",
+        "crates/views/src/screens/equalizer/mod.rs",
+        "crates/views/src/screens/equalizer/rows.rs",
+        "crates/views/src/screens/equalizer/rules.rs",
+        "crates/views/src/screens/genre.rs",
+        "crates/views/src/screens/library/mod.rs",
+        "crates/views/src/screens/login.rs",
+        "crates/views/src/screens/search.rs",
+        "crates/views/src/screens/settings/about.rs",
+        "crates/views/src/screens/settings/accounts.rs",
+        "crates/views/src/screens/settings/appearance.rs",
+        "crates/views/src/screens/settings/discord.rs",
+        "crates/views/src/screens/settings/general.rs",
+        "crates/views/src/screens/settings/header.rs",
+        "crates/views/src/screens/settings/layout.rs",
+        "crates/views/src/screens/settings/lyrics.rs",
+        "crates/views/src/screens/settings/mod.rs",
+        "crates/views/src/screens/settings/now_playing.rs",
+        "crates/views/src/screens/settings/playback.rs",
+        "crates/views/src/screens/settings/player_bar.rs",
+        "crates/views/src/screens/settings/preview/sound.rs",
+        "crates/views/src/screens/settings/rows.rs",
+        "crates/views/src/screens/settings/scrobbling.rs",
+        "crates/views/src/screens/settings/sound.rs",
+        "crates/views/src/screens/settings/storage.rs",
+        "crates/views/src/screens/settings/themes.rs",
+        "crates/views/src/screens/song.rs",
+        "crates/views/src/screens/user.rs",
+        "crates/views/src/shared/about.rs",
+        "crates/views/src/shared/cards.rs",
+        "crates/views/src/shared/cells.rs",
+        "crates/views/src/shared/device_code.rs",
+        "crates/views/src/shared/hero.rs",
+        "crates/views/src/shared/picks.rs",
+        "crates/views/src/shared/popups/accounts.rs",
+        "crates/views/src/shared/popups/cookie.rs",
+        "crates/views/src/shared/shelves.rs",
+        "crates/views/src/shared/steps.rs",
+        "crates/views/src/shared/tag_editor.rs",
+        "crates/views/src/shared/track_card.rs",
+        "crates/views/src/shared/tracks/mod.rs",
+        "crates/views/src/shared/transport.rs",
+        "crates/views/src/shared/widevine.rs",
+        "crates/views/src/shells/fullscreen.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "5abaccc8b326a719578bdfe4fb88b7d441546897"
+    },
+    {
+      "commit": "d73cd2019b82ca2a6bfb6dad3a72a444e1f0d12a",
+      "parents": [
+        "75f3cc1eed1f8aa100410e921eeac3b8b4f5427d"
+      ],
+      "title": "fix(views): name sliders and read empty states and song facts aloud",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "crates/views/src/chrome/aside.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/chrome/sidebar_left.rs",
+        "crates/views/src/chrome/tools.rs",
+        "crates/views/src/screens/equalizer/mod.rs",
+        "crates/views/src/screens/library/mod.rs",
+        "crates/views/src/screens/settings/appearance.rs",
+        "crates/views/src/screens/settings/playback.rs",
+        "crates/views/src/screens/song.rs",
+        "crates/views/src/shared/local.rs",
+        "crates/views/src/shared/trouble.rs",
+        "crates/views/src/shells/fullscreen.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "a2c0ab2baa162d821da0f4eea128a2c5871235b1"
+    },
+    {
+      "commit": "4377ae72372b96e229adb4c702e00aba4727b39a",
+      "parents": [
+        "d73cd2019b82ca2a6bfb6dad3a72a444e1f0d12a"
+      ],
+      "title": "fix(ui): keep a provider row's radio mark out of the accessibility tree",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "crates/ui/src/radio.rs",
+        "crates/ui/tests/a11y_tree.rs",
+        "crates/views/src/screens/settings/accounts.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "093a3abbb00f75b4c7f0ef445c07be56c142eb72"
+    },
+    {
+      "commit": "8c87e856a320927bf131c5814227b6774cf39ee9",
+      "parents": [
+        "d07482dd698f5439615aabfeb03ce2babf6ae71e",
+        "4377ae72372b96e229adb4c702e00aba4727b39a"
+      ],
+      "title": "Merge pull request #1167 from sonorahq/fix/a11y-checkup",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f0fadf74822a5f01b4c1937543f6e58b5db26416",
+      "parents": [
+        "e2d099c3c714f8f011ea3ac98e260c91932bbb83"
+      ],
+      "title": "feat(cli): add the command types for the command line",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "Cargo.lock",
+        "crates/cli/Cargo.toml",
+        "crates/cli/src/commands.rs",
+        "crates/cli/src/lib.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b3dbb80fcfea82c92a6d50dd0dad15a1e2496f77"
+    },
+    {
+      "commit": "4a19273b9d4c81aa2b723531733731f52f4e9bfb",
+      "parents": [
+        "f0fadf74822a5f01b4c1937543f6e58b5db26416"
+      ],
+      "title": "feat(cli): add a versioned json wire for commands",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "Cargo.lock",
+        "crates/cli/Cargo.toml",
+        "crates/cli/src/commands.rs",
+        "crates/cli/src/lib.rs",
+        "crates/cli/src/wire.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b66bffbde36d11922779bcf5cf32e12b296483b2"
+    },
+    {
+      "commit": "b72e24d0e43f263277fe15ce78047156cb321efa",
+      "parents": [
+        "4a19273b9d4c81aa2b723531733731f52f4e9bfb"
+      ],
+      "title": "feat(cli): parse the command line and send commands to the running sonora",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/cli/Cargo.toml",
+        "crates/cli/src/args.rs",
+        "crates/cli/src/commands.rs",
+        "crates/cli/src/lib.rs",
+        "crates/cli/src/run.rs",
+        "crates/sonora/Cargo.toml",
+        "crates/sonora/src/main.rs",
+        "crates/sonora/src/single.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "4f43736401aa1b597230b2b574d47fad71270015"
+    },
+    {
+      "commit": "2b3252350b868959c5bdf1ff9a931ff81a99881c",
+      "parents": [
+        "b72e24d0e43f263277fe15ce78047156cb321efa"
+      ],
+      "title": "feat(cli): carry out playback commands and print shell completions",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/cli/Cargo.toml",
+        "crates/cli/src/args.rs",
+        "crates/cli/src/commands.rs",
+        "crates/cli/src/lib.rs",
+        "crates/cli/src/run.rs",
+        "crates/sonora/src/main.rs",
+        "crates/sonora/src/single.rs",
+        "crates/state/Cargo.toml",
+        "crates/state/src/control.rs",
+        "crates/state/src/lib.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "a4d13f5dc7b24a49e277cae96d47c6d69a99d7e5"
+    },
+    {
+      "commit": "77809a987a8404e4cd207dd2bef75ba3fd7f770e",
+      "parents": [
+        "2b3252350b868959c5bdf1ff9a931ff81a99881c"
+      ],
+      "title": "feat(cli): queue files and links with add and play-next",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/cli/src/args.rs",
+        "crates/cli/src/commands.rs",
+        "crates/cli/src/item.rs",
+        "crates/cli/src/lib.rs",
+        "crates/cli/src/run.rs",
+        "crates/cli/src/wire.rs",
+        "crates/sonora/src/main.rs",
+        "crates/state/src/control.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "5ef76a03b7409044cdfdb4947a9be29cc7a8cf14"
+    },
+    {
+      "commit": "82626cdc0e2fb6e988bd79f0140fd09f7987c512",
+      "parents": [
+        "77809a987a8404e4cd207dd2bef75ba3fd7f770e"
+      ],
+      "title": "feat(cli): fetch queued items before answering, in order and at once",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/cli/src/run.rs",
+        "crates/cli/src/wire.rs",
+        "crates/sonora/src/main.rs",
+        "crates/state/src/control.rs",
+        "crates/state/src/lib.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "3a1a56b930d9d454809966f60fe914ebcbd4ce6f"
+    },
+    {
+      "commit": "d6ed3139805d91353e661bce3280a43cbb11d55f",
+      "parents": [
+        "82626cdc0e2fb6e988bd79f0140fd09f7987c512",
+        "d07482dd698f5439615aabfeb03ce2babf6ae71e"
+      ],
+      "title": "merge: dev into feat/cli",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/cli/src/args.rs",
+        "crates/cli/src/lib.rs",
+        "crates/sonora/Cargo.toml",
+        "crates/sonora/src/cli.rs",
+        "crates/sonora/src/console.rs",
+        "crates/sonora/src/main.rs",
+        "crates/state/src/control.rs",
+        "crates/state/src/lib.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "0460dc926b71f4aae08d123055e174202cc27c7a",
+      "parents": [
+        "d6ed3139805d91353e661bce3280a43cbb11d55f"
+      ],
+      "title": "feat(cli): add a toggle command",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/cli/src/args.rs",
+        "crates/cli/src/commands.rs",
+        "crates/state/src/control.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "2bf61fb82d9d636a23bde974c3e31c12406a127a"
+    },
+    {
+      "commit": "c87c0c4d30445d9462d90c707ed1ea3a3f8e8953",
+      "parents": [
+        "0460dc926b71f4aae08d123055e174202cc27c7a"
+      ],
+      "title": "feat(cli): add search, provider switching and json output",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/cli/src/args.rs",
+        "crates/cli/src/commands.rs",
+        "crates/cli/src/run.rs",
+        "crates/cli/src/wire.rs",
+        "crates/sonora/src/main.rs",
+        "crates/sonora/src/single.rs",
+        "crates/state/src/control.rs",
+        "crates/state/src/lib.rs",
+        "crates/state/src/search.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "0b669b200dcdf421133f1cf2dd2f4160514954b4"
+    },
+    {
+      "commit": "cc0a08e5c33b7fdc659a184d732c5cb46df6e45e",
+      "parents": [
+        "c87c0c4d30445d9462d90c707ed1ea3a3f8e8953"
+      ],
+      "title": "feat(cli): play or queue the best hit of a search",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/cli/README.md",
+        "crates/cli/src/args.rs",
+        "crates/cli/src/commands.rs",
+        "crates/cli/src/run.rs",
+        "crates/cli/src/wire.rs",
+        "crates/state/src/control.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "c48bd558e7d1721640d962bd73eb993a89035681"
+    },
+    {
+      "commit": "d018274781a84be55346d0b2155c420b8a7f6a08",
+      "parents": [
+        "cc0a08e5c33b7fdc659a184d732c5cb46df6e45e"
+      ],
+      "title": "docs(cli): say when a query needs quotes and list the backlog",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "crates/cli/README.md",
+        "crates/cli/src/args.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "3ae3c9f4b3378b45b802186e4dad572c4814d588"
+    },
+    {
+      "commit": "0e849d113216d29e4f418744f845a693c76dfc9e",
+      "parents": [
+        "d018274781a84be55346d0b2155c420b8a7f6a08"
+      ],
+      "title": "chore(cli): list clap_complete in the notices and note the command line in the changelog",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md",
+        "THIRD-PARTY.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "dac2502932166b2d74bb2a32dde8a0b593640ebd"
+    },
+    {
+      "commit": "4a94fb3da33ea389cfb4a82fb14795a10798678f",
+      "parents": [
+        "8c87e856a320927bf131c5814227b6774cf39ee9",
+        "0e849d113216d29e4f418744f845a693c76dfc9e"
+      ],
+      "title": "Merge pull request #1163 from sonorahq/feat/cli",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "2a8add0b46996f2016cc7450819ed7dca2d079b1",
+      "parents": [
+        "8c87e856a320927bf131c5814227b6774cf39ee9"
+      ],
+      "title": "ci: ask bug reporters which provider they use",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/ISSUE_TEMPLATE/bug_report.yml",
+        ".github/triage/config.yml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "360b16234cd14a6ee4ea0f37281d9fb9e00e205b"
+    },
+    {
+      "commit": "5075035cd6d7a5f15c17445361d10321ca278c8d",
+      "parents": [
+        "4a94fb3da33ea389cfb4a82fb14795a10798678f",
+        "2a8add0b46996f2016cc7450819ed7dca2d079b1"
+      ],
+      "title": "Merge pull request #1169 from sonorahq/fix/bug-template-provider",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "1e3e58ad73d70b38a0acea80e1039ca905ede2ae",
+      "parents": [
+        "505124bcc27e3d16e817dd48f7205311056829f8"
+      ],
+      "title": "docs: update README",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "README.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "537cfd22953cef50697cca6d5db0197094b23e07"
+    },
+    {
+      "commit": "b525b2a702ed81035a2439c29da1ca8158a8ee21",
+      "parents": [
+        "1e3e58ad73d70b38a0acea80e1039ca905ede2ae",
+        "882fbf3a4b7110480ba5fc5f4bba408ffec88dc7"
+      ],
+      "title": "Merge pull request #1160 from sonorahq/dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "6b8627d8d0c72b9d742921410026980d936b499f",
+      "parents": [
+        "b525b2a702ed81035a2439c29da1ca8158a8ee21"
+      ],
+      "title": "stop sending the playback position to the macos widget every second",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "crates/state/src/remote/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "14b2a79f553f1d01afe60266fb03cd23bb06b60f"
+    },
+    {
+      "commit": "a23740bd5683cea7f4f9fc974b16b70e8468db85",
+      "parents": [
+        "6b8627d8d0c72b9d742921410026980d936b499f"
+      ],
+      "title": "skip the equalizer work when it is turned off",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "crates/music/src/equalizer/stage.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "e7b2ab62f1e972ec95c97df2411bc34191926e83"
+    },
+    {
+      "commit": "66d51cde98922b73c60bdc9d881bd625298ac7e4",
+      "parents": [
+        "a23740bd5683cea7f4f9fc974b16b70e8468db85"
+      ],
+      "title": "only run the spectrum analysis while the visualizer is on screen",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "crates/music/src/lib.rs",
+        "crates/music/src/spectrum/mod.rs",
+        "crates/views/src/shared/visualizer.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "0327ed4e12d2eac4a92e0b313c3646609c64e71f"
+    },
+    {
+      "commit": "cc3a1b405d8a55b1c1cf833656a8661f12460e8a",
+      "parents": [
+        "66d51cde98922b73c60bdc9d881bd625298ac7e4"
+      ],
+      "title": "stop the visualizer loop once fullscreen is left",
+      "decision": "covered",
+      "topic": "equivalent-behavior",
+      "note": "当前实现已有等效行为，非 patch-id 相同；见 report.md",
+      "paths": [
+        "crates/views/src/shared/visualizer.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "97c54533075fd8f24183c4af6ce3fdfad74feda4"
+    },
+    {
+      "commit": "b52f79c7f946251c82c89fa9540625f188a810f5",
+      "parents": [
+        "cc3a1b405d8a55b1c1cf833656a8661f12460e8a"
+      ],
+      "title": "pause the audio stream when nothing is playing",
+      "decision": "conditional",
+      "topic": "idle-audio",
+      "note": "成组移植；7c45db92 修复 b52f79c7 引入的暂停缓冲问题，非当前独立缺陷",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/music/src/output/mod.rs",
+        "crates/music/src/sink.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "cce61b7dcf195d1fbecc887f9df3e9930456d078"
+    },
+    {
+      "commit": "34bb0ff9ecaaa589ec6e3a8815c46e286cdb06b4",
+      "parents": [
+        "5075035cd6d7a5f15c17445361d10321ca278c8d",
+        "b52f79c7f946251c82c89fa9540625f188a810f5"
+      ],
+      "title": "Merge pull request #1165 from marcfusch/fix/cpu-usage",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "e041dd6af3bd7d8f26c19992919b3ca5ace7ebf5",
+      "parents": [
+        "34bb0ff9ecaaa589ec6e3a8815c46e286cdb06b4"
+      ],
+      "title": "fix(music): leave a jam with the call spotify accepts and keep its queue on play",
+      "decision": "conditional",
+      "topic": "spotify-queue",
+      "note": "Connect/Jam 与队列模型演进成组评估，保留 Arc 曲目共享和网易云队列契约",
+      "paths": [
+        "crates/music/src/spotify/connect.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "4d6879602f993c922a297093d8187ed174640104"
+    },
+    {
+      "commit": "64274d47088986f3d8effa7b548cdaaab736e58c",
+      "parents": [
+        "e041dd6af3bd7d8f26c19992919b3ca5ace7ebf5"
+      ],
+      "title": "fix(state): name the member who queued a song in a jam",
+      "decision": "conditional",
+      "topic": "spotify-queue",
+      "note": "Connect/Jam 与队列模型演进成组评估，保留 Arc 曲目共享和网易云队列契约",
+      "paths": [
+        "crates/state/src/devices.rs",
+        "crates/state/src/playback.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f045081f35ef1ad2233e8bba0417ec002c2a20e5"
+    },
+    {
+      "commit": "b18e0f5a7430da355169d5f96d99ac9443bbca01",
+      "parents": [
+        "64274d47088986f3d8effa7b548cdaaab736e58c"
+      ],
+      "title": "fix(ui): always set the toast dismiss tooltip",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "crates/ui/src/toast.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "72003ff1a30b803c7b560ea6e304fc850e2d46b1"
+    },
+    {
+      "commit": "0a7cea70d5c8cc84a2e903e2e4565b3977c8a02b",
+      "parents": [
+        "b18e0f5a7430da355169d5f96d99ac9443bbca01"
+      ],
+      "title": "fix(sonora): follow the shown track in the tray and taskbar buttons",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "crates/sonora/src/thumbbar.rs",
+        "crates/sonora/src/tray.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "bea16d4e37695ea64ec2a237a331b88fe18f08f2"
+    },
+    {
+      "commit": "5ecabe590648db2af283f72c644fd6deb463c5bb",
+      "parents": [
+        "0a7cea70d5c8cc84a2e903e2e4565b3977c8a02b"
+      ],
+      "title": "docs: add the jam fixes to the changelog",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "7a1f44fdf7e4924a35106fc65f10804b30104251"
+    },
+    {
+      "commit": "34a93f3dfbe92b93c62d3f70d36126b002a8ac6f",
+      "parents": [
+        "5ecabe590648db2af283f72c644fd6deb463c5bb"
+      ],
+      "title": "revert(ui): keep the toast progress in its spoken description",
+      "decision": "conditional",
+      "topic": "accessibility",
+      "note": "语义与读屏能力需适配定制控件；不整批覆盖 GUI，带入最终语义而非逐次中间方案",
+      "paths": [
+        "crates/ui/src/toast.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "705c673107659f7ac3cb6030d07614b0729b221c"
+    },
+    {
+      "commit": "081dd6bb30a14298501f1c97c953b5d23b1422e3",
+      "parents": [
+        "34a93f3dfbe92b93c62d3f70d36126b002a8ac6f"
+      ],
+      "title": "fix(state): leave songs the device network queues to the member who queued them",
+      "decision": "conditional",
+      "topic": "spotify-queue",
+      "note": "Connect/Jam 与队列模型演进成组评估，保留 Arc 曲目共享和网易云队列契约",
+      "paths": [
+        "crates/state/src/playback.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "c6e689665c8e125d7fa30cf71af30377052c1485"
+    },
+    {
+      "commit": "e0ee79d0109dcd32f9de98440b5c15f2934924ca",
+      "parents": [
+        "bf343be66f84c0b960f361c32fd3d306dd917f96"
+      ],
+      "title": "feat(views): move a song dropped with Shift held",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "crates/state/src/lib.rs",
+        "crates/state/src/library.rs",
+        "crates/ui/src/drag.rs",
+        "crates/ui/src/pin.rs",
+        "crates/views/src/chrome/sidebar_left.rs",
+        "crates/views/src/shared/menus/context.rs",
+        "crates/views/src/shared/pins.rs",
+        "crates/views/src/shared/playlist_editor.rs",
+        "crates/views/src/shared/tracks/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "0a231115e48cb0fc64f288ed7661a986f3e75203"
+    },
+    {
+      "commit": "b9e96045d92a5b5f55956e17d651bcb8e29228dd",
+      "parents": [
+        "34bb0ff9ecaaa589ec6e3a8815c46e286cdb06b4"
+      ],
+      "title": "fix(music): pick the largest spotify cover for album pages and artist avatars",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "crates/music/src/spotify/pathfinder/album.rs",
+        "crates/music/src/spotify/pathfinder/artist.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "27b7db456f086feb8a99e0bc6a554be05840158a"
+    },
+    {
+      "commit": "b5fb8cb3e0369822ea8028dd359ba517e0d7ddc8",
+      "parents": [
+        "b9e96045d92a5b5f55956e17d651bcb8e29228dd"
+      ],
+      "title": "feat(views): show the original spotify cover in fullscreen",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/lib.rs",
+        "crates/music/src/models.rs",
+        "crates/music/src/spotify/client.rs",
+        "crates/music/src/spotify/wire.rs",
+        "crates/state/src/cover.rs",
+        "crates/views/src/shells/fullscreen.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "01ec3e6eae31882453a126c7b995aa307aa5781b"
+    },
+    {
+      "commit": "4025a2e202eaf3fea27855efa74b28cdc63abc88",
+      "parents": [
+        "34bb0ff9ecaaa589ec6e3a8815c46e286cdb06b4",
+        "b5fb8cb3e0369822ea8028dd359ba517e0d7ddc8"
+      ],
+      "title": "Merge pull request #1172 from sonorahq/feat/fullscreen-original-cover",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "b20ba2054307d92dd2df085f99eef2e92298960b",
+      "parents": [
+        "b525b2a702ed81035a2439c29da1ca8158a8ee21",
+        "4025a2e202eaf3fea27855efa74b28cdc63abc88"
+      ],
+      "title": "Merge pull request #1173 from sonorahq/dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "d41f7780e714ad718b00170fe5b9088cc5610056",
+      "parents": [
+        "b20ba2054307d92dd2df085f99eef2e92298960b"
+      ],
+      "title": "chore: retire the dev branch and drop agent and contributing docs",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/labeler.yml",
+        ".github/triage/config.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "CONTRIBUTING.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "207c67a149cbf372ddef533805dfcbe365d5eca1"
+    },
+    {
+      "commit": "381c242c41fd7360e9bc81810b41dc967065a486",
+      "parents": [
+        "b20ba2054307d92dd2df085f99eef2e92298960b",
+        "d41f7780e714ad718b00170fe5b9088cc5610056"
+      ],
+      "title": "Merge pull request #1174 from sonorahq/chore/retire-dev",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "dfb1d804b23761f819706bb46a225903ea405244",
+      "parents": [
+        "381c242c41fd7360e9bc81810b41dc967065a486"
+      ],
+      "title": "feat(local): import and export m3u playlists",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "README.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "crates/music/src/lib.rs",
+        "crates/music/src/local/client.rs",
+        "crates/music/src/local/m3u.rs",
+        "crates/music/src/local/mod.rs",
+        "crates/music/src/local/store.rs",
+        "crates/music/src/models.rs",
+        "crates/state/src/library.rs",
+        "crates/views/src/screens/library/mod.rs",
+        "crates/views/src/shared/local.rs",
+        "crates/views/src/shared/menus/context.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "d0e9f829604b74e12a11ed894f266f5205fc152c"
+    },
+    {
+      "commit": "a88576f4ff80567a7ecc29c4a4278fd8e2bcfa35",
+      "parents": [
+        "381c242c41fd7360e9bc81810b41dc967065a486",
+        "dfb1d804b23761f819706bb46a225903ea405244"
+      ],
+      "title": "Merge pull request #1086 from aangeraakt/feat/m3u-playlists",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f7a192e784df406f7423b5a3b644dc551db57919",
+      "parents": [
+        "e0ee79d0109dcd32f9de98440b5c15f2934924ca",
+        "a88576f4ff80567a7ecc29c4a4278fd8e2bcfa35"
+      ],
+      "title": "chore: merge main into feat/shift-drag-move",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "73a6d7f3ed32ebf23e643a86cf059214c42175eb",
+      "parents": [
+        "a88576f4ff80567a7ecc29c4a4278fd8e2bcfa35"
+      ],
+      "title": "feat: change and remove a playlist's cover from an edit dialog",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "assets/icons/lucide/image-off.svg",
+        "assets/icons/lucide/image.svg",
+        "crates/music/Cargo.toml",
+        "crates/music/src/cover.rs",
+        "crates/music/src/deezer/client.rs",
+        "crates/music/src/deezer/mod.rs",
+        "crates/music/src/lib.rs",
+        "crates/music/src/live_tests/mod.rs",
+        "crates/music/src/live_tests/playlist_cover.rs",
+        "crates/music/src/local/client.rs",
+        "crates/music/src/local/mod.rs",
+        "crates/music/src/local/store.rs",
+        "crates/music/src/spotify/client.rs",
+        "crates/music/src/spotify/mod.rs",
+        "crates/music/src/spotify/playlists.rs",
+        "crates/music/src/subsonic/client.rs",
+        "crates/music/src/subsonic/mod.rs",
+        "crates/music/src/tidal/client.rs",
+        "crates/music/src/tidal/mod.rs",
+        "crates/music/src/youtube/client.rs",
+        "crates/music/src/youtube/mod.rs",
+        "crates/state/src/lib.rs",
+        "crates/state/src/library.rs",
+        "crates/storage/src/lib.rs",
+        "crates/views/src/shared/menus/context.rs",
+        "crates/views/src/shared/playlist_editor.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "a7e3f6d95d39270efa0d997677b607df156f7878"
+    },
+    {
+      "commit": "47fae32be5ed0b82e75e910f2899103a5cb44f54",
+      "parents": [
+        "73a6d7f3ed32ebf23e643a86cf059214c42175eb"
+      ],
+      "title": "fix(views): show toasts above an open dialog",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "crates/views/src/shells/workspace.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "bc5a48210c12c86f342a7790f5a68733e4e4791b"
+    },
+    {
+      "commit": "e6196625a44fb3ee29f8651cc8fa29ca43f37574",
+      "parents": [
+        "a88576f4ff80567a7ecc29c4a4278fd8e2bcfa35",
+        "47fae32be5ed0b82e75e910f2899103a5cb44f54"
+      ],
+      "title": "Merge pull request #1176 from sonorahq/feat/playlist-covers",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "b5d4472e1bda655b68e6d8f3c7ea4b7cd258607f",
+      "parents": [
+        "f7a192e784df406f7423b5a3b644dc551db57919",
+        "e6196625a44fb3ee29f8651cc8fa29ca43f37574"
+      ],
+      "title": "chore: merge main into feat/shift-drag-move",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "crates/state/src/lib.rs",
+        "crates/views/src/shared/playlist_editor.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "99e13fd3eb2124f693a15cf96114a818002e68c8",
+      "parents": [
+        "e6196625a44fb3ee29f8651cc8fa29ca43f37574",
+        "b5d4472e1bda655b68e6d8f3c7ea4b7cd258607f"
+      ],
+      "title": "Merge pull request #1177 from sonorahq/merge/pr-1158",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f6479a68962ab5c31b532ea09f8386c83108b8f1",
+      "parents": [
+        "e6196625a44fb3ee29f8651cc8fa29ca43f37574"
+      ],
+      "title": "fix(music): save deezer albums through album.addFavorite",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "crates/music/src/deezer/client.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "95cd567a2692f2cf12d96e76ff906ef597f91ee8"
+    },
+    {
+      "commit": "67fb2c668eb76b9e61db048804fd3e6a716d5712",
+      "parents": [
+        "99e13fd3eb2124f693a15cf96114a818002e68c8",
+        "f6479a68962ab5c31b532ea09f8386c83108b8f1"
+      ],
+      "title": "Merge pull request #1180 from sonorahq/fix/deezer-album-favorites",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "437be205567c33657c2a0ba91869a1840c4dabbd",
+      "parents": [
+        "99e13fd3eb2124f693a15cf96114a818002e68c8"
+      ],
+      "title": "feat(cli): print what plays on every change with sonora watch",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/cli/README.md",
+        "crates/cli/src/args.rs",
+        "crates/cli/src/commands.rs",
+        "crates/cli/src/run.rs",
+        "crates/sonora/src/main.rs",
+        "crates/sonora/src/single.rs",
+        "crates/state/src/control.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f533fb69f71130b5f90f8de6a62c6dc79e065c51"
+    },
+    {
+      "commit": "ab54314a106402ec5bac3ece6a4d8891cbb6d7ed",
+      "parents": [
+        "67fb2c668eb76b9e61db048804fd3e6a716d5712",
+        "437be205567c33657c2a0ba91869a1840c4dabbd"
+      ],
+      "title": "Merge pull request #1181 from suraniharsh/feat/cli-watch",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "dc8fd389559d095a0ce920ef262db9cb1af0d3c8",
+      "parents": [
+        "b3b919f9014a50510d9d6fef80cd5717885ef222"
+      ],
+      "title": "fix(music): read a colon lrc fraction by its digits",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/lyrics/lrc.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "1102538b9539cf4605480efd83b7014770bf7275"
+    },
+    {
+      "commit": "5b457ab0baa753cd526603e1177d72c8c296328e",
+      "parents": [
+        "ab54314a106402ec5bac3ece6a4d8891cbb6d7ed",
+        "dc8fd389559d095a0ce920ef262db9cb1af0d3c8"
+      ],
+      "title": "Merge pull request #879 from kevin9327/fix/lrc-colon-fraction-digits",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "e1472b84328ff1db2b8a420f7547e283886d2e8e",
+      "parents": [
+        "5b457ab0baa753cd526603e1177d72c8c296328e"
+      ],
+      "title": "docs(changelog): move the lrc colon fraction fix to unreleased",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "0096bfc77830de293cd4a3c3f0c66ab5fb849828"
+    },
+    {
+      "commit": "713e406a8e6bb6c7b6d652816baa7bce04e38638",
+      "parents": [
+        "5b457ab0baa753cd526603e1177d72c8c296328e",
+        "e1472b84328ff1db2b8a420f7547e283886d2e8e"
+      ],
+      "title": "Merge pull request #1187 from sonorahq/docs/changelog-lrc-fraction",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "1db628e5f41c0959dd3a7decacc901a94a5a06d4",
+      "parents": [
+        "713e406a8e6bb6c7b6d652816baa7bce04e38638"
+      ],
+      "title": "feat(cli): say the provider, liked state and origin in current",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/cli/README.md",
+        "crates/cli/src/wire.rs",
+        "crates/state/src/control.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "36db58225a9e31530ffe31923a22a39fb1a97ee9"
+    },
+    {
+      "commit": "613fc254cdd2c29073bae32bb21c0919b391c751",
+      "parents": [
+        "ab54314a106402ec5bac3ece6a4d8891cbb6d7ed"
+      ],
+      "title": "feat(cli): seek to a time or by a step",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/cli/README.md",
+        "crates/cli/src/args.rs",
+        "crates/cli/src/commands.rs",
+        "crates/state/src/control.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "0e87aafe97bb66acba4ac3280eb5097cca27013c"
+    },
+    {
+      "commit": "5df972580346adf93e9b1595ee20878dcd84b431",
+      "parents": [
+        "713e406a8e6bb6c7b6d652816baa7bce04e38638",
+        "613fc254cdd2c29073bae32bb21c0919b391c751"
+      ],
+      "title": "Merge pull request #1188 from suraniharsh/feat/cli-seek",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "c44e561ccb855d0fd710fdaeb37a850daafa9725",
+      "parents": [
+        "5df972580346adf93e9b1595ee20878dcd84b431"
+      ],
+      "title": "feat(deezer): fill the home page from deezer's own sections",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/music/src/deezer/client.rs",
+        "crates/music/src/deezer/wire.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "e2c016d668048175f0cc61b6412aebedef69a91f"
+    },
+    {
+      "commit": "6ead18749b6badce658305ba1e7630333674bde0",
+      "parents": [
+        "5df972580346adf93e9b1595ee20878dcd84b431",
+        "c44e561ccb855d0fd710fdaeb37a850daafa9725"
+      ],
+      "title": "Merge pull request #1190 from sonorahq/feat/deezer-home",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "3a119a611600739758e052ee8825c5c1c82d1ffc",
+      "parents": [
+        "6ead18749b6badce658305ba1e7630333674bde0"
+      ],
+      "title": "fix(notice): lay out the notice card like a shadcn alert",
+      "decision": "deferred_appearance",
+      "topic": "appearance",
+      "note": "上游布局/视觉策略；当前 GUI 已定制，需在定制界面复现再决定，不直接覆盖",
+      "paths": [
+        "crates/views/src/chrome/notice.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "919d28e62684e02ac390ce2ddbb752f9296daa01"
+    },
+    {
+      "commit": "587ea8c17c67dec07d6bf3fca72389175a559527",
+      "parents": [
+        "3a119a611600739758e052ee8825c5c1c82d1ffc"
+      ],
+      "title": "feat(search): suggest while typing and keep recent searches",
+      "decision": "partial",
+      "topic": "search",
+      "note": "当前已有近期搜索；联想搜索是可选新功能，不能覆盖现有搜索页",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "crates/input/src/lib.rs",
+        "crates/music/src/apple/client.rs",
+        "crates/music/src/lib.rs",
+        "crates/music/src/models.rs",
+        "crates/music/src/subsonic/client.rs",
+        "crates/music/src/youtube/client.rs",
+        "crates/state/src/genre.rs",
+        "crates/state/src/search.rs",
+        "crates/state/src/settings.rs",
+        "crates/ui/src/dropdown.rs",
+        "crates/ui/src/lib.rs",
+        "crates/ui/src/scroller.rs",
+        "crates/views/src/root.rs",
+        "crates/views/src/screens/search.rs",
+        "crates/views/src/shared/shelves.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "d0d21095c828ebb33ad9de3bbdf3823d9e7a3f1c"
+    },
+    {
+      "commit": "20b253efc18169b5b2e5118ea478f1d276ced23b",
+      "parents": [
+        "3a119a611600739758e052ee8825c5c1c82d1ffc",
+        "587ea8c17c67dec07d6bf3fca72389175a559527"
+      ],
+      "title": "Merge pull request #1192 from sonorahq/feat/search-suggestions",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "cee25c25ea80b0ba19141fa39222557814658774",
+      "parents": [
+        "20b253efc18169b5b2e5118ea478f1d276ced23b"
+      ],
+      "title": "fix(music): bring back apple recently played on home above recently added",
+      "decision": "conditional",
+      "topic": "apple-home",
+      "note": "当前最近播放只用于 Quick picks；独立 shelf 属产品行为选择，不能直接套用 recently-added 前置上下文",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "crates/music/src/apple/client.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "31a0f64c6b971d7e159a99e02a1562ca9f60242d"
+    },
+    {
+      "commit": "a593dfcac219da30c50b9e2d062a46cdf62ce93d",
+      "parents": [
+        "20b253efc18169b5b2e5118ea478f1d276ced23b",
+        "cee25c25ea80b0ba19141fa39222557814658774"
+      ],
+      "title": "Merge pull request #1193 from sonorahq/fix/apple-home-recently-played",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "fc14edf720ca51858defeca32217e8f95bc710f9",
+      "parents": [
+        "a593dfcac219da30c50b9e2d062a46cdf62ce93d"
+      ],
+      "title": "fix(ui): thin a table head's fill on a see-through window",
+      "decision": "deferred_appearance",
+      "topic": "appearance",
+      "note": "上游布局/视觉策略；当前 GUI 已定制，需在定制界面复现再决定，不直接覆盖",
+      "paths": [
+        "crates/ui/src/table/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b9ed687f3e77603aa9267debb8e47bd4a187495d"
+    },
+    {
+      "commit": "5e1151d84028aa4b059210e48a97220c6e4d3b59",
+      "parents": [
+        "1db628e5f41c0959dd3a7decacc901a94a5a06d4",
+        "fc14edf720ca51858defeca32217e8f95bc710f9"
+      ],
+      "title": "Merge branch 'main' into feat/cli-current-more",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f98c23df1ddf7c1f8d6d19178bd5fafd3e9262a4",
+      "parents": [
+        "fc14edf720ca51858defeca32217e8f95bc710f9",
+        "5e1151d84028aa4b059210e48a97220c6e4d3b59"
+      ],
+      "title": "Merge pull request #1191 from suraniharsh/feat/cli-current-more",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "4c18940d6adfca3cdc198d4f365b2a447822f61b",
+      "parents": [
+        "f98c23df1ddf7c1f8d6d19178bd5fafd3e9262a4"
+      ],
+      "title": "fix(views): wear the plain adaptive dark theme over the ambient background [skip ci]",
+      "decision": "deferred_appearance",
+      "topic": "appearance",
+      "note": "上游布局/视觉策略；当前 GUI 已定制，需在定制界面复现再决定，不直接覆盖",
+      "paths": [
+        "crates/views/src/screens/settings/preview/lyrics.rs",
+        "crates/views/src/screens/settings/preview/mod.rs",
+        "crates/views/src/screens/settings/preview/now_playing.rs",
+        "crates/views/src/shared/adaptive.rs",
+        "crates/views/src/shared/ambient.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "8934ac40f4cebeb372cb3b1f86a02b1d30cd32f0"
+    },
+    {
+      "commit": "2d5f6e122091fab0229e8560bb0c04c0f719142b",
+      "parents": [
+        "713e406a8e6bb6c7b6d652816baa7bce04e38638"
+      ],
+      "title": "docs: restore agent and contributing docs",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "CONTRIBUTING.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "553ee08cf537bde9fd5ea8943fa083e5c1a00778"
+    },
+    {
+      "commit": "fbc34f4688127770a12e32925b26b36271c54e58",
+      "parents": [
+        "4c18940d6adfca3cdc198d4f365b2a447822f61b",
+        "2d5f6e122091fab0229e8560bb0c04c0f719142b"
+      ],
+      "title": "Merge pull request #1189 from sonorahq/docs/restore-agent-docs",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "ef0b937c3593ccc8f740a7be442b8aa0a5f3b07f",
+      "parents": [
+        "fbc34f4688127770a12e32925b26b36271c54e58"
+      ],
+      "title": "feat(settings): install a theme with all its variants from one theme link",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/state/src/links.rs",
+        "crates/state/src/settings.rs",
+        "crates/state/src/settings/themes.rs",
+        "crates/views/src/chrome/theme_invite.rs",
+        "crates/views/src/screens/settings/themes.rs",
+        "crates/views/src/shared/theme_miniature.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "12e248160e9ee3cc679fdd54ad6c2dbff676e265"
+    },
+    {
+      "commit": "0b8ff18f68016e0f6fc82f85903f25f87fa28f43",
+      "parents": [
+        "ef0b937c3593ccc8f740a7be442b8aa0a5f3b07f"
+      ],
+      "title": "docs(changelog): note installing a theme with variants from a link",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "f4148ef2459331e359b1b883cf972813b264c4df"
+    },
+    {
+      "commit": "4ee6dca14b132f73bbf0f07574688f5325bcefba",
+      "parents": [
+        "fbc34f4688127770a12e32925b26b36271c54e58",
+        "0b8ff18f68016e0f6fc82f85903f25f87fa28f43"
+      ],
+      "title": "Merge pull request #1196 from sonorahq/feat/theme-family-links",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "666a9c613f400d2568bf46372e8188a7b04fd978",
+      "parents": [
+        "4ee6dca14b132f73bbf0f07574688f5325bcefba"
+      ],
+      "title": "chore: release 0.46.0",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md",
+        "Cargo.lock",
+        "Cargo.toml",
+        "THIRD-PARTY.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "01486047d67653140aedf111ed46067b6c0985d4"
+    },
+    {
+      "commit": "caf4a2a84a85ce437429190ea3e959a3c96bda41",
+      "parents": [
+        "4ee6dca14b132f73bbf0f07574688f5325bcefba",
+        "666a9c613f400d2568bf46372e8188a7b04fd978"
+      ],
+      "title": "Merge pull request #1197 from sonorahq/release/0.46.0",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "527d6a93c2c6b57c58056538f5fbc81f5b166560",
+      "parents": [
+        "caf4a2a84a85ce437429190ea3e959a3c96bda41"
+      ],
+      "title": "ci: give the appimage a png icon for the current appimagetool",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        ".github/workflows/release.yml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "11ee57b147e05e28d4427638a2857e52046d368e"
+    },
+    {
+      "commit": "2fe322e48b5eb59b9b4d355e1ca4394a557b4152",
+      "parents": [
+        "caf4a2a84a85ce437429190ea3e959a3c96bda41",
+        "527d6a93c2c6b57c58056538f5fbc81f5b166560"
+      ],
+      "title": "Merge pull request #1198 from sonorahq/fix/appimage-dir-icon",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "6fa75ad281a0b9e92bab755fd418c7070090eca7",
+      "parents": [
+        "2fe322e48b5eb59b9b4d355e1ca4394a557b4152"
+      ],
+      "title": "chore(nix): point the flake at 0.46.0 [skip ci]",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "flake.nix"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "be7d1ad1608e962ba7cec103174b1351c4e345b7"
+    },
+    {
+      "commit": "721e1c0fabee79bca8795a5a0c41c704b9f0cef4",
+      "parents": [
+        "6fa75ad281a0b9e92bab755fd418c7070090eca7"
+      ],
+      "title": "ci: skip checks on a release branch and its merge",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        ".github/workflows/ci.yml"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "a312246b536485105e5d88ba6ff3866810649ce8"
+    },
+    {
+      "commit": "0dd3d4548209748ca78d6a1705ce5e298e9c21de",
+      "parents": [
+        "6fa75ad281a0b9e92bab755fd418c7070090eca7",
+        "721e1c0fabee79bca8795a5a0c41c704b9f0cef4"
+      ],
+      "title": "Merge pull request #1199 from sonorahq/ci/skip-release-runs",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "760d5290cff8b237161a60149998a9121738a568",
+      "parents": [
+        "0dd3d4548209748ca78d6a1705ce5e298e9c21de"
+      ],
+      "title": "feat(ui): keep a submenu open while a nested one is in use",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "crates/ui/src/menu.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "20a97428e9ff3df45adecfc2c56afc03f5b53e1e"
+    },
+    {
+      "commit": "b2a70986d0e2cf8183d5720a5a74cdeeff12fda5",
+      "parents": [
+        "760d5290cff8b237161a60149998a9121738a568"
+      ],
+      "title": "feat(views): group track menu navigation under a go to submenu",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "crates/views/src/shared/menus/context.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "4f1adbf7d15043d584d5631edd28225441b0f05b"
+    },
+    {
+      "commit": "22d6116aba48e5e0fbd70417773bf411310cac32",
+      "parents": [
+        "0dd3d4548209748ca78d6a1705ce5e298e9c21de",
+        "b2a70986d0e2cf8183d5720a5a74cdeeff12fda5"
+      ],
+      "title": "Merge pull request #1202 from sonorahq/feat/track-menu-go-to",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "4ce1de67fb7c21d3b2b87b1751f35457e75e4d1c",
+      "parents": [
+        "22d6116aba48e5e0fbd70417773bf411310cac32"
+      ],
+      "title": "fix(views): keep the hero skeleton in the loaded layout",
+      "decision": "conditional",
+      "topic": "layout-correctness",
+      "note": "骨架几何及非 liquid List 模式表头仍有差异；按定制布局适配，见 report.md",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/shared/hero.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "180d521f1d4295b60fcdcbb45dc59a598925889d"
+    },
+    {
+      "commit": "bdede669033fe05aa6bd2c509f79a4d9b2c23840",
+      "parents": [
+        "4ce1de67fb7c21d3b2b87b1751f35457e75e4d1c"
+      ],
+      "title": "docs: require screenshots on visual pull requests",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CLAUDE.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "0978100ae4d4bf3c48dedced10980789cb2279ef"
+    },
+    {
+      "commit": "cdc400eff5e683102092ebb660179343b55b4453",
+      "parents": [
+        "bdede669033fe05aa6bd2c509f79a4d9b2c23840"
+      ],
+      "title": "fix(views): pin the artist table head flush with the page top",
+      "decision": "conditional",
+      "topic": "layout-correctness",
+      "note": "骨架几何及非 liquid List 模式表头仍有差异；按定制布局适配，见 report.md",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/screens/artist.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "03822b0f33b65362cc8067742fc6c9f2ef21051e"
+    },
+    {
+      "commit": "ee5e65a97594d9d97c1efb4667cdbdac3feca78d",
+      "parents": [
+        "cdc400eff5e683102092ebb660179343b55b4453"
+      ],
+      "title": "feat(views): show the artist banner behind the artist page header",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/apple/client.rs",
+        "crates/music/src/apple/wire.rs",
+        "crates/music/src/deezer/client.rs",
+        "crates/music/src/local/client.rs",
+        "crates/music/src/models.rs",
+        "crates/music/src/spotify/artists.rs",
+        "crates/music/src/spotify/pathfinder/artist.rs",
+        "crates/music/src/subsonic/client.rs",
+        "crates/music/src/tidal/client.rs",
+        "crates/music/src/youtube/wire.rs",
+        "crates/state/src/catalog.rs",
+        "crates/ui/src/artwork.rs",
+        "crates/views/src/screens/artist.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "250e70dee76654749b538fe5d70ba70af11e6e1b"
+    },
+    {
+      "commit": "895c58ce448e8767d03d3f38ecc91596bb34534f",
+      "parents": [
+        "cdc400eff5e683102092ebb660179343b55b4453",
+        "ee5e65a97594d9d97c1efb4667cdbdac3feca78d"
+      ],
+      "title": "Merge pull request #1203 from sonorahq/feat/artist-banner",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "7c45db92805a54d0e3db5aed9806d47efd0ce75e",
+      "parents": [
+        "895c58ce448e8767d03d3f38ecc91596bb34534f"
+      ],
+      "title": "fix(playback): drain the output buffer before pausing the stream",
+      "decision": "conditional",
+      "topic": "idle-audio",
+      "note": "成组移植；7c45db92 修复 b52f79c7 引入的暂停缓冲问题，非当前独立缺陷",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/output/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "9f9f233ab74e39b8ac4ba356f259a03179d8f460"
+    },
+    {
+      "commit": "c0be4121a4b2ab61290dde2e6d456b4ec0c6359f",
+      "parents": [
+        "081dd6bb30a14298501f1c97c953b5d23b1422e3",
+        "7c45db92805a54d0e3db5aed9806d47efd0ce75e"
+      ],
+      "title": "chore: merge main into the jam fixes",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "b860ef8bbdfe52ebbf99e9a98d0cea44b8608da7",
+      "parents": [
+        "99e13fd3eb2124f693a15cf96114a818002e68c8"
+      ],
+      "title": "fix(music): open spotify:// links",
+      "decision": "conditional",
+      "topic": "conditional-fix",
+      "note": "按本地库、平台、provider 或嵌套菜单使用情况选择；见 report.md",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/music/src/spotify/links.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b1eb94558cf314d1d729c938ab0e465fa73af0b0"
+    },
+    {
+      "commit": "e588cde0aa18b91f9e54289205a0e50dad6d94ad",
+      "parents": [
+        "b860ef8bbdfe52ebbf99e9a98d0cea44b8608da7",
+        "7c45db92805a54d0e3db5aed9806d47efd0ce75e"
+      ],
+      "title": "Merge remote-tracking branch 'origin/main' into pr-1023",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "7c1a87a578e667ae22fd7b8823d01298a77a7a17",
+      "parents": [
+        "7c45db92805a54d0e3db5aed9806d47efd0ce75e",
+        "e588cde0aa18b91f9e54289205a0e50dad6d94ad"
+      ],
+      "title": "Merge pull request #1023 from suraniharsh/fix/spotify-scheme-links",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "49adc318c475055adce411423bb378611891c961",
+      "parents": [
+        "c0be4121a4b2ab61290dde2e6d456b4ec0c6359f",
+        "7c1a87a578e667ae22fd7b8823d01298a77a7a17"
+      ],
+      "title": "chore: merge main into the jam fixes",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "e33b4865ecd52bb7347222641d0200c47c29fe1d",
+      "parents": [
+        "2955eea660271b597620f8bbd3a88a3592e92153"
+      ],
+      "title": "fix(state): republish the track length to the system media controls once it is known",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/state/src/remote/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "14b0708108f2a10b3b69b18c752746386dc16ce4"
+    },
+    {
+      "commit": "97e8d7eb426876b3a76a2395fd31e4bd8a9dda18",
+      "parents": [
+        "e33b4865ecd52bb7347222641d0200c47c29fe1d",
+        "7c45db92805a54d0e3db5aed9806d47efd0ce75e"
+      ],
+      "title": "Merge branch 'main' into fix/smtc-duration",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "68831dbc67e7c5bed3198a3991ab0b093cdea980",
+      "parents": [
+        "67fb2c668eb76b9e61db048804fd3e6a716d5712"
+      ],
+      "title": "feat(lyrics): decode local .ttml lyric files",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/music/src/local/lyrics.rs",
+        "crates/music/src/local/tags.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "5aa1803a6629183892544d0b52f0e41e2ac37b98"
+    },
+    {
+      "commit": "1b5453f0a9fe9e89e2db3e3534019c2e66dad66c",
+      "parents": [
+        "68831dbc67e7c5bed3198a3991ab0b093cdea980"
+      ],
+      "title": "fix(local): prefer a ttml sidecar over an lrc one",
+      "decision": "deferred_feature",
+      "topic": "ttml",
+      "note": "依赖可选 TTML 新功能 68831dbc；当前仅 LRC，不属于现有 TTML 回归",
+      "paths": [
+        "crates/music/src/local/lyrics.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "d8f19adefcb8783c4d39dff384b9ffa701787425"
+    },
+    {
+      "commit": "20b5638cee102f992ebf02a42d4e39bcb9e449bc",
+      "parents": [
+        "1b5453f0a9fe9e89e2db3e3534019c2e66dad66c",
+        "7c45db92805a54d0e3db5aed9806d47efd0ce75e"
+      ],
+      "title": "Merge branch 'main' into feat/local-ttml-lyrics",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "6ad7f06c560aa6391ff822d622f03a69d724ec7f",
+      "parents": [
+        "20b5638cee102f992ebf02a42d4e39bcb9e449bc"
+      ],
+      "title": "docs(changelog): note local ttml lyrics",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "7e93c131c6b8e6c845d1a9fef6349c9f73816b55"
+    },
+    {
+      "commit": "e8cef87e46e1ff774a65db4827cf3f18af5ec29a",
+      "parents": [
+        "7c1a87a578e667ae22fd7b8823d01298a77a7a17",
+        "6ad7f06c560aa6391ff822d622f03a69d724ec7f"
+      ],
+      "title": "Merge pull request #1183 from aangeraakt/feat/local-ttml-lyrics",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "0c73121ffbb181df0faf73b58fd7908db32cc36f",
+      "parents": [
+        "99e13fd3eb2124f693a15cf96114a818002e68c8"
+      ],
+      "title": "feat(views): sort by date added newest first on the first click",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/ui/src/table/layout.rs",
+        "crates/ui/src/table/mod.rs",
+        "crates/views/src/screens/library/albums.rs",
+        "crates/views/src/screens/library/artists.rs",
+        "crates/views/src/shared/tracks/columns.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "4c71413740b6fcf3571f99d004bfe1abe53428a2"
+    },
+    {
+      "commit": "dcca3237df78da2b744cd9b04d870581f373242f",
+      "parents": [
+        "0c73121ffbb181df0faf73b58fd7908db32cc36f",
+        "7c45db92805a54d0e3db5aed9806d47efd0ce75e"
+      ],
+      "title": "Merge branch 'main' into feat/playlist-added-sort",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "6a6edf7699f309036bfe1fd6e8a10383b33292a0",
+      "parents": [
+        "e8cef87e46e1ff774a65db4827cf3f18af5ec29a",
+        "dcca3237df78da2b744cd9b04d870581f373242f"
+      ],
+      "title": "Merge pull request #1025 from suraniharsh/feat/playlist-added-sort",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "c76017eed98a839567060a9aa87bcac8850e7918",
+      "parents": [
+        "97e8d7eb426876b3a76a2395fd31e4bd8a9dda18",
+        "6a6edf7699f309036bfe1fd6e8a10383b33292a0"
+      ],
+      "title": "Merge branch 'main' into fix/smtc-duration",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "699cb84c3a763bf4d86ad6ea51c906bf477bab60",
+      "parents": [
+        "6a6edf7699f309036bfe1fd6e8a10383b33292a0",
+        "c76017eed98a839567060a9aa87bcac8850e7918"
+      ],
+      "title": "Merge pull request #1153 from qLeooo/fix/smtc-duration",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "f3be2e7f2aa2c62fa024a6d23d42fa81bf487950",
+      "parents": [
+        "49adc318c475055adce411423bb378611891c961",
+        "699cb84c3a763bf4d86ad6ea51c906bf477bab60"
+      ],
+      "title": "chore: merge main into the jam fixes",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "9ae6db461ad02538658d5107d07758138f3e75c4",
+      "parents": [
+        "6fa75ad281a0b9e92bab755fd418c7070090eca7"
+      ],
+      "title": "fix(ui): stop volume slider drag from spiking CPU and GPU",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/state/src/playback.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/shells/fullscreen.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "36ce4fe9f905804e00075ee7e3b59c8e432ef69f"
+    },
+    {
+      "commit": "7885d1e05e245903a12ebe10156481fb9c20f4e7",
+      "parents": [
+        "9ae6db461ad02538658d5107d07758138f3e75c4",
+        "7c45db92805a54d0e3db5aed9806d47efd0ce75e"
+      ],
+      "title": "Merge remote-tracking branch 'origin/main' into pr-1200",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "265bc703228e7543dda38c47cef126aed6695343",
+      "parents": [
+        "7885d1e05e245903a12ebe10156481fb9c20f4e7",
+        "7c1a87a578e667ae22fd7b8823d01298a77a7a17"
+      ],
+      "title": "Merge branch 'main' into fix/volume-slider-cpu-spike",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "1aff07968b8b63bd8141b71dcc63ee25905a3ee6",
+      "parents": [
+        "265bc703228e7543dda38c47cef126aed6695343",
+        "699cb84c3a763bf4d86ad6ea51c906bf477bab60"
+      ],
+      "title": "Merge branch 'main' into fix/volume-slider-cpu-spike",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "b89f436cb053921339287a57bbea10ac59dd5207",
+      "parents": [
+        "699cb84c3a763bf4d86ad6ea51c906bf477bab60",
+        "1aff07968b8b63bd8141b71dcc63ee25905a3ee6"
+      ],
+      "title": "Merge pull request #1200 from aangeraakt/fix/volume-slider-cpu-spike",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "46e17de26d2a6272bcd7750cf8eafcc6a288cc62",
+      "parents": [
+        "f3be2e7f2aa2c62fa024a6d23d42fa81bf487950",
+        "b89f436cb053921339287a57bbea10ac59dd5207"
+      ],
+      "title": "chore: merge main into the jam fixes",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "9f02d1a71a4451ee8fda7185f9f72f2a0e1ef953",
+      "parents": [
+        "b89f436cb053921339287a57bbea10ac59dd5207",
+        "46e17de26d2a6272bcd7750cf8eafcc6a288cc62"
+      ],
+      "title": "Merge pull request #1170 from Tu2525/fix/jam-leave-and-queue",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    },
+    {
+      "commit": "d174eef5bf3226d0e643437552485fa262180468",
+      "parents": [
+        "9f02d1a71a4451ee8fda7185f9f72f2a0e1ef953"
+      ],
+      "title": "feat(state): listen together across providers with sonora session",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "README.md",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/icons/lucide/rectangle-ellipsis.svg",
+        "crates/cli/src/args.rs",
+        "crates/cli/src/commands.rs",
+        "crates/cli/src/run.rs",
+        "crates/cli/src/wire.rs",
+        "crates/sonora/src/main.rs",
+        "crates/state/Cargo.toml",
+        "crates/state/src/control.rs",
+        "crates/state/src/lib.rs",
+        "crates/state/src/listening/link.rs",
+        "crates/state/src/listening/mod.rs",
+        "crates/state/src/listening/wire.rs",
+        "crates/state/src/playback.rs",
+        "crates/state/src/queue.rs",
+        "crates/ui/src/lib.rs",
+        "crates/ui/src/otp.rs",
+        "crates/ui/tests/a11y_tree.rs",
+        "crates/views/src/chrome/devices.rs",
+        "crates/views/src/chrome/mod.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/chrome/session.rs",
+        "crates/views/src/shells/workspace.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "9b2f9dda7fd5d856249f5780fa31d77d89db00f1"
+    },
+    {
+      "commit": "1d8e34b5eb255b95787e7b14cf606cf063bd6806",
+      "parents": [
+        "d174eef5bf3226d0e643437552485fa262180468"
+      ],
+      "title": "fix(ui): draw session codes in one slot size everywhere",
+      "decision": "deferred_feature",
+      "topic": "sessions",
+      "note": "上游新增 sessions 功能的配套 UI 修正；当前无该功能",
+      "paths": [
+        "crates/ui/src/otp.rs",
+        "crates/views/src/chrome/session.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "17fab6775ca760f02a5ca2cddf72845502e0cf6b"
+    },
+    {
+      "commit": "87871568987308c15ed42426d1f925f40648d626",
+      "parents": [
+        "1d8e34b5eb255b95787e7b14cf606cf063bd6806"
+      ],
+      "title": "feat(views): show session members in a side panel instead of a strip",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "README.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "crates/input/src/lib.rs",
+        "crates/state/src/settings.rs",
+        "crates/ui/src/button.rs",
+        "crates/ui/src/picker.rs",
+        "crates/views/src/chrome/aside.rs",
+        "crates/views/src/chrome/devices.rs",
+        "crates/views/src/chrome/jam.rs",
+        "crates/views/src/chrome/members.rs",
+        "crates/views/src/chrome/mod.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/chrome/sidebar_right.rs",
+        "crates/views/src/chrome/toasts.rs",
+        "crates/views/src/root.rs",
+        "crates/views/src/shells/workspace.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b93540b3b574e8ec8402d628c3d13b40f2ae8ff6"
+    },
+    {
+      "commit": "df8862edac2f82b7134370eeb32c763071543634",
+      "parents": [
+        "87871568987308c15ed42426d1f925f40648d626"
+      ],
+      "title": "feat(views): let the session host remove members from the members panel",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "README.md",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "crates/input/src/lib.rs",
+        "crates/state/src/listening/mod.rs",
+        "crates/state/src/listening/wire.rs",
+        "crates/ui/src/button.rs",
+        "crates/views/src/chrome/devices.rs",
+        "crates/views/src/chrome/members.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/chrome/sidebar_right.rs",
+        "crates/views/src/root.rs",
+        "crates/views/src/shells/workspace.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "fc04d9c2b2abbc9dc44aca0e98a3d53a31daaeb1"
+    },
+    {
+      "commit": "e08071df08e5252480d60841afb5657500ec4722",
+      "parents": [
+        "df8862edac2f82b7134370eeb32c763071543634"
+      ],
+      "title": "feat(views): name the button sessions and let settings hide it or pick a server",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "README.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "crates/state/src/lib.rs",
+        "crates/state/src/listening/mod.rs",
+        "crates/state/src/listening/server.rs",
+        "crates/state/src/settings.rs",
+        "crates/views/src/chrome/devices.rs",
+        "crates/views/src/chrome/mod.rs",
+        "crates/views/src/chrome/player_bar.rs",
+        "crates/views/src/chrome/sessions_button.rs",
+        "crates/views/src/screens/settings/mod.rs",
+        "crates/views/src/screens/settings/playback.rs",
+        "crates/views/src/screens/settings/sessions.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "15d58a00d8956b73c66d1ab98f5b4e2f2ceaee23"
+    },
+    {
+      "commit": "38746f5d565fa621190f8211bb2d23ce18b8642c",
+      "parents": [
+        "e08071df08e5252480d60841afb5657500ec4722"
+      ],
+      "title": "feat(ui): scroll text fields with the caret and save sessions servers only once they answer",
+      "decision": "recommended",
+      "topic": "shared-fix",
+      "note": "已核对当前代码；见 report.md 的修复分组及适配约束",
+      "paths": [
+        "README.md",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "crates/state/src/listening/mod.rs",
+        "crates/ui/src/input/element.rs",
+        "crates/ui/src/input/mod.rs",
+        "crates/views/src/screens/settings/mod.rs",
+        "crates/views/src/screens/settings/sessions.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "1fdac61ce9314c6c272708b648c9cf6ccb0bb4f3"
+    },
+    {
+      "commit": "a1b251103e1e2e5de7d2ae43558557ee52934c30",
+      "parents": [
+        "38746f5d565fa621190f8211bb2d23ce18b8642c"
+      ],
+      "title": "fix(views): report sessions server saves in a toast and match the save button to its field",
+      "decision": "deferred_feature",
+      "topic": "sessions",
+      "note": "上游新增 sessions 功能的配套 UI 修正；当前无该功能",
+      "paths": [
+        "README.md",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "crates/state/src/lib.rs",
+        "crates/state/src/listening/mod.rs",
+        "crates/state/src/listening/server.rs",
+        "crates/views/src/screens/settings/mod.rs",
+        "crates/views/src/screens/settings/sessions.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "cdef1bfef261d08d3ce12204ff406259e3d23520"
+    },
+    {
+      "commit": "a0ff95067d642ebb735eb7b36268b4d29eab6080",
+      "parents": [
+        "a1b251103e1e2e5de7d2ae43558557ee52934c30"
+      ],
+      "title": "feat(state): move the official sessions server to sessions.sonorahq.org and mark turned-down addresses",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "crates/state/src/listening/mod.rs",
+        "crates/state/src/listening/server.rs",
+        "crates/ui/src/input/element.rs",
+        "crates/ui/src/input/mod.rs",
+        "crates/views/src/screens/settings/mod.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "9bcc874a1168d9d97696088e8c5507fd2625d400"
+    },
+    {
+      "commit": "8505eb528133391dba292d655f360bbe7e5edf7f",
+      "parents": [
+        "a0ff95067d642ebb735eb7b36268b4d29eab6080"
+      ],
+      "title": "feat(state): say when a network hosts too many sessions",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "crates/state/src/listening/mod.rs",
+        "crates/state/src/listening/wire.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "3ee5b850e1ca91d213f4c447d31ad1cf69ae91de"
+    },
+    {
+      "commit": "9d095d93cbc85ceec8432697bde590885a3e2adc",
+      "parents": [
+        "8505eb528133391dba292d655f360bbe7e5edf7f"
+      ],
+      "title": "feat(views): mark remote playback on the sessions button and drop its remote controls",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "README.md",
+        "assets/i18n/cs/main.ftl",
+        "assets/i18n/de/main.ftl",
+        "assets/i18n/en-US/main.ftl",
+        "assets/i18n/es/main.ftl",
+        "assets/i18n/fr/main.ftl",
+        "assets/i18n/id/main.ftl",
+        "assets/i18n/it/main.ftl",
+        "assets/i18n/ja/main.ftl",
+        "assets/i18n/pl/main.ftl",
+        "assets/i18n/pt-BR/main.ftl",
+        "assets/i18n/ru/main.ftl",
+        "assets/i18n/sq/main.ftl",
+        "assets/i18n/tr/main.ftl",
+        "assets/i18n/uk/main.ftl",
+        "assets/i18n/zh-CN/main.ftl",
+        "crates/views/src/chrome/sessions_button.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "b04c0fff2d39302c717411920b3182f1f018f61c"
+    },
+    {
+      "commit": "821a9e2e62c360de55a9fe13b7a95dd31a132bf5",
+      "parents": [
+        "9d095d93cbc85ceec8432697bde590885a3e2adc"
+      ],
+      "title": "docs: list the sessions changes in the changelog",
+      "decision": "maintenance",
+      "topic": "maintenance",
+      "note": "文档、版本或发布流程；不作为应用缺失修复移植",
+      "paths": [
+        "CHANGELOG.md"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "6e555092758f5f3c131f2d70c3ef66c460055d39"
+    },
+    {
+      "commit": "052c8745e9a8cc181500fce29ae4d3445964f20a",
+      "parents": [
+        "821a9e2e62c360de55a9fe13b7a95dd31a132bf5"
+      ],
+      "title": "fix(settings): narrow the sessions address field before its label",
+      "decision": "deferred_feature",
+      "topic": "sessions",
+      "note": "上游新增 sessions 功能的配套 UI 修正；当前无该功能",
+      "paths": [
+        "crates/views/src/screens/settings/rows.rs",
+        "crates/views/src/screens/settings/sessions.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "19e3846c71f0c971c92ee68ac5ee8470508a7ec5"
+    },
+    {
+      "commit": "117934bb4d0f10f9d9d37f2afafdc47b83aad878",
+      "parents": [
+        "052c8745e9a8cc181500fce29ae4d3445964f20a"
+      ],
+      "title": "feat(views): draw the visualizer in the now playing settings preview",
+      "decision": "deferred_feature",
+      "topic": "optional-feature",
+      "note": "新增能力，按范围及变更路径归类；非本次必须移植修复，采用前另审实现和 provider 契约",
+      "paths": [
+        "CHANGELOG.md",
+        "crates/views/src/screens/settings/mod.rs",
+        "crates/views/src/screens/settings/preview/mod.rs",
+        "crates/views/src/screens/settings/preview/now_playing.rs"
+      ],
+      "implementation_status": "not_applied_by_this_audit",
+      "patch_id": "e33c7fff14c7ead56ba6df91b1e2bb70f98a3ece"
+    },
+    {
+      "commit": "a8e63790b96fbcd5a3e8fb23b59cb98df1b7df63",
+      "parents": [
+        "052c8745e9a8cc181500fce29ae4d3445964f20a",
+        "117934bb4d0f10f9d9d37f2afafdc47b83aad878"
+      ],
+      "title": "Merge pull request #1212 from sonorahq/feat/now-playing-preview-visualizer",
+      "decision": "merge_reviewed",
+      "topic": "integration",
+      "note": "已检查 remerge-diff；业务冲突归入对应功能组，非逐个 cherry-pick 对象",
+      "paths": [],
+      "implementation_status": "not_applied_by_this_audit"
+    }
+  ]
+}
