@@ -53,10 +53,11 @@ pub use audio::Meter;
 pub use equalizer::Equalizer;
 pub use models::{
     Album, AlbumCatalogue, AlbumDetail, Artist, ArtistCatalogue, ArtistProfile, ArtistRef,
-    Contributor, Credit, Genre, GenreDetail, GenreItem, GenreSection, HomeFeed, Lyrics, LyricsHit,
-    LyricsLane, LyricsLine, LyricsQuery, LyricsWord, PinOutcome, PinTarget, PinTargetKind,
-    Playlist, PlaylistDetail, ReleaseType, RomanizedText, SavedArtist, SharedTrack, Track,
-    TrackKey, TrackTags, UserDetail, UserProfile, Voice, WritingSystem,
+    Contributor, Credit, EpisodePage, Genre, GenreDetail, GenreItem, GenreSection, HomeFeed,
+    Lyrics, LyricsHit, LyricsLane, LyricsLine, LyricsQuery, LyricsWord, PinOutcome, PinTarget,
+    PinTargetKind, Playlist, PlaylistDetail, Podcast, PodcastLibraryPage, PodcastScope,
+    ReleaseType, RomanizedText, SavedArtist, SharedTrack, Track, TrackKey, TrackTags, UserDetail,
+    UserProfile, Voice, WritingSystem,
 };
 pub use output::{Server as SoundServer, missing_bridge};
 pub use spectrum::{Analyzer, Level, Spectrum, Watch};
@@ -244,6 +245,25 @@ pub trait MusicApi: Send + Sync {
     }
 
     async fn playlists(&self) -> Result<Vec<Playlist>>;
+
+    /// One page of a signed-in listener's podcast collection, in provider order.
+    async fn podcast_library(
+        &self,
+        _scope: PodcastScope,
+        _offset: usize,
+    ) -> Result<PodcastLibraryPage> {
+        anyhow::bail!("podcasts are not supported")
+    }
+
+    /// A podcast's metadata, independent of its paged episode listing.
+    async fn podcast(&self, _podcast_id: &str) -> Result<Podcast> {
+        anyhow::bail!("podcasts are not supported")
+    }
+
+    /// One page of episodes, newest first, starting at the provider's offset.
+    async fn podcast_episodes(&self, _podcast_id: &str, _offset: usize) -> Result<EpisodePage> {
+        anyhow::bail!("podcasts are not supported")
+    }
     /// Changes the provider's own pin for `uri`, one of the uris `pin_targets` lists or
     /// `pin_uri` builds.
     async fn set_pinned(&self, _uri: &str, _pinned: bool) -> Result<PinOutcome> {
@@ -788,6 +808,8 @@ pub enum Catalog {
 /// when pressed. A provider that gains one flips a flag here and the UI follows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Capabilities {
+    /// The provider lists followed podcasts and playable episodes.
+    pub podcasts: bool,
     /// Library playlists distinguish their creator from editing permission, and other owners
     /// represent saved playlists. Leave off for shared server lists or editability-only metadata.
     pub playlist_ownership: bool,
@@ -822,6 +844,7 @@ impl Capabilities {
     /// only Subsonic does it. Playlist ownership also needs an explicit opt-in after checking
     /// that the library distinguishes creators from editors and shared lists.
     pub const ALL: Self = Self {
+        podcasts: false,
         playlist_ownership: false,
         follow_artists: true,
         radio: true,
@@ -836,6 +859,7 @@ impl Capabilities {
 
     /// Nothing beyond listing and playing.
     pub const NONE: Self = Self {
+        podcasts: false,
         playlist_ownership: false,
         follow_artists: false,
         radio: false,

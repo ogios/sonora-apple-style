@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Open My Podcasts with NetEase Cloud Music to switch between followed, created and purchased
+  podcasts and liked voices. Browse paged episodes and play or queue them.
+
 - Switch between playlists you created, playlists you saved, and all playlists in your library
   when the provider reports ownership. Playlists with missing ownership have their own category;
   providers that cannot distinguish creation from editing or sharing keep the complete list.

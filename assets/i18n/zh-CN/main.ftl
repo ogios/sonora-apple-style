@@ -1351,3 +1351,35 @@ response-graph-readout = { $frequency } · { $direction ->
         [down] -{ $gain }
        *[flat] { $gain }
     } dB
+
+nav-podcasts = 我的播客
+podcasts-saved = 收藏播客
+podcasts-empty = 还没有收藏的播客。在网易云音乐中收藏播客后，即可在这里收听。
+podcasts-not-loaded = 无法加载这个播客分类
+podcasts-latest = 最近更新：{ $name }
+count-episodes = { $count ->
+   *[other] { $count } 期节目
+}
+podcast-kind = 播客
+podcast-not-loaded = 无法加载这个播客
+podcast-empty = 暂无节目
+podcast-play = 播放节目
+podcast-load-more = 加载更多节目
+podcast-loading = 正在加载节目…
+podcast-load-retry = 节目加载失败，点击重试
+filter-podcasts = 筛选播客或声音
+filter-episodes = 筛选已加载的节目
+column-published = 发布时间
+
+podcasts-created = 创建播客
+podcasts-purchased = 购买播客
+podcasts-liked = 喜欢的声音
+podcasts-tab-count = { $count ->
+   *[other] { $name } { $count }
+}
+podcasts-created-empty = 还没有创建的播客。
+podcasts-purchased-empty = 还没有购买的播客或单期声音。
+podcasts-liked-empty = 还没有喜欢的声音。在网易云音乐中喜欢节目后，即可在这里收听。
+podcasts-load-more = 加载更多
+podcasts-loading = 正在加载…
+podcasts-load-retry = 加载失败，点击重试

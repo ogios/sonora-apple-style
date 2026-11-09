@@ -3,6 +3,57 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+/// A podcast in the listener's library, with the provider's episode count and host.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Podcast {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub cover: Option<String>,
+    pub description: String,
+    pub episode_count: u32,
+    pub latest_episode: Option<String>,
+}
+
+/// Episodes in provider order. The offset is absent once the podcast has no more episodes.
+#[derive(Clone, Debug)]
+pub struct EpisodePage {
+    pub tracks: Vec<Track>,
+    pub next_offset: Option<usize>,
+}
+
+/// The four account collections shown by the podcast library.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PodcastScope {
+    Saved,
+    Created,
+    Purchased,
+    Liked,
+}
+
+impl PodcastScope {
+    pub const ALL: [Self; 4] = [Self::Saved, Self::Created, Self::Purchased, Self::Liked];
+
+    /// The collection's stable position in the library's tab order.
+    pub fn index(self) -> usize {
+        match self {
+            Self::Saved => 0,
+            Self::Created => 1,
+            Self::Purchased => 2,
+            Self::Liked => 3,
+        }
+    }
+}
+
+/// One account collection page. Purchases can include both podcasts and single episodes.
+#[derive(Clone, Debug)]
+pub struct PodcastLibraryPage {
+    pub podcasts: Vec<Podcast>,
+    pub tracks: Vec<Track>,
+    pub total: usize,
+    pub next_offset: Option<usize>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UserProfile {
     pub id: String,

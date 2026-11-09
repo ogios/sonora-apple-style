@@ -1355,3 +1355,36 @@ response-graph-readout = { $frequency } · { $direction ->
         [down] -{ $gain }
        *[flat] { $gain }
     } dB
+
+nav-podcasts = My Podcasts
+podcasts-saved = Followed podcasts
+podcasts-empty = No followed podcasts. Follow a podcast in NetEase Cloud Music to find it here.
+podcasts-not-loaded = Could not load this podcast collection
+podcasts-latest = Latest: { $name }
+count-episodes = { $count ->
+    [one] { $count } episode
+   *[other] { $count } episodes
+}
+podcast-kind = Podcast
+podcast-not-loaded = Could not load this podcast
+podcast-empty = No episodes to show
+podcast-play = Play episodes
+podcast-load-more = Load more episodes
+podcast-loading = Loading episodes…
+podcast-load-retry = Could not load more episodes. Retry
+filter-podcasts = Filter podcasts or voices
+filter-episodes = Filter loaded episodes
+column-published = Published
+
+podcasts-created = Created podcasts
+podcasts-purchased = Purchased podcasts
+podcasts-liked = Liked voices
+podcasts-tab-count = { $count ->
+   *[other] { $name } { $count }
+}
+podcasts-created-empty = You haven't created any podcasts yet.
+podcasts-purchased-empty = You haven't purchased any podcasts or episodes yet.
+podcasts-liked-empty = No liked voices. Like an episode in NetEase Cloud Music to find it here.
+podcasts-load-more = Load more
+podcasts-loading = Loading…
+podcasts-load-retry = Could not load more. Retry

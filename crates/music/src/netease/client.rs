@@ -21,8 +21,9 @@ use serde_json::{Map, Value, json};
 use crate::netease::auth::Credentials;
 use crate::netease::{crypto, wire};
 use crate::{
-    Album, AlbumDetail, Artist, ArtistProfile, Encoding, MediaKind, MusicApi, Offer, Page, Pages,
-    Playlist, PlaylistDetail, Quality, SavedArtist, Throttled, Track, UserProfile, distinct_covers,
+    Album, AlbumDetail, Artist, ArtistProfile, Encoding, EpisodePage, MediaKind, MusicApi, Offer,
+    Page, Pages, Playlist, PlaylistDetail, Podcast, PodcastLibraryPage, PodcastScope, Quality,
+    SavedArtist, Throttled, Track, UserProfile, distinct_covers,
 };
 
 const BASE: &str = "https://music.163.com";
@@ -716,6 +717,130 @@ impl MusicApi for NetEaseClient {
         Ok(None)
     }
 
+    async fn podcast_library(
+        &self,
+        scope: PodcastScope,
+        offset: usize,
+    ) -> Result<PodcastLibraryPage> {
+        let mut body = params([("limit", json!(LIBRARY_PAGE)), ("offset", json!(offset))]);
+        let (podcasts, tracks, total, count, more) = match scope {
+            PodcastScope::Saved | PodcastScope::Created => {
+                body.insert("total".into(), json!(true));
+                let path = match scope {
+                    PodcastScope::Created => {
+                        body.insert("userId".into(), json!(self.user_id()));
+                        "/api/djradio/get/byuser/v1"
+                    }
+                    _ => "/api/djradio/get/subed",
+                };
+                let answer: PodcastsAnswer = self
+                    .call(path, body, Scheme::Weapi)
+                    .await
+                    .context("cannot load the netease podcast collection")?;
+                let count = answer.radios.len();
+                (
+                    answer
+                        .radios
+                        .iter()
+                        .map(wire::PodcastInfo::podcast)
+                        .collect(),
+                    Vec::new(),
+                    answer.count,
+                    count,
+                    answer.has_more,
+                )
+            }
+            PodcastScope::Liked => {
+                let answer: LikedVoicesAnswer = self
+                    .call("/api/content/my/liked/voice", body, Scheme::Weapi)
+                    .await
+                    .context("cannot load the liked netease voices")?;
+                let count = answer.data.voices.len();
+                (
+                    Vec::new(),
+                    answer
+                        .data
+                        .voices
+                        .iter()
+                        .map(wire::Program::track)
+                        .collect(),
+                    answer.data.count,
+                    count,
+                    answer.data.has_more,
+                )
+            }
+            PodcastScope::Purchased => {
+                let answer: BoughtPodcastsAnswer = self
+                    .call("/api/voicelist/bought/list", body, Scheme::Weapi)
+                    .await
+                    .context("cannot load the purchased netease podcasts")?;
+                let count = answer.data.list.len();
+                let mut podcasts = Vec::new();
+                let mut tracks = Vec::new();
+                for item in answer.data.list {
+                    match item.get("productType").and_then(Value::as_u64) {
+                        Some(1) => {
+                            let voice: wire::Program = serde_json::from_value(item)
+                                .context("cannot read the purchased netease episode")?;
+                            tracks.push(voice.track());
+                        }
+                        _ => {
+                            let radio: wire::PodcastInfo = serde_json::from_value(item)
+                                .context("cannot read the purchased netease podcast")?;
+                            podcasts.push(radio.podcast());
+                        }
+                    }
+                }
+                (
+                    podcasts,
+                    tracks,
+                    answer.data.count,
+                    count,
+                    answer.data.has_more,
+                )
+            }
+        };
+        Ok(PodcastLibraryPage {
+            podcasts,
+            tracks,
+            total,
+            next_offset: (more && count > 0).then_some(offset + count),
+        })
+    }
+
+    async fn podcast(&self, podcast_id: &str) -> Result<Podcast> {
+        let answer: PodcastAnswer = self
+            .call(
+                "/api/djradio/v2/get",
+                params([("id", json!(digits(podcast_id)?))]),
+                Scheme::Weapi,
+            )
+            .await
+            .context("cannot load the netease podcast")?;
+        Ok(answer.radio.podcast())
+    }
+
+    async fn podcast_episodes(&self, podcast_id: &str, offset: usize) -> Result<EpisodePage> {
+        let answer: ProgramsAnswer = self
+            .call(
+                "/api/dj/program/byradio",
+                params([
+                    ("radioId", json!(digits(podcast_id)?)),
+                    ("limit", json!(LIBRARY_PAGE)),
+                    ("offset", json!(offset)),
+                    ("asc", json!(false)),
+                ]),
+                Scheme::Weapi,
+            )
+            .await
+            .context("cannot load the netease podcast episodes")?;
+        let count = answer.programs.len();
+        Ok(EpisodePage {
+            tracks: answer.programs.iter().map(wire::Program::track).collect(),
+            next_offset: (answer.more && count > 0).then_some(offset + count),
+        })
+    }
+
     async fn playlists(&self) -> Result<Vec<Playlist>> {
         let answer: PlaylistsAnswer = self
             .call(
@@ -1068,6 +1193,57 @@ struct SongsAnswer {
     songs: Vec<wire::Song>,
     #[serde(default)]
     privileges: Vec<wire::Privilege>,
+}
+
+/// A page of followed or created podcasts, with the provider's total count.
+#[derive(Deserialize)]
+struct PodcastsAnswer {
+    #[serde(rename = "djRadios")]
+    radios: Vec<wire::PodcastInfo>,
+    count: usize,
+    #[serde(rename = "hasMore", alias = "more")]
+    has_more: bool,
+}
+
+/// The liked voices endpoint nests its page inside `data`.
+#[derive(Deserialize)]
+struct LikedVoicesAnswer {
+    data: LikedVoices,
+}
+
+#[derive(Deserialize)]
+struct LikedVoices {
+    #[serde(rename = "data")]
+    voices: Vec<wire::Program>,
+    count: usize,
+    #[serde(rename = "hasMore")]
+    has_more: bool,
+}
+
+/// Purchases distinguish complete podcasts from individually bought voices by `productType`.
+#[derive(Deserialize)]
+struct BoughtPodcastsAnswer {
+    data: BoughtPodcasts,
+}
+
+#[derive(Deserialize)]
+struct BoughtPodcasts {
+    list: Vec<Value>,
+    count: usize,
+    #[serde(rename = "hasMore")]
+    has_more: bool,
+}
+
+#[derive(Deserialize)]
+struct PodcastAnswer {
+    #[serde(rename = "djRadio", alias = "data")]
+    radio: wire::PodcastInfo,
+}
+
+#[derive(Deserialize)]
+struct ProgramsAnswer {
+    programs: Vec<wire::Program>,
+    more: bool,
 }
 
 #[derive(serde::Deserialize)]

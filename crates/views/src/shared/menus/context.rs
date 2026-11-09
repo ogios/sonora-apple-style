@@ -102,6 +102,40 @@ impl ItemMenu {
         self.build(tracks, None, None, None, columns, cx)
     }
 
+    /// Podcast episodes can enter the playback queue without entering the song library.
+    pub fn for_episodes(&self, tracks: &[Track]) -> Menu {
+        let queued: Vec<Track> = tracks
+            .iter()
+            .filter(|track| track.playable)
+            .cloned()
+            .collect();
+        Menu::new("episode-context-menu")
+            .item(queue_item(
+                "play-next",
+                t!("menu-play-next"),
+                "icons/list-start.svg",
+                &queued,
+                Playback::play_next,
+                Playback::play_next_all,
+            ))
+            .item(queue_item(
+                "add-to-queue",
+                t!("menu-add-to-queue"),
+                "icons/list-plus.svg",
+                &queued,
+                Playback::enqueue,
+                Playback::enqueue_all,
+            ))
+            .item(queue_item(
+                "play-last",
+                t!("menu-play-last"),
+                "icons/list-end.svg",
+                &queued,
+                Playback::play_last,
+                Playback::play_last_all,
+            ))
+    }
+
     pub fn for_album_tracks(
         &self,
         tracks: &[Track],

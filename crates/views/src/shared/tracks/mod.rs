@@ -27,7 +27,8 @@ use crate::shared::confirm::{Confirm, Kind};
 use crate::shared::pins::Pinned as _;
 
 pub(crate) use columns::{
-    HISTORY_COLUMNS, LIBRARY_COLUMNS, TrackField, album_columns, artist_columns, playlist_columns,
+    EPISODE_COLUMNS, HISTORY_COLUMNS, LIBRARY_COLUMNS, TrackField, album_columns, artist_columns,
+    playlist_columns,
 };
 pub(crate) use sieve::TrackSieve;
 pub(crate) use sort::initial;
@@ -184,6 +185,7 @@ fn forget(
 type Whence = Rc<dyn Fn(&App) -> Option<Origin>>;
 
 pub(crate) struct TrackSource {
+    episodes: bool,
     columns: &'static [ColumnSpec<TrackField>],
     whence: Option<Whence>,
     provider: Rc<dyn Tracks>,
@@ -232,6 +234,7 @@ impl TrackSource {
         cx: &mut App,
     ) -> Self {
         Self {
+            episodes: false,
             columns,
             whence: None,
             provider: Rc::new(provider),
@@ -297,6 +300,12 @@ impl TrackSource {
 
     pub(crate) fn with_liked(mut self, library: Entity<Library>) -> Self {
         self.is_liked = Some(library);
+        self
+    }
+
+    /// Limits episode rows to queue actions, since song-library mutations do not apply to them.
+    pub(crate) fn episodes(mut self) -> Self {
+        self.episodes = true;
         self
     }
 
@@ -767,6 +776,9 @@ impl TableSource for TrackSource {
         let tracks: Vec<Track> = rows.iter().filter_map(|&row| self.at(row, cx)).collect();
         if tracks.is_empty() {
             return None;
+        }
+        if self.episodes {
+            return Some(self.menu.for_episodes(&tracks));
         }
         let columns = match Sonora::global(cx).settings.read(cx).adaptive_menu() {
             true => TrackColumns {

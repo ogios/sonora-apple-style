@@ -23,6 +23,8 @@ const CREDITED: Pixels = px(144.);
 const CONTRIBUTOR: Pixels = px(168.);
 const ALBUM_LENGTH: Pixels = px(120.);
 const ALBUM_PLAYS: Pixels = px(108.);
+/// Full localized publication dates need room for the year, month and day.
+const PUBLISHED: Pixels = px(184.);
 
 const COLUMN: ColumnSpec<TrackField> = ColumnSpec::filling(TrackField::Index);
 
@@ -139,6 +141,19 @@ pub(crate) const PLAYLIST_COLUMNS_BLEND: &[ColumnSpec<TrackField>] =
 
 pub(crate) const HISTORY_COLUMNS: &[ColumnSpec<TrackField>] =
     &[INDEX, COVER, TITLE, ARTISTS, ALBUM, PLAYED_AT, DURATION];
+
+/// Episode dates are publication times rather than library addition times.
+pub(crate) const EPISODE_COLUMNS: &[ColumnSpec<TrackField>] = &[
+    INDEX,
+    COVER,
+    TITLE,
+    ColumnSpec {
+        header: "column-published",
+        width: Width::Fixed(PUBLISHED),
+        ..ADDED_AT
+    },
+    ALBUM_DURATION,
+];
 
 pub(crate) const ARTIST_COLUMNS: &[ColumnSpec<TrackField>] = &[
     INDEX,

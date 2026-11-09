@@ -20,16 +20,18 @@ pub enum NavEntry {
     Search,
     Library,
     History,
+    Podcasts,
     Local,
     Pins,
 }
 
 impl NavEntry {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Home,
         Self::Search,
         Self::Library,
         Self::History,
+        Self::Podcasts,
         Self::Local,
         Self::Pins,
     ];
@@ -40,6 +42,7 @@ impl NavEntry {
             Self::Search => "search",
             Self::Library => "library",
             Self::History => "history",
+            Self::Podcasts => "podcasts",
             Self::Local => "local",
             Self::Pins => "sidebar-pins",
         }
@@ -51,6 +54,7 @@ impl NavEntry {
             Self::Search => "nav-search",
             Self::Library => "nav-library",
             Self::History => "nav-history",
+            Self::Podcasts => "nav-podcasts",
             Self::Local => "nav-local",
             Self::Pins => "nav-pinned",
         }
@@ -332,6 +336,8 @@ impl SettingsTab {
 pub enum Destination {
     Home,
     History,
+    Podcasts,
+    Podcast(SharedString),
     Library(LibraryTab),
     Local(LibraryTab),
     Album(SharedString),
@@ -364,6 +370,10 @@ impl Destination {
         match (self, other) {
             (Destination::Library(_), Destination::Library(_))
             | (Destination::Local(_), Destination::Local(_)) => true,
+            (
+                Destination::Podcasts | Destination::Podcast(_),
+                Destination::Podcasts | Destination::Podcast(_),
+            ) => true,
             _ if self.in_settings() && other.in_settings() => true,
             _ => self == other,
         }

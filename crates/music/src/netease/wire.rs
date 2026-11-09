@@ -9,7 +9,8 @@ use std::time::Duration;
 use serde::{Deserialize, Deserializer};
 
 use crate::{
-    Album, Artist, ArtistRef, Encoding, Playlist, ReleaseType, SavedArtist, Track, UserProfile,
+    Album, Artist, ArtistRef, Encoding, Playlist, Podcast, ReleaseType, SavedArtist, Track,
+    UserProfile,
 };
 
 /// The bit of a song's `mark` that flags explicit lyrics.
@@ -119,6 +120,58 @@ pub(crate) struct Creator {
     pub nickname: String,
 }
 
+/// A subscribed radio or a radio detail; NetEase calls podcasts DJ radios.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub(crate) struct PodcastInfo {
+    #[serde(alias = "voiceListId")]
+    pub id: u64,
+    #[serde(default, alias = "voiceListName", deserialize_with = "text")]
+    pub name: String,
+    #[serde(default, rename = "picUrl", alias = "coverUrl")]
+    pub cover: Option<String>,
+    #[serde(default, deserialize_with = "text")]
+    pub desc: String,
+    #[serde(default, deserialize_with = "nullable")]
+    pub dj: Creator,
+    #[serde(default, rename = "userName", deserialize_with = "text")]
+    pub host: String,
+    #[serde(default, rename = "programCount", alias = "voiceCount")]
+    pub program_count: u32,
+    #[serde(default, rename = "lastProgramName")]
+    pub latest_episode: Option<String>,
+}
+
+/// An episode from a radio, the liked voices collection, or a single-episode purchase.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub(crate) struct Program {
+    #[serde(default, deserialize_with = "text")]
+    pub name: String,
+    #[serde(default, rename = "voiceName", deserialize_with = "text")]
+    pub voice_name: String,
+    #[serde(default, rename = "coverUrl")]
+    pub cover: Option<String>,
+    #[serde(default, rename = "mainSong")]
+    pub song: Option<Song>,
+    #[serde(default, rename = "trackId")]
+    pub track_id: Option<u64>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub radio: PodcastInfo,
+    #[serde(default, deserialize_with = "nullable")]
+    pub dj: Creator,
+    #[serde(default, rename = "userName", deserialize_with = "text")]
+    pub host: String,
+    #[serde(default, rename = "voiceListName", deserialize_with = "text")]
+    pub radio_name: String,
+    #[serde(default)]
+    pub duration: u64,
+    #[serde(default, rename = "createTime")]
+    pub created_at: i64,
+    #[serde(default, rename = "publishTime")]
+    pub published_at: Option<i64>,
+    #[serde(default, rename = "listenerCount")]
+    pub listeners: Option<u64>,
+}
+
 /// One entry of a playlist's full track order, with when it was added in milliseconds.
 #[derive(Clone, Copy, Debug, Default, Deserialize)]
 pub(crate) struct Entry {
@@ -205,6 +258,62 @@ pub(crate) struct ArtistInfo {
     pub square_url: Option<String>,
     #[serde(default, rename = "briefDesc", deserialize_with = "text")]
     pub brief: String,
+}
+
+impl PodcastInfo {
+    pub fn podcast(&self) -> Podcast {
+        Podcast {
+            id: self.id.to_string(),
+            name: self.name.clone(),
+            host: match self.dj.nickname.is_empty() {
+                true => self.host.clone(),
+                false => self.dj.nickname.clone(),
+            },
+            cover: image(self.cover.as_deref(), SMALL),
+            description: self.desc.clone(),
+            episode_count: self.program_count,
+            latest_episode: self.latest_episode.clone().filter(|name| !name.is_empty()),
+        }
+    }
+}
+
+impl Program {
+    /// Keeps the episode's title and host while streaming its main song through the engine.
+    pub fn track(&self) -> Track {
+        let song = self.song.clone().unwrap_or_default();
+        let mut track = song.track(None);
+        let id = self
+            .song
+            .as_ref()
+            .filter(|song| song.id != 0)
+            .map(|song| song.id)
+            .or(self.track_id.filter(|id| *id != 0));
+        track.playable &= id.is_some();
+        track.id = id.map(|id| id.to_string());
+        track.name = match self.name.is_empty() {
+            true => match self.voice_name.is_empty() {
+                true => song.name,
+                false => self.voice_name.clone(),
+            },
+            false => self.name.clone(),
+        };
+        track.artists = match self.dj.nickname.is_empty() {
+            true => self.host.clone(),
+            false => self.dj.nickname.clone(),
+        };
+        track.artist_refs.clear();
+        track.album = match self.radio.name.is_empty() {
+            true => self.radio_name.clone(),
+            false => self.radio.name.clone(),
+        };
+        track.album_id = None;
+        track.cover = image(self.cover.as_deref().or(self.radio.cover.as_deref()), SMALL);
+        track.duration = Duration::from_millis(self.duration.max(song.dt));
+        let published = self.published_at.unwrap_or(self.created_at);
+        track.added_at = (published > 0).then_some(published / 1000);
+        track.playcount = self.listeners;
+        track
+    }
 }
 
 impl Song {

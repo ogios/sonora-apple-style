@@ -29,7 +29,7 @@ const PINS: &str = "sidebar-pins";
 /// The sidebar's navigation rows in order: the entry that can hide each, its icon and where it goes.
 /// Settings has no entry, so it is always shown, and it opens on the settings page last visited
 /// rather than on the one named here.
-pub(crate) const NAV: [(Option<NavEntry>, &str, Destination); 6] = [
+pub(crate) const NAV: [(Option<NavEntry>, &str, Destination); 7] = [
     (Some(NavEntry::Home), "icons/house.svg", Destination::Home),
     (
         Some(NavEntry::Search),
@@ -50,6 +50,11 @@ pub(crate) const NAV: [(Option<NavEntry>, &str, Destination); 6] = [
         Some(NavEntry::History),
         "icons/rotate-ccw-clock.svg",
         Destination::History,
+    ),
+    (
+        Some(NavEntry::Podcasts),
+        "icons/radio.svg",
+        Destination::Podcasts,
     ),
     (
         None,
@@ -114,7 +119,10 @@ const QUARTER: f32 = 0.25;
 fn in_section(destination: &Destination) -> bool {
     matches!(
         destination,
-        Destination::Library(_) | Destination::Local(_) | Destination::History
+        Destination::Library(_)
+            | Destination::Local(_)
+            | Destination::History
+            | Destination::Podcasts
     )
 }
 
@@ -366,6 +374,12 @@ impl SidebarLeft {
         let sectioned = ui::liquid(cx);
         let mut section: Option<Vec<AnyElement>> = None;
         for (index, (entry, _, destination)) in NAV.iter().enumerate() {
+            if *destination == Destination::Podcasts
+                && (!self.session.read(cx).capabilities().podcasts
+                    || !self.session.read(cx).authenticated())
+            {
+                continue;
+            }
             if entry.is_some_and(|entry| !self.settings.read(cx).nav_shown(entry.id())) {
                 continue;
             }

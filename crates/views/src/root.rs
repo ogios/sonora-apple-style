@@ -31,12 +31,14 @@ use crate::shells::Shell;
 use crate::shells::workspace::Workspace;
 use crate::{
     Adaptive, ArtistView, DetailView, EqualizerView, FullscreenView, GenreView, HistoryView,
-    HomeView, LibraryView, LoginView, SettingsView, SongView, UserView,
+    HomeView, LibraryView, LoginView, PodcastView, PodcastsView, SettingsView, SongView, UserView,
 };
 
 /// The view and model handles for one history visit, retained while that visit can be reopened.
 #[derive(Clone)]
 struct Screens {
+    podcasts: Option<Entity<PodcastsView>>,
+    podcast: Option<Entity<PodcastView>>,
     home: Entity<HomeView>,
     history: Entity<HistoryView>,
     library: Entity<LibraryView>,
@@ -161,12 +163,23 @@ impl Root {
                 this.screens.album_detail = None;
                 this.screens.playlist = None;
                 this.screens.playlist_detail = None;
+                this.screens.podcasts = None;
+                this.screens.podcast = None;
             }
             cx.notify();
         })
         .detach();
 
         cx.subscribe(&session, |_, session, event, cx| {
+            if matches!(event, SessionEvent::SignedIn)
+                && matches!(
+                    router::trail(cx).read(cx).current(),
+                    Destination::Podcasts | Destination::Podcast(_)
+                )
+                && (!session.read(cx).capabilities().podcasts || !session.read(cx).authenticated())
+            {
+                navigate(Destination::Home, cx);
+            }
             if matches!(event, SessionEvent::SignedIn) && !session.read(cx).authenticated() {
                 let settings = Sonora::global(cx).settings.clone();
                 let startup = settings.read(cx).startup().to_owned();
@@ -353,6 +366,8 @@ impl Root {
             os_follow: None,
             os_entered: false,
             screens: Screens {
+                podcasts: None,
+                podcast: None,
                 home,
                 history,
                 library: library_view,
@@ -616,6 +631,14 @@ impl Root {
             Box::new(move |cx| matches!(library.read(cx).state(shelf), LibraryState::Loading))
         };
         Some(match destination {
+            Destination::Podcasts => {
+                let view = self.screens.podcasts.clone()?;
+                Box::new(move |cx| view.read(cx).is_loading(cx))
+            }
+            Destination::Podcast(_) => {
+                let view = self.screens.podcast.clone()?;
+                Box::new(move |cx| view.read(cx).is_loading(cx))
+            }
             Destination::Home => {
                 let home = self.screens.home.clone();
                 Box::new(move |cx| home.read(cx).is_loading(cx))
@@ -661,6 +684,16 @@ impl Root {
     fn reload_page(&mut self, destination: Destination, cx: &mut Context<Self>) {
         let library = Sonora::global(cx).library.clone();
         match destination {
+            Destination::Podcasts => {
+                if let Some(view) = self.screens.podcasts.clone() {
+                    view.update(cx, |view, cx| view.refresh(cx));
+                }
+            }
+            Destination::Podcast(_) => {
+                if let Some(view) = self.screens.podcast.clone() {
+                    view.update(cx, |view, cx| view.refresh(cx));
+                }
+            }
             Destination::Home => self.screens.home.update(cx, |home, cx| home.refresh(cx)),
             Destination::History => {
                 let history = Sonora::global(cx).history.clone();
@@ -816,6 +849,8 @@ impl Root {
         let library = Sonora::global(cx).library.clone();
         let playback = self.playback.clone();
         match destination {
+            Destination::Podcasts => self.screens.podcasts = None,
+            Destination::Podcast(_) => self.screens.podcast = None,
             Destination::Home => {
                 let home =
                     cx.new(|cx| Home::new(library, self.session.clone(), self.io.clone(), cx));
@@ -1015,6 +1050,26 @@ impl Root {
         let cached = destination != Destination::Equalizer;
 
         let content: AnyView = match destination {
+            Destination::Podcasts => {
+                let view = self
+                    .screens
+                    .podcasts
+                    .get_or_insert_with(|| cx.new(PodcastsView::new))
+                    .clone();
+                view.update(cx, |view, cx| view.open(cx));
+                toolbar = Some(view.read(cx).toolbar());
+                view.into()
+            }
+            Destination::Podcast(id) => {
+                let view = self
+                    .screens
+                    .podcast
+                    .get_or_insert_with(|| cx.new(|cx| PodcastView::new(self.playback.clone(), cx)))
+                    .clone();
+                view.update(cx, |view, cx| view.open(&id, cx));
+                toolbar = Some(view.read(cx).toolbar());
+                view.into()
+            }
             Destination::Fullscreen => return,
             Destination::Home => self.screens.home.clone().into(),
             Destination::History => {
