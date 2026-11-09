@@ -23,7 +23,7 @@ pub const BAR_BELOW: Pixels = px(8.);
 
 pub const LEADING: f32 = 1.25;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Rounding {
     Square,
     Subtle,

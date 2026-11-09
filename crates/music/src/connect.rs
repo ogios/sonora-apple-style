@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 /// The collection a track plays from, as far as the remote end needs to know it.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Collection {
     Album(String),
     Playlist(String),
@@ -17,7 +17,7 @@ pub enum Collection {
     Radio(String),
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum RepeatMode {
     #[default]
     Off,
@@ -26,7 +26,7 @@ pub enum RepeatMode {
 }
 
 /// How the app is named on the account's device list.
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum Naming {
     /// The app's name alone.
     App,
@@ -41,7 +41,7 @@ pub enum Naming {
 
 /// What the app is playing, in the terms a remote end can show. `track` and `upcoming` are
 /// provider track ids.
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct NowPlaying {
     pub track: String,
     pub upcoming: Vec<String>,
@@ -58,7 +58,7 @@ pub struct NowPlaying {
 }
 
 /// Where to begin when a remote end starts playback here, or moves it here.
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Start {
     pub collection: Option<Collection>,
     /// The track to open on, or the collection's first when there is none.
@@ -74,7 +74,7 @@ pub struct Start {
 
 /// A request that crosses the wire in either direction: asked of this app by a remote end, or
 /// asked of another device through `Connect::control`.
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     Play,
     Pause,
@@ -97,7 +97,7 @@ pub enum Command {
     Released,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum DeviceKind {
     Computer,
     Phone,
@@ -111,7 +111,7 @@ pub enum DeviceKind {
 }
 
 /// One of the account's devices.
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Device {
     pub id: String,
     pub name: String,
@@ -121,7 +121,7 @@ pub struct Device {
 }
 
 /// Playback happening on a device other than this app.
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Elsewhere {
     pub device: Device,
     pub track: Option<String>,
@@ -137,7 +137,7 @@ pub struct Elsewhere {
 }
 
 /// A track on the queue of a device other than this app.
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Listed {
     pub id: String,
     /// Whether someone queued it by hand rather than it following from the album or playlist.
@@ -161,14 +161,14 @@ impl Elsewhere {
 }
 
 /// The account's devices other than this app, and the one of them that has playback, if any.
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Roster {
     pub devices: Vec<Device>,
     pub elsewhere: Option<Elsewhere>,
 }
 
 /// One person in a group session.
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct JamMember {
     /// What the provider goes by to name the person, as removing them does.
     pub id: String,
@@ -185,7 +185,7 @@ pub struct JamMember {
 
 /// A group listening session the listener has joined, in which the host's playback plays here
 /// too.
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Jam {
     /// Everyone in it, the listener too, in the order the provider lists them.
     pub members: Vec<JamMember>,
@@ -203,7 +203,7 @@ impl Jam {
 }
 
 /// A group session a link names, read before the listener joins it.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Invite {
     /// The link to join it by, which needs no lookup of its own.
     pub link: String,

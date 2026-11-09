@@ -9,12 +9,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Control playback from a TTY with `sonora-cli`: search, play files or songs, manage the queue,
-  and authorize accounts without opening the GUI. Use JSON output to integrate with scripts.
-
-- Run playback in a separate `sonora-server` process and reopen the GUI without stopping music.
-  On Linux, `run.sh` starts both processes and stops both with Ctrl+C.
-
 - Switch between playlists you created, playlists you saved, and all playlists in your library
   when the provider reports ownership. Playlists with missing ownership have their own category;
   providers that cannot distinguish creation from editing or sharing keep the complete list.
@@ -118,9 +112,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Run standalone playback without loading a GUI framework, fonts or graphics components in the
-  server. Browser sign-ins and YouTube token pages run in the GUI.
-
 - Build optional profile-guided Linux releases from local browsing and playback workloads.
 - Scrolling cover grids uses less CPU time to prepare GPU draws, preserving artwork quality and
   transitions.
@@ -139,9 +130,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Play an artist's full catalogue from their page's play or shuffle button. NetEase loads all
   pages of their songs; choosing a top song queues the popular list separately.
-
-- Keep the progress bar and lyric focus aligned when seeking through the standalone service.
-  Playback updates no longer copy the full library cache or restart theme effects.
 
 - Keep the playing cover visible until its replacement loads, then fade the new cover in
   from soft to sharp with a gentle settling motion. Fullscreen resolution upgrades keep the

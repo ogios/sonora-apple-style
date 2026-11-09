@@ -70,7 +70,7 @@ impl Motion {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Pace {
     Slow,
     #[default]
@@ -114,7 +114,7 @@ impl Pace {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Saver {
     #[default]
     Off,
@@ -359,7 +359,7 @@ fn pace() -> Pace {
 
 static PACE: AtomicU8 = AtomicU8::new(1);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Stillness {
     #[default]
     System,

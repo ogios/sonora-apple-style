@@ -3,7 +3,7 @@ use gpui::{App, ElementId, Entity, FontWeight, SharedString, div};
 use i18n::t;
 use music::{Album, ArtistRef, Genre, GenreItem, Playlist, ReleaseType, SavedArtist, Track};
 use router::{Destination, navigate};
-use service::{Origin, Playback};
+use state::{Origin, Playback};
 use ui::{ActiveTheme as _, Card, InlineLinks, Pinnable, Text, Theme, fade_line};
 
 use crate::shared::cells;

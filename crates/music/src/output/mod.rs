@@ -65,7 +65,7 @@ static DEVICE_SELECTION: Mutex<DeviceSelection> = Mutex::new(DeviceSelection::ne
 static DEVICE_CHANGES: LazyLock<watch::Sender<()>> = LazyLock::new(|| watch::Sender::new(()));
 
 /// An output device the system offers.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeviceOption {
     /// cpal's id for the device, which is what `choose_device` takes and what settings store.
     pub id: String,
@@ -107,7 +107,7 @@ pub struct OutputId {
 }
 
 /// One port of a sound server's sink, such as headphones or speakers on one card.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Port {
     /// The server's name for it, which `output_key` keys it by.
     pub id: String,
@@ -119,7 +119,7 @@ pub struct Port {
 
 /// What a sound server says of one of its sinks: its ports, the one that plays, and the format
 /// it runs at.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sink {
     pub ports: Vec<Port>,
     /// Where the port that plays is in `ports`, or `None` when the sink has no ports.
@@ -130,7 +130,7 @@ pub struct Sink {
 }
 
 /// A rate, a channel count and a sample format.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Format {
     pub rate: u32,
     pub channels: u16,
@@ -138,7 +138,7 @@ pub struct Format {
 }
 
 /// How each sample is written.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sample {
     Integer(u8),
     Float(u8),
@@ -147,7 +147,7 @@ pub enum Sample {
 }
 
 /// A device that would not open, and why.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Failure {
     pub id: String,
     pub error: String,
@@ -157,7 +157,7 @@ pub struct Failure {
 }
 
 /// A desktop sound server, which ALSA reaches only through the plugin its package installs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Server {
     PipeWire,
     PulseAudio,
@@ -264,7 +264,7 @@ pub struct Opened {
 
 /// An output device with a stream open on it: which device, and the rate and buffer that stream
 /// runs at, as a settings page shows them.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeviceInfo {
     /// Stable device id.
     pub id: String,

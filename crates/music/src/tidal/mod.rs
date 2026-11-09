@@ -189,7 +189,7 @@ async fn session(client: TidalClient) -> Result<ProviderSession> {
         capabilities: Capabilities {
             playlist_ownership: true,
             playcounts: false,
-            qualities: crate::Qualities::new(client::QUALITIES),
+            qualities: client::QUALITIES,
             ..Capabilities::ALL
         },
     })

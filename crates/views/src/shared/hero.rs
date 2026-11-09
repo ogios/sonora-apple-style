@@ -7,7 +7,7 @@ use gpui::{
 };
 use i18n::t;
 use music::{Album, SharedTrack, Track};
-use service::{Origin, Playback};
+use state::{Origin, Playback};
 use ui::{
     ActiveTheme as _, Artwork, Banner, Button, ExplicitBadge, LEADING, Pin, Pinnable as _,
     Skeleton, TableState, Text, Type, Typeset as _, upper,
@@ -265,8 +265,8 @@ impl HeroPlayButton {
         self
     }
 
-    /// Fetches the collection named by `from` on the server when pressed, and follows that
-    /// collection's transport state rather than checking membership in the displayed rows.
+    /// Fetches the collection named by `from` through Playback when pressed. The button
+    /// follows the transport state of that collection's origin.
     pub(crate) fn collection(mut self) -> Self {
         self.collection = true;
         self

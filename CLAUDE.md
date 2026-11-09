@@ -3,18 +3,19 @@
 A native music streaming client, built with Rust and [GPUI](https://github.com/zed-industries/zed)
 (Zed's UI framework). Cargo workspace, edition 2024, resolver 3.
 
+## Branches
+
+- `not-liquid-glass` is the main custom client branch and keeps playback and the GUI in one
+  process. The server/GUI process split and its CLI remain experimental on
+  `codex/server-gui-split` and must stay out of `not-liquid-glass`.
+
 ## Crate layout
 
 ```
 crates/
-  sonora/     GUI binary: main, window, actions, asset registry, HTTP client shim, tray, dock
+  sonora/     binary: main, window, actions, asset registry, HTTP client shim, tray, dock
   views/      screens, shells (Workspace, FullscreenView) and app chrome
-  service/    sonora-server binary and authoritative music state, without GUI dependencies
-  service-client/ GPUI read models and IPC client, built from the shared service model sources
-  service-runtime/ ordered service entities, subscriptions and tasks on Tokio
-  locale/     localization for processes without GPUI, sharing the i18n sources
-  protocol/   versioned local IPC framing, commands and ordered subscriptions
-  cli/        sonora-cli terminal client over protocol, with no GPUI dependency
+  state/      GPUI entities holding app state, and all async orchestration
   music/      provider traits and models in the root, one submodule per provider (no GPUI)
   storage/    the state.sqlite and cache.sqlite paths, schema and connection setup
   ui/         design system: theme, metrics, layout ladder and reusable elements
@@ -30,40 +31,24 @@ crates/
 Dependency direction is strict. Do not create a back edge:
 
 ```
-sonora → views → service-client → music
-         service → music, protocol, service-runtime, locale
-sonora, service-client → protocol
-         cli → protocol, i18n (without GPUI)
-         service, music → storage
-         service-client → webview
+sonora → views → state → music
+         state, music → storage
+         state → webview
          music → widevine
          all ui-side crates → ui, router, input → ui → gpui
          every ui-side crate → i18n, icons → gpui
 ```
 
-- Only `service/src/bootstrap.rs` constructs concrete music and lyrics providers. Views and the
-  rest of the service use the traits and models in the root of `music`.
-- `sonora` connects to `sonora-server` through `protocol`; it never starts an embedded music
-  service. Server-owned entities in `service-runtime` manage providers, playback, queues, lyrics
-  and persistence. The server and its transitive dependencies must not include GPUI, windowing,
-  fonts, icons, rendering or native WebView code.
-  GUI entities mirror presentation data and forward commands. Their constructors must not open
-  databases, create playback engines, restore accounts or start provider tasks.
-- Native browser windows for sign-in and PO tokens belong to the GUI. The server sends browser
-  requests over `protocol` and accepts acknowledged results only from the assigned connection.
-  Browser credentials are excluded from snapshots and logs. Presentation preferences are
-  persisted as data by the server; only the GUI loads themes, resolves fonts and applies effects.
-- Linux MPRIS, Discord, download jobs and audio analysis belong to the server. GUI subscriptions
-  are released on page drop or disconnect. Accepted mutations are never replayed on reconnect.
-  The service never depends on `sonora` or `views`.
-- `music` never depends on `gpui`. `ui` never knows about `music`, `service` or playback. Widgets
+- `state` and `views` see only the traits and models in the root of `music`, never a provider
+  module. Only `sonora/src/main.rs` names a concrete provider.
+- `music` never depends on `gpui`. `ui` never knows about `music`, `state` or playback. Widgets
   that need app state live in `views/src/chrome/`.
 - `music::engine` is the one playback engine and `music::stream` the one progressive download. A
   provider implements `engine::Fetch` and `stream::Body` rather than writing its own. The engine
   applies loudness normalisation, so a provider only reports a track's level through
   `Fetch::loudness`. Spotify is the one exception, because librespot decodes and normalises
   inside its own player.
-- `music::drm` is the only way `service` and `views` reach protected playback. The CDM is never
+- `music::drm` is the only way `state` and `views` reach protected playback. The CDM is never
   shipped in any artefact or package.
 
 ## Rules
@@ -88,9 +73,9 @@ sonora, service-client → protocol
 - **Network work runs on tokio.** Anything touching `MusicApi`, librespot or sockets goes inside
   `Io::global(cx).spawn`, awaited from `cx.spawn` and applied in `this.update` ending with
   `cx.notify()`. Store the returned `Task` in a field and never detach a data load. Network-backed
-  features belong in a `service` entity, not a view. An entity that caches provider data clears on
+  features belong in a `state` entity, not a view. An entity that caches provider data clears on
   `SessionEvent::SignedOut`.
-- **Never drive a player from a view.** Go through `service::Playback`.
+- **Never drive a player from a view.** Go through `state::Playback`.
 - **Assets are picked up from their folder.** Drop an icon into `assets/icons/<pack>/` or a face
   into `assets/fonts/`. Call sites spell `"icons/<name>.svg"` and resolve it with `icons::path` at
   render.
@@ -104,8 +89,7 @@ sonora, service-client → protocol
 
 ```sh
 nix develop                    # or direnv allow
-./run.sh                       # build and supervise server + GUI; Ctrl+C stops both
-# or start sonora-server and sonora separately in two terminals
+cargo run --locked --package sonora
 cargo fmt
 cargo check --workspace
 cargo test --workspace

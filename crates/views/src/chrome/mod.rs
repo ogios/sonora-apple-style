@@ -27,7 +27,7 @@ pub(crate) use toolbar::{Searchable, Toolbar, Tooled};
 use gpui::prelude::*;
 use gpui::{App, Div, Entity, Global, Pixels, Window, div, px};
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-use service::AppSettings;
+use state::AppSettings;
 use ui::{ActiveTheme as _, MIN_CONTENT, Room, eyebrow};
 
 /// The width the content sheet's hairline rim takes, one pixel on either side.

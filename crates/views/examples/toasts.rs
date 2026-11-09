@@ -8,7 +8,7 @@ use gpui::{
 };
 use i18n::t;
 use router::Destination;
-use service::{Outcome, Toast, Toasts};
+use state::{Outcome, Toast, Toasts};
 use ui::{ActiveTheme as _, Button, Look, Rounding, Text, Theme, ThemeKind, eyebrow, heading};
 use views::ToastStack;
 

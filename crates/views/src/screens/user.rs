@@ -3,7 +3,7 @@ use gpui::{
     AnyElement, Context, Entity, Pixels, Render, ScrollHandle, SharedString, Window, div, px,
 };
 use i18n::t;
-use service::{Origin, Playback, Profile};
+use state::{Origin, Playback, Profile};
 use ui::{ActiveTheme as _, Card, Deck, Scrollbar, Scroller, heading, vacant};
 
 use crate::chrome::Chrome;

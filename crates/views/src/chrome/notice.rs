@@ -8,7 +8,7 @@ use gpui::{
 };
 use i18n::t;
 use music::SoundServer;
-use service::{AppSettings, Requirement, Requirements, Sonora, UpdateState, Updates};
+use state::{AppSettings, Requirement, Requirements, Sonora, UpdateState, Updates};
 use ui::{ActiveTheme as _, Button, SMALL_INSET, Text};
 
 const ICON: Pixels = px(18.);

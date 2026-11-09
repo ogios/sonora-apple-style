@@ -3,7 +3,7 @@ use gpui::{AnyElement, Context, DragMoveEvent, Pixels, Point, Render, SharedStri
 use i18n::t;
 use music::WritingSystem;
 use router::{Destination, SettingsPage, navigate};
-use service::{AppSettings, LYRICS_SOURCES};
+use state::{AppSettings, LYRICS_SOURCES};
 use ui::{
     ActiveTheme as _, Button, Ghost, MAX_LYRICS_SCALE, MIN_LYRICS_SCALE, MenuItem, Picker, Switch,
     drop_gap, drop_marker, grip, tabular,

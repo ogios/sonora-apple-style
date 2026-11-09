@@ -105,22 +105,6 @@ impl Spectrum {
         bands
     }
 
-    /// Publishes levels sampled by another process without starting an analyzer or audio device.
-    pub fn publish(&self, left: &[f32], right: &[f32]) {
-        for (lane, values) in [(&self.left, left), (&self.right, right)] {
-            for index in 0..N_BANDS {
-                lane.set(
-                    index,
-                    values
-                        .get(index)
-                        .copied()
-                        .filter(|value| value.is_finite())
-                        .unwrap_or(0.),
-                );
-            }
-        }
-    }
-
     /// Starts the analyzer thread and returns the tap that feeds it. The tap has to be told
     /// the format of what it is fed through `Tap::format` before the first sample, and again
     /// whenever that changes.

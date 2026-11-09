@@ -36,7 +36,7 @@ const ARC_STEPS: usize = 12;
 const WAVE_STEPS: usize = 8;
 
 /// How the spectrum is drawn behind the fullscreen artwork.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum VisualizerStyle {
     None,
     Bars,

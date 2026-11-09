@@ -10,7 +10,7 @@ use gpui::{
 use i18n::{Language, t};
 use music::SignInPrompt;
 use router::{Destination, SettingsPage, SettingsTab, navigate};
-use service::{
+use state::{
     AppSettings, Drm, Equalizer, Io, Outputs, Playback, Scan, Scrobbling, Session, SessionState,
     Sleep, Sonora,
 };
@@ -1289,7 +1289,7 @@ impl Render for SettingsView {
             _ => None,
         };
         let code = match self.session.read(cx).state() {
-            SessionState::Authorizing(Some(SignInPrompt::Code { code, url, .. })) => {
+            SessionState::Authorizing(Some(SignInPrompt::Code { code, url })) => {
                 Some((code.clone(), url.clone()))
             }
             _ => None,

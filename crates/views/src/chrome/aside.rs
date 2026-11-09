@@ -14,7 +14,7 @@ use gpui::{
 use i18n::t;
 use music::{Contributor, Shape, Track, Voice};
 use router::{Destination, LibraryTab, Link as _};
-use service::{
+use state::{
     AppSettings, Lyrics, LyricsState, Network, Playback, PlaybackState, Queue, RomanizationScripts,
     Shelf, SideTab, Sonora, Steered, Whence,
 };
@@ -1432,7 +1432,6 @@ impl Aside {
                 matches!(playback.state(), PlaybackState::Playing),
             ),
         };
-        let seeking = playback.seeking();
         let lyrics = self.lyrics.read(cx);
         let state = lyrics.state().clone();
         let shown = lyrics.current().is_some();
@@ -1516,7 +1515,7 @@ impl Aside {
         if let Some(lines) = &lines {
             let live = active_lyrics_row(lines, position);
             let focus = match self.pinning {
-                Some(row) if Some(row) != live && seeking => Some(row),
+                Some(row) if Some(row) != live => Some(row),
                 _ => {
                     self.pinning = None;
                     live

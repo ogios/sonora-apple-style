@@ -1,6 +1,6 @@
 //! A replica of the activity card Discord shows in a profile for the status Sonora sets, in
 //! Discord's own dark theme, sizes and type. It follows every setting on the page and draws the
-//! status the way `service::discord` would send it for a track from listening history.
+//! status the way `state::discord` would send it for a track from listening history.
 
 use std::cell::Cell;
 use std::time::{Duration, Instant};
@@ -11,7 +11,7 @@ use gpui::{
     rgb, svg,
 };
 use i18n::t;
-use service::DiscordName;
+use state::DiscordName;
 use ui::ActiveTheme as _;
 use ui::{Artwork, tabular};
 

@@ -9,7 +9,7 @@ use gpui::{
     Pixels, Point, Render, Window, canvas, div, point, px, relative,
 };
 use router::{Destination, SettingsPage, navigate};
-use service::{Outcome, Target, Toasts};
+use state::{Outcome, Target, Toasts};
 use ui::{ActiveTheme as _, Toast, ease_out_cubic, paced};
 
 /// The toast width in multiples of the font size.
@@ -55,7 +55,7 @@ pub struct ToastStack {
 
 /// One toast on screen, kept after the toast is dismissed for as long as it takes to leave.
 struct Slot {
-    toast: service::Toast,
+    toast: state::Toast,
     height: Option<Pixels>,
     index: usize,
     /// Whether the toast is fully shown and so takes presses. A toast piled behind the front one
@@ -557,7 +557,7 @@ impl Render for ToastStack {
 }
 
 impl Slot {
-    fn new(toast: service::Toast, now: Instant) -> Self {
+    fn new(toast: state::Toast, now: Instant) -> Self {
         Self {
             toast,
             height: None,

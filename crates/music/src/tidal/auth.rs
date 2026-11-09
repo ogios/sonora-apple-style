@@ -190,16 +190,6 @@ pub(crate) async fn device(http: &reqwest::Client, prompt: &PromptSink) -> Resul
     prompt(SignInPrompt::Code {
         code: device.user_code.clone(),
         url: shown.to_owned(),
-        qr_url: device
-            .verification_uri_complete
-            .as_deref()
-            .filter(|uri| !uri.is_empty())
-            .map(
-                |uri| match uri.starts_with("https://") || uri.starts_with("http://") {
-                    true => uri.to_owned(),
-                    false => format!("https://{uri}"),
-                },
-            ),
     });
     open::that_in_background(match approve.starts_with("http") {
         true => approve,

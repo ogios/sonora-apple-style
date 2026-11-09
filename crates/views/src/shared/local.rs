@@ -1,6 +1,6 @@
 use gpui::{App, ElementId, PathPromptOptions};
 use i18n::t;
-use service::Sonora;
+use state::Sonora;
 use ui::{Button, Vacancy};
 
 pub(crate) fn choose_button(id: impl Into<ElementId>) -> Button {

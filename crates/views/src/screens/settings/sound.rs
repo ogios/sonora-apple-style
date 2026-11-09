@@ -2,7 +2,7 @@ use gpui::prelude::*;
 use gpui::{AnyElement, App, Context, MouseButton, Pixels, SharedString, div, px, svg};
 use i18n::t;
 use router::{Destination, navigate};
-use service::Outputs;
+use state::Outputs;
 use ui::{ActiveTheme as _, Button, Picker, Switch, Text};
 
 use super::{Group, SettingsView, Slot};

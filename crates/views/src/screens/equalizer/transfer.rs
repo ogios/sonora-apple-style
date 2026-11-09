@@ -7,7 +7,7 @@ use gpui::{AnyElement, ClipboardItem, Context, PathPromptOptions, SharedString, 
 use i18n::t;
 use music::equalizer::MAX_FILTERS;
 use music::equalizer::apo::{self, Reason, Refused, Skipped};
-use service::{Outcome, Toast, Toasts, equalizer_profile_label};
+use state::{Outcome, Toast, Toasts, equalizer_profile_label};
 use ui::Button;
 
 use super::rows::invalid_text;

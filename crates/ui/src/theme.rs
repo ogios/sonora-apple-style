@@ -87,7 +87,7 @@ pub struct Look {
 
 /// The built-in neutral palettes. Every other theme is a theme file laid over `Dark`, and the
 /// adaptive theme tints only these.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ThemeKind {
     System,
     Dark,

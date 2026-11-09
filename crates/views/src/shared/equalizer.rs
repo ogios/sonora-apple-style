@@ -4,7 +4,7 @@ use gpui::prelude::*;
 use gpui::{App, Entity, SharedString};
 use i18n::t;
 use music::equalizer::{Curve, Preset};
-use service::{AppSettings, Equalizer, Sound};
+use state::{AppSettings, Equalizer, Sound};
 use ui::{
     ActiveTheme as _, MenuItem, Picker, Popovers, ResponseAxes, ResponsePoint, ResponseSketch,
 };

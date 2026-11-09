@@ -9,7 +9,7 @@ use std::rc::Rc;
 use i18n::t;
 use music::{Album, AlbumDetail, Playlist, ReleaseType, SharedTrack, Track};
 use router::{Destination, navigate};
-use service::{
+use state::{
     AppSettings, Collection, Detail, DownloadsChanged, LibraryEvent, Origin, Playback, Progress,
     Sonora,
 };

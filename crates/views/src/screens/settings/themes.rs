@@ -7,7 +7,7 @@ use gpui::{
     svg,
 };
 use i18n::t;
-use service::ThemeFamily;
+use state::ThemeFamily;
 use ui::{ActiveTheme as _, Look, Menu, MenuItem, OptionCard, Picker, Rail, Theme, ThemeKind};
 
 use super::SettingsView;

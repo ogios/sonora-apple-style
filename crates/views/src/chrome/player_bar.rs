@@ -13,7 +13,7 @@ use gpui::{
 use gpui::{Window, canvas, div, point, px};
 use i18n::t;
 use input::{ToggleFullscreen, ToggleLyrics, ToggleQueue};
-use service::{AppSettings, Playback, PlayerBarLayout, Queue, SideTab, Sonora};
+use state::{AppSettings, Playback, PlayerBarLayout, Queue, SideTab, Sonora};
 use ui::{
     Artwork, Button, ExplicitBadge, HoverFade, InlineLink, InlineLinks, Motion, Motioned as _,
     Popup, Room, Scrollbar, Scrubber, ScrubberState, Springs, Sprung, clock, fade_line, tabular,
@@ -1071,9 +1071,7 @@ impl Render for PlayerBar {
                             .ghost()
                             .small()
                             .label(t!("devices-elsewhere-here"))
-                            .on_click(move |_, _, cx| {
-                                devices.update(cx, |devices, cx| devices.transfer_here(cx))
-                            }),
+                            .on_click(move |_, _, cx| devices.read(cx).transfer_here()),
                     )
             })
         });

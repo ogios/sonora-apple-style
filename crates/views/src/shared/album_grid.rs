@@ -1,7 +1,7 @@
 use gpui::prelude::*;
 use gpui::{AnyElement, App, ElementId, Entity, Pixels, RenderOnce, SharedString, Window, div, px};
 use music::Album;
-use service::Playback;
+use state::Playback;
 use ui::{Card, Reveal};
 
 use crate::shared::cards;

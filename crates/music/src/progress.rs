@@ -17,7 +17,7 @@ static READ: AtomicUsize = AtomicUsize::new(0);
 
 /// A scan in flight. While `walking`, `found` is what the walk has turned up so far and there is
 /// no total to measure against; afterwards it is the total and `read` climbs towards it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Progress {
     pub read: usize,
     pub found: usize,

@@ -26,7 +26,7 @@ use gpui::{
     AnyElement, App, Bounds, BoxShadow, Context, Hsla, Pixels, Render, Rgba, Task, Window, canvas,
     div, point, px,
 };
-use service::Sonora;
+use state::Sonora;
 use ui::{ActiveTheme as _, CoverPalette, Theme};
 
 /// How many blobs make up the field.

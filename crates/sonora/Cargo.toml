@@ -1,6 +1,5 @@
 [package]
 name = "sonora"
-description = "Sonora's desktop GUI"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,7 +7,7 @@ license.workspace = true
 [features]
 # the gpui frame overlay and repaint wash, off in normal builds
 profiler = ["gpui/profiler"]
-bundled-sqlite = ["service/bundled-sqlite"]
+bundled-sqlite = ["state/bundled-sqlite"]
 
 [dependencies]
 anyhow.workspace = true
@@ -18,17 +17,18 @@ futures.workspace = true
 log.workspace = true
 gpui.workspace = true
 gpui_platform.workspace = true
-i18n = { workspace = true, features = ["gpui"] }
+i18n.workspace = true
 icons.workspace = true
-music.workspace = true
-service.workspace = true
-protocol.workspace = true
+music = { workspace = true, features = ["widevine"] }
+state.workspace = true
+storage.workspace = true
 input.workspace = true
 router.workspace = true
 ui.workspace = true
 views.workspace = true
 webview.workspace = true
 reqwest.workspace = true
+rustls.workspace = true
 sha2.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 interprocess.workspace = true
@@ -59,7 +59,7 @@ raw-window-handle.workspace = true
 [target.'cfg(windows)'.dependencies]
 raw-window-handle.workspace = true
 resvg.workspace = true
-service = { workspace = true, features = ["bundled-sqlite"] }
+state = { workspace = true, features = ["bundled-sqlite"] }
 widestring.workspace = true
 windows.workspace = true
 windows-sys = { workspace = true, features = [

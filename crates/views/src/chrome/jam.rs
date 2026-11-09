@@ -1,6 +1,6 @@
 //! The Jam as the app shows it: the question before a shared link is joined, the code a phone
 //! scans to join the one the listener started, and the list of people in the one the listener is
-//! in. All of them are `service::Devices`' to answer; this only draws them.
+//! in. All of them are `state::Devices`' to answer; this only draws them.
 
 use gpui::prelude::*;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -12,7 +12,7 @@ use gpui::{
 use i18n::t;
 use music::connect::{Jam, JamMember};
 use router::{Destination, navigate};
-use service::{Devices, Outcome, Sonora, Toasts};
+use state::{Devices, Outcome, Sonora, Toasts};
 use ui::{
     ActiveTheme as _, Avatar, Button, Dismiss, FORM_CONTEXT, Input, Menu, MenuItem, Modal, Picker,
     Popup, Qr, Submit, Text, Theme, snapped,
@@ -455,7 +455,7 @@ impl Render for JamPeople {
                                     .label(t!("devices-jam-remove"))
                                     .on_click(move |_, _, cx| {
                                         cx.stop_propagation();
-                                        devices.update(cx, |devices, cx| devices.kick(&id, cx))
+                                        devices.read(cx).kick(&id)
                                     }),
                             )
                         }),

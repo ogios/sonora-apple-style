@@ -9,7 +9,7 @@ use gpui::{
 use i18n::t;
 use music::{AccountChoice, SignIn, SignInPrompt};
 use router::{Destination, SettingsPage, navigate};
-use service::{Failure, Scan, SessionState, Sonora};
+use state::{Failure, Scan, SessionState, Sonora};
 use ui::{
     ActiveTheme as _, Avatar, Button, HoverFade, Initials, LEADING, Modal, Radio, Reveal, Skeleton,
     Text, Theme, mix,

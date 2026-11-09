@@ -71,7 +71,7 @@ impl SpotifyProvider {
                 playlist_ownership: true,
                 pins: true,
                 download_gap: playback::DOWNLOAD_GAP,
-                qualities: crate::Qualities::new(playback::QUALITIES),
+                qualities: playback::QUALITIES,
                 ..Capabilities::ALL
             },
         })

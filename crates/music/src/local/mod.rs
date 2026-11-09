@@ -73,7 +73,7 @@ impl LocalProvider {
                 transcode: false,
                 keeps: false,
                 downloads: false,
-                qualities: crate::Qualities::new(&[]),
+                qualities: &[],
                 download_gap: Duration::ZERO,
             },
         })

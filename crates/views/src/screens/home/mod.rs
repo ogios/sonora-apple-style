@@ -9,7 +9,7 @@ use gpui::{
 };
 use i18n::t;
 use music::GenreItem;
-use service::{Home, Network, Playback, SessionState, Sonora};
+use state::{Home, Network, Playback, SessionState, Sonora};
 use ui::{ActiveTheme as _, Lazy, Mode, Popup, Scrollbar, Scroller};
 
 use crate::shared::cells;

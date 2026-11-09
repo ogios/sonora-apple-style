@@ -7,7 +7,7 @@ use std::time::Duration;
 use gpui::prelude::*;
 use gpui::{AnyElement, Context, Div, Pixels, Window, div};
 use music::{LyricsLine, LyricsWord, RomanizedText, Voice, WritingSystem};
-use service::RomanizationScripts;
+use state::RomanizationScripts;
 use ui::{ActiveTheme as _, Theme};
 
 use crate::chrome::{VerseLook, verse, verse_sizes};

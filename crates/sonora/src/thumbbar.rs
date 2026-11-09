@@ -3,7 +3,7 @@
 //! Hovering Sonora's taskbar button opens a thumbnail of the window, and this
 //! puts previous, play/pause and next underneath it, so playback can be driven
 //! without raising the window. They are the same three commands the tray menu
-//! carries and they reach [`service::Playback`] the same way, through an
+//! carries and they reach [`state::Playback`] the same way, through an
 //! unbounded channel the window procedure writes to.
 //!
 //! Two Windows rules shape the module. The buttons cannot be added until the
@@ -18,7 +18,7 @@ use std::rc::Rc;
 
 use gpui::{App, AppContext as _, Context, Entity, Global, Subscription, Task, WindowId};
 use i18n::t;
-use service::{PlaybackState, Sonora};
+use state::{PlaybackState, Sonora};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Gdi::{

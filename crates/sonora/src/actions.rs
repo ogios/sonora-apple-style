@@ -6,7 +6,7 @@ use input::{
     TogglePlayback, ToggleRepeat, ToggleShuffle, Undo, ZoomWindow,
 };
 use router::Destination;
-use service::{AppSettings, Equalizer, Shelf, Sonora};
+use state::{AppSettings, Equalizer, Shelf, Sonora};
 use ui::{ActiveTheme as _, Copy, Cut, Look, Paste, SelectAll, Theme};
 
 /// How far one font size shortcut moves the size, the same step as the buttons in Settings.

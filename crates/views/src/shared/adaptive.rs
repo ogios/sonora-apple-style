@@ -1,5 +1,5 @@
 use gpui::{App, Context, Entity, Task};
-use service::{AppSettings, Playback, Queue, Reloaded, Sonora};
+use state::{AppSettings, Playback, Queue, Reloaded, Sonora};
 use ui::{ActiveTheme as _, CoverPalette, Look, Theme, ThemeKind};
 
 /// Drives the theme's tint from the playing track's cover, and keeps the next

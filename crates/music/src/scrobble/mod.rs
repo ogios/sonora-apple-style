@@ -75,7 +75,7 @@ pub enum Link {
 
 /// What the settings screen collected for a `Link`. A service refuses a variant it did not ask
 /// for.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub enum Secret {
     None,
     Keys { key: String, secret: String },

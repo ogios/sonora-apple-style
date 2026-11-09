@@ -14,7 +14,7 @@ use crate::chrome::{Chrome, SidebarRight};
 use i18n::t;
 use input::Refresh;
 use router::Navigation;
-use service::{AppSettings, SideTab, Sonora};
+use state::{AppSettings, SideTab, Sonora};
 
 const SYSTEM_ZOOMS: bool = cfg!(target_os = "windows");
 

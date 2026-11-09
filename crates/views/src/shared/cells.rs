@@ -10,7 +10,7 @@ use gpui::{
 use i18n::t;
 use music::{ArtistRef, Contributor};
 use router::{Destination, Link as _, navigate};
-use service::Playback;
+use state::Playback;
 use ui::{
     ActiveTheme as _, Artwork, Avatar, Cell, ExplicitBadge, InlineLink, InlineLinks, ROW_GROUP,
     Theme, Type, clock, fade_line, tabular,

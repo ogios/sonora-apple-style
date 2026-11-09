@@ -4,7 +4,7 @@ use gpui::{
     WeakEntity, Window, div, px,
 };
 use i18n::t;
-use service::{AppSettings, GenreDetails, Playback, Sonora};
+use state::{AppSettings, GenreDetails, Playback, Sonora};
 use ui::{ActiveTheme as _, Mode, Popovers, Reveal, Scrollbar, Scroller, Skeleton, Text, vacant};
 
 use crate::chrome::{Chrome, Toolbar, Tooled, tools};

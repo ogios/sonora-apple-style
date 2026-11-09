@@ -12,7 +12,7 @@ use gpui::{Window, canvas, deferred, div, phi, px, relative};
 use i18n::t;
 use input::{ToggleFullscreen, ToggleWindowFullscreen, WORKSPACE_CONTEXT};
 use router::{Destination, navigate};
-use service::{
+use state::{
     AppSettings, Cover, FullscreenControlsAutohide, Playback, PlaybackState, Queue, SideTab, Sonora,
 };
 use ui::{
@@ -137,7 +137,6 @@ pub struct FullscreenView {
     rest: Option<Task<()>>,
     focus: FocusHandle,
     visualizer: VisualizerDrive,
-    spectrum_watch: Option<Task<()>>,
     root_bounds: Rc<Cell<Bounds<Pixels>>>,
     meta_bounds: Rc<Cell<Bounds<Pixels>>>,
     /// How tall the dock's controls stand at full size, measured as they are laid out, which
@@ -201,7 +200,6 @@ impl FullscreenView {
             rest: None,
             focus: cx.focus_handle(),
             visualizer: VisualizerDrive::default(),
-            spectrum_watch: None,
             root_bounds: Rc::new(Cell::new(Bounds::default())),
             meta_bounds: Rc::new(Cell::new(Bounds::default())),
             dock_high: Rc::new(Cell::new(Pixels::ZERO)),
@@ -1390,14 +1388,6 @@ impl Render for FullscreenView {
         let room_for_bars = self.panel.is_none() || (split && ui::liquid(cx));
         let visualizer_on =
             room_for_bars && style.shown() && self.playback.read(cx).steered(cx).is_none();
-        if visualizer_on != self.spectrum_watch.is_some() {
-            self.spectrum_watch = visualizer_on.then(|| {
-                Sonora::global(cx)
-                    .signal
-                    .clone()
-                    .update(cx, |signal, cx| signal.watch_visualizer(cx))
-            });
-        }
         match visualizer_on
             .then(|| self.playback.read(cx).spectrum(cx))
             .flatten()

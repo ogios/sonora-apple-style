@@ -18,7 +18,7 @@ use gpui::{
 use i18n::t;
 use music::{Shape, Track};
 use router::{Destination, LibraryTab, navigate};
-use service::{
+use state::{
     Addition, AppSettings, DownloadsChanged, Library, LibraryPart, LibraryState, Network, Origin,
     Playback, Scan, Shelf, Sonora,
 };

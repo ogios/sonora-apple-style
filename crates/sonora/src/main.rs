@@ -22,9 +22,10 @@ use gpui::{
     App, AppContext as _, Bounds, Pixels, QuitMode, Size, TitlebarOptions, WindowBounds,
     WindowOptions, px, size,
 };
+use music::LyricsProvider;
 use music::link::Linked;
 use router::{Destination, Screen};
-use service::{Opened, Outcome, Sonora, Toasts};
+use state::{Opened, Outcome, Sonora, Toasts};
 use ui::ActiveTheme as _;
 use ui::ThemeKind;
 use views::Root;
@@ -64,23 +65,18 @@ fn main() {
         single::Instance::Running => return,
         single::Instance::Failed => exit(1),
     }
-    let io = match service::Io::new() {
+    // Two rustls backends are compiled in: librespot, oauth2 and ytmusic still ask for ring,
+    // while reqwest 0.13 and opensubsonic ask for aws-lc-rs. rustls refuses to guess between
+    // them, so one is picked here. A second install only means another crate got there first.
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .ok();
+
+    let io = match state::Io::new() {
         Ok(io) => io,
         Err(error) => {
             eprintln!("sonora: cannot start runtime: {error:#}");
             return;
-        }
-    };
-
-    let (connection, snapshot) = match io.handle().block_on(async {
-        let connection = protocol::Client::connect().await?;
-        let snapshot = connection.subscribe().await?;
-        Ok::<_, anyhow::Error>((connection, snapshot))
-    }) {
-        Ok(connected) => connected,
-        Err(error) => {
-            eprintln!("sonora: cannot connect to sonora-server: {error:#}");
-            exit(1);
         }
     };
 
@@ -98,15 +94,40 @@ fn main() {
             log::error!("sonora: cannot load bundled fonts: {error:#}");
         }
 
-        if let Err(error) = service::client::start(io, connection, snapshot, cx) {
-            log::error!("sonora: cannot initialize service client: {error:#}");
-            cx.quit();
-            return;
-        }
+        let database = storage::Database::standard();
+        let providers: Vec<Arc<dyn music::MusicProvider>> = vec![
+            Arc::new(music::spotify::SpotifyProvider::from_env()),
+            Arc::new(music::apple::AppleProvider::new()),
+            Arc::new(music::youtube::YouTubeProvider::new()),
+            Arc::new(music::subsonic::SubsonicProvider::new()),
+            Arc::new(music::deezer::DeezerProvider::new()),
+            Arc::new(music::tidal::TidalProvider::new()),
+            Arc::new(music::netease::NetEaseProvider::new()),
+        ];
+        let local_provider: Arc<dyn music::MusicProvider> =
+            Arc::new(music::local::LocalProvider::new(
+                dirs::cache_dir()
+                    .unwrap_or_else(std::env::temp_dir)
+                    .join("sonora"),
+                database.clone(),
+                storage::Cache::standard(),
+            ));
+        let lyrics: Vec<Arc<dyn LyricsProvider>> = vec![
+            Arc::new(music::local::LocalLyrics),
+            Arc::new(music::subsonic::SubsonicLyrics::new()),
+            Arc::new(music::spotify::SpotifyLyrics::from_env()),
+            Arc::new(music::youtube::YouTubeLyrics::new()),
+            Arc::new(music::binimum::Binimum::new()),
+            Arc::new(music::musixmatch::Musixmatch::new()),
+            Arc::new(music::lrclib::LrcLib::new()),
+            Arc::new(music::kugou::Kugou::new()),
+            Arc::new(music::netease::NetEase::new()),
+        ];
+        state::init(cx, io, database, providers, local_provider, lyrics);
         #[cfg(target_os = "windows")]
-        service::install_rounded_window_hook(set_corner_preference, cx);
+        state::install_rounded_window_hook(set_corner_preference, cx);
         #[cfg(target_os = "macos")]
-        service::install_rounded_window_hook(set_toolbar_style, cx);
+        state::install_rounded_window_hook(set_toolbar_style, cx);
         let startup = Sonora::global(cx).settings.read(cx).startup().to_owned();
         let start = Screen::from_id(&startup)
             .unwrap_or(Screen::Home)
@@ -152,6 +173,8 @@ fn main() {
         memory::watch(cx);
 
         open_window(cx);
+        let session = Sonora::global(cx).session.clone();
+        session.update(cx, |session, cx| session.restore(cx));
 
         // A cold launch with files or links goes through the same batch a hot hand-off uses, now
         // that state exists to open them into. A link waits there for its provider to sign in.
@@ -337,7 +360,7 @@ fn open_window(cx: &mut App) {
         playback.clone(),
         queue.clone(),
     );
-    let (placement, display_id) = service::window_placement(LEAST_SIZE, cx)
+    let (placement, display_id) = state::window_placement(LEAST_SIZE, cx)
         .map(|(placement, display_id)| (placement, Some(display_id)))
         .unwrap_or_else(|| {
             (
@@ -384,15 +407,13 @@ fn open_window(cx: &mut App) {
                 window,
                 Sonora::global(cx).settings.read(cx).window_rounding(),
             );
-            #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
             let handle = platform_handle(window);
-            #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
-            service::attach_remote(handle, cx);
+            state::attach_remote(handle, cx);
             #[cfg(windows)]
             if let Some(handle) = handle {
                 thumbbar::install(window.window_handle().window_id(), handle, cx);
             }
-            service::remember_window(window, cx);
+            state::remember_window(window, cx);
             cx.new(|cx| Root::new(session, library, playback, queue, window, cx))
         },
     )
@@ -477,7 +498,6 @@ fn set_toolbar_style(window: &gpui::Window, rounding: ui::Rounding) {
 }
 
 #[cfg(target_os = "windows")]
-#[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
 fn platform_handle(window: &gpui::Window) -> Option<*mut std::ffi::c_void> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
@@ -593,7 +613,7 @@ unsafe extern "system" fn work_area(
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(not(target_os = "windows"))]
 fn platform_handle(_window: &gpui::Window) -> Option<*mut std::ffi::c_void> {
     None
 }

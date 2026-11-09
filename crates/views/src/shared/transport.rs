@@ -3,7 +3,7 @@ use std::time::Duration;
 use gpui::prelude::*;
 use gpui::{App, Entity, SharedString, div};
 use i18n::t;
-use service::{Playback, Repeat, Sonora, Steered};
+use state::{Playback, Repeat, Sonora, Steered};
 use ui::{ActiveTheme as _, Button, Text};
 
 use crate::shared::ambient;
